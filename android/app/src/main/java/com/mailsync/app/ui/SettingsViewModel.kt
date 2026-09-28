@@ -86,11 +86,10 @@ class SettingsViewModel(
                         val status = snapshot.child("status").getValue(String::class.java)
                         val name = snapshot.child("name").getValue(String::class.java)
                         val lastOtp = snapshot.child("lastOtpCapturedTime").getValue(String::class.java)
-                        val lastSeenStr = snapshot.child("lastSeen").getValue(String::class.java)
+                        val lastSeen = snapshot.child("lastSeen").getValue(Long::class.java) ?: 0L
                         
                         var finalStatus = status
-                        if (lastSeenStr != null) {
-                            val lastSeen = lastSeenStr.toLongOrNull() ?: 0L
+                        if (lastSeen > 0L) {
                             if (System.currentTimeMillis() - lastSeen > 5 * 60 * 1000L) {
                                 finalStatus = "inactive"
                             }
