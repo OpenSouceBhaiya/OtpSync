@@ -86,10 +86,19 @@ class SettingsViewModel(
                         val status = snapshot.child("status").getValue(String::class.java)
                         val name = snapshot.child("name").getValue(String::class.java)
                         val lastOtp = snapshot.child("lastOtpCapturedTime").getValue(String::class.java)
+                        val lastSeenStr = snapshot.child("lastSeen").getValue(String::class.java)
+                        
+                        var finalStatus = status
+                        if (lastSeenStr != null) {
+                            val lastSeen = lastSeenStr.toLongOrNull() ?: 0L
+                            if (System.currentTimeMillis() - lastSeen > 5 * 60 * 1000L) {
+                                finalStatus = "inactive"
+                            }
+                        }
                         
                         var changed = false
-                        if (status != null) {
-                            settingsManager.updateLinkedDeviceStatus(uuid, status)
+                        if (finalStatus != null) {
+                            settingsManager.updateLinkedDeviceStatus(uuid, finalStatus)
                             changed = true
                         }
                         if (name != null) {
@@ -147,17 +156,27 @@ class SettingsViewModel(
                             checkForegroundServiceStatePublic()
                         } else {
                             val status = snapshot.child("status").getValue(String::class.java)
-                            if (status == "terminated") {
+                            val name = snapshot.child("name").getValue(String::class.java)
+                            val lastOtp = snapshot.child("lastOtpCapturedTime").getValue(String::class.java)
+                            val lastSeenStr = snapshot.child("lastSeen").getValue(String::class.java)
+                            
+                            var finalStatus = status
+                            if (lastSeenStr != null) {
+                                val lastSeen = lastSeenStr.toLongOrNull() ?: 0L
+                                if (System.currentTimeMillis() - lastSeen > 5 * 60 * 1000L) {
+                                    finalStatus = "inactive"
+                                }
+                            }
+                            
+                            if (finalStatus == "terminated") {
                                 settingsManager.updateLinkedDeviceStatus(uuid, "terminated")
                                 refreshLinkedDevices()
                                 return
                             }
-                            val name = snapshot.child("name").getValue(String::class.java)
-                            val lastOtp = snapshot.child("lastOtpCapturedTime").getValue(String::class.java)
                             
                             var changed = false
-                            if (status != null) {
-                                settingsManager.updateLinkedDeviceStatus(uuid, status)
+                            if (finalStatus != null) {
+                                settingsManager.updateLinkedDeviceStatus(uuid, finalStatus)
                                 changed = true
                             }
                             if (name != null) {

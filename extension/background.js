@@ -7,6 +7,12 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
     try {
         const data = await chrome.storage.local.get(['linked', 'uuid', 'aesKey']);
         if (!data.linked || !data.uuid || !data.aesKey) return;
+        // Send Heartbeat to Firebase so Android knows the device is alive
+        fetch(`https://mailsync-osb-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${data.uuid}/lastSeen.json`, {
+            method: 'PUT',
+            body: Date.now().toString()
+        }).catch(() => {});
+
         const hasDoc = await chrome.offscreen.hasDocument().catch(() => false);
         if (!hasDoc) {
             await startListening(data.uuid, data.aesKey, true);

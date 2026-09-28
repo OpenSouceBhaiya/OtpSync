@@ -196,10 +196,10 @@ fun DevicesScreen(
                                     modifier = Modifier
                                         .size(52.dp)
                                         .clip(RoundedCornerShape(14.dp))
-                                        .background(if (device.status == "terminated") Color(0xFFFF4A4A).copy(alpha = 0.1f) else Color(0xFF00FFA3).copy(alpha = 0.1f)),
+                                        .background(if (device.status == "terminated") Color(0xFFFF4A4A).copy(alpha = 0.1f) else if (device.status == "inactive") Color(0xFFFFB020).copy(alpha = 0.1f) else Color(0xFF00FFA3).copy(alpha = 0.1f)),
                                     contentAlignment = Alignment.Center
                                 ) {
-                                    Icon(Icons.Default.Monitor, contentDescription = null, tint = if (device.status == "terminated") Color(0xFFFF4A4A) else Color(0xFF00FFA3))
+                                    Icon(Icons.Default.Monitor, contentDescription = null, tint = if (device.status == "terminated") Color(0xFFFF4A4A) else if (device.status == "inactive") Color(0xFFFFB020) else Color(0xFF00FFA3))
                                 }
                                 Spacer(modifier = Modifier.width(20.dp))
                                 Column(modifier = Modifier.weight(1f)) {
@@ -223,6 +223,12 @@ fun DevicesScreen(
                                             Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(Color(0xFFFF4A4A)))
                                             Spacer(modifier = Modifier.width(6.dp))
                                             Text("Terminated", color = Color(0xFFFF4A4A), fontSize = 12.sp)
+                                        }
+                                    } else if (device.status == "inactive") {
+                                        Row(verticalAlignment = Alignment.CenterVertically) {
+                                            Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(Color(0xFFFFB020)))
+                                            Spacer(modifier = Modifier.width(6.dp))
+                                            Text("Inactive (Offline)", color = Color(0xFFFFB020), fontSize = 12.sp)
                                         }
                                     } else {
                                         Row(verticalAlignment = Alignment.CenterVertically) {

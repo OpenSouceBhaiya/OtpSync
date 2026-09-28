@@ -16,7 +16,7 @@ object OtpExtractor {
         "sign in code", "enter this code", "enter the code", "use this code", 
         "code to sign in", "confirmation code", "auth code", "authentication code", 
         "code is", "your pin", "passcode", "pin", "the code", "temporary password",
-        "verify your email", "registration", "verify"
+        "verify your email", "registration", "verify", "aotp", "secret code"
     )
     
     // Footer boundaries for deprioritization
