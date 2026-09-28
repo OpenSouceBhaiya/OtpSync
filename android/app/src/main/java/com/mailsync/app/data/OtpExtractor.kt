@@ -15,13 +15,14 @@ object OtpExtractor {
         "your code", "security code", "access code", "login code", "sign-in code", 
         "sign in code", "enter this code", "enter the code", "use this code", 
         "code to sign in", "confirmation code", "auth code", "authentication code", 
-        "code is", "your pin", "passcode", "pin", "the code", "temporary password"
+        "code is", "your pin", "passcode", "pin", "the code", "temporary password",
+        "verify your email", "registration", "verify"
     )
     
     // Footer boundaries for deprioritization
     private val footerBoundaries = listOf(
         "terms of", "privacy policy", "unsubscribe", "this message was sent to", 
-        "the team", "all rights reserved", "©"
+        "the team", "all rights reserved", "©", "thanks,", "thank you,", "regards,", "sincerely,"
     )
     
     // Preceding metadata labels for exclusion
@@ -90,6 +91,9 @@ object OtpExtractor {
             // Only collapse space or dash if it's flanked by digits
             normalized = normalized.replace(Regex("(?<=\\d)[ -]+(?=\\d)"), "")
         }
+        
+        // Strip hyphens between words to allow "one-time" to match "one time password"
+        normalized = normalized.replace("-", " ")
         
         // Final pass: Strip invisible unicode characters just in case
         normalized = normalized.replace(Regex("[\\u200B\\u200C\\u200D\\uFEFF]"), "")
@@ -280,7 +284,7 @@ object OtpExtractor {
             val unit = match.groupValues[2].lowercase()
             
             // Validation: Cap unreasonable expiry times
-            if ((unit.startsWith("min") || unit == "m") && amount > 60) continue
+            if ((unit.startsWith("min") || unit == "m") && amount > 20) continue
             if ((unit.startsWith("hour") || unit.startsWith("hr") || unit == "h") && amount > 24) continue
             if ((unit.startsWith("sec") || unit == "s") && amount > 3600) continue
 

@@ -172,7 +172,8 @@ class FirebaseManager {
         val parameterSpec = GCMParameterSpec(128, iv)
         cipher.init(Cipher.ENCRYPT_MODE, secretKey, parameterSpec)
 
-        val payload = "$otpCode|$sender|$timestamp|$expiresAt"
+        val safeSender = sender.replace("|", "-")
+        val payload = "$otpCode|$safeSender|$timestamp|$expiresAt"
         val cipherText = cipher.doFinal(payload.toByteArray(Charsets.UTF_8))
 
         return mapOf(

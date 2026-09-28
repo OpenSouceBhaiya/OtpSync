@@ -38,7 +38,22 @@ class OtpNotificationListenerService : NotificationListenerService() {
         val title = extras.getString(Notification.EXTRA_TITLE) ?: ""
         val text = extras.getCharSequence(Notification.EXTRA_TEXT)?.toString() ?: ""
         val bigText = extras.getCharSequence(Notification.EXTRA_BIG_TEXT)?.toString() ?: ""
+        
+        var messagesText = ""
+        val messages = extras.getParcelableArray(Notification.EXTRA_MESSAGES)
+        if (messages != null) {
+            for (msg in messages) {
+                if (msg is android.os.Bundle) {
+                    val msgText = msg.getCharSequence("text")?.toString()
+                    if (!msgText.isNullOrBlank()) {
+                        messagesText += "$msgText\n"
+                    }
+                }
+            }
+        }
+
         val fullText = when {
+            messagesText.isNotBlank() -> messagesText.trim()
             bigText.isBlank() || bigText == text -> text
             text.isBlank() -> bigText
             bigText.startsWith(text) -> bigText

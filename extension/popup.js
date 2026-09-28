@@ -207,20 +207,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         const fresh = (data.globalErrors || []).filter(e => Date.now() - e.time < TEN_MIN);
         chrome.storage.local.set({ globalErrors: fresh }, () => updateGlobalErrors());
     });
-    // Check for Extension Updates
-    try {
-        const res = await fetch(`https://raw.githubusercontent.com/OpenSouceBhaiya/OtpSync/main/version.json?_t=${Date.now()}`);
-        const data = await res.json();
-        const currentVersion = chrome.runtime.getManifest().version;
-        // Basic version comparison assuming x.y format. E.g. "1.1" > "1.0"
-        if (data.extensionVersion && parseFloat(data.extensionVersion) > parseFloat(currentVersion)) {
-            hideAll();
-            document.getElementById('update-view').classList.remove('hidden');
-            return; // Stop initialization, force user to update
-        }
-    } catch (e) {
-        // Silent failure if network is unavailable or blocked
-    }
 
     // Wire up wave emoji button
     const waveBtn = document.getElementById('wave-btn');

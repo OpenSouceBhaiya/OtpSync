@@ -40,7 +40,7 @@
                 } catch (e) { console.warn("OTPSync legacy copy failed:", e); }
             }
             
-            showToast(request.otp, request.sender, request.isCarryForward);
+            showToast(request.otp, request.sender);
             sendResponse({success: true});
             return true;
         }
@@ -49,7 +49,7 @@
 }
 
 // ─── Toast Functions (outside guard — accessible to pendingToast check above) ─
-function showToast(otp, sender, isCarryForward = false) {
+function showToast(otp, sender) {
     let existing = document.getElementById('otpsync-toast');
     if (existing) {
         existing.remove();
@@ -80,19 +80,10 @@ function showToast(otp, sender, isCarryForward = false) {
         }
     });
 
-    if (isCarryForward) {
-        toast.style.transition = 'none';
+    // Use setTimeout to guarantee transition fires even if tab is slightly throttled/unfocused
+    setTimeout(() => {
         toast.classList.add('show');
-        requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-                toast.style.transition = '';
-            });
-        });
-    } else {
-        setTimeout(() => {
-            toast.classList.add('show');
-        }, 50);
-    }
+    }, 50);
     
     setTimeout(() => {
         snapThanos(toast);

@@ -271,10 +271,8 @@ async function startListening(uuid, aesKeyBase64, force = false) {
             const isError = statusData.status === 'error_no_accounts' || statusData.syncEnabled === false || statusData.status === 'paused';
             setToolbarIcon(isError ? 'error' : 'active');
 
-            if (statusData.accountName !== undefined) {
+            if (statusData.accountName) {
                 chrome.storage.local.set({ userName: statusData.accountName });
-            } else {
-                chrome.storage.local.set({ userName: null });
             }
             chrome.runtime.sendMessage({ action: "status_update", statusData }).catch(() => {});
 
@@ -356,6 +354,31 @@ function reportGlobalError(msg) {
     });
 }
 
+// ─── Carry Forward Toast on Tab Switch ────────────────────────────────────────
+chrome.tabs.onActivated.addListener((activeInfo) => {
+    chrome.storage.local.get(['pendingToast'], (data) => {
+        if (data.pendingToast && data.pendingToast.showUntil > Date.now()) {
+            chrome.tabs.sendMessage(activeInfo.tabId, {
+                action: "show_toast_and_copy",
+                otp: data.pendingToast.otp,
+                sender: data.pendingToast.sender,
+                isCarryForward: true
+            }).catch(async () => {
+                try {
+                    await chrome.scripting.insertCSS({ target: { tabId: activeInfo.tabId }, files: ["content.css"] });
+                    await chrome.scripting.executeScript({ target: { tabId: activeInfo.tabId }, files: ["content.js"] });
+                    await new Promise(resolve => setTimeout(resolve, 200));
+                    await chrome.tabs.sendMessage(activeInfo.tabId, {
+                        action: "show_toast_and_copy",
+                        otp: data.pendingToast.otp,
+                        sender: data.pendingToast.sender,
+                        isCarryForward: true
+                    });
+                } catch (e) { /* ignore restricted pages */ }
+            });
+        }
+    });
+});
 // ─── Decrypt & Deliver OTP ───────────────────────────────────────────────────
 async function handleEncryptedOtp(ivBase64, dataBase64, cryptoKey) {
     try {
