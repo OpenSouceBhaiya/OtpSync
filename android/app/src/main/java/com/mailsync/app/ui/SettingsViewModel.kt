@@ -399,11 +399,12 @@ class SettingsViewModel(
     
     fun setManualUserName(name: String) {
         settingsManager.setManualUserName(name)
+        updateFirebaseAccountName()
     }
 
     private fun updateFirebaseAccountName() {
         val firstAccount = _accounts.value.firstOrNull()
-        val accountName = firstAccount?.let { getAccountName(it) }
+        val accountName = getManualUserName() ?: firstAccount?.let { getAccountName(it) }
         val uuids = settingsManager.getLinkedDevicesMetadata().map { it.id }
         if (uuids.isNotEmpty()) {
             viewModelScope.launch {

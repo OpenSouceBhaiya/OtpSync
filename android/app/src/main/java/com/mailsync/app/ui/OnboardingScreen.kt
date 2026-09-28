@@ -292,7 +292,18 @@ fun OnboardingScreen(
                                 }
                             }
                         )
-                        
+                        val smsPermissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+                            contract = androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions(),
+                            onResult = { permissions ->
+                                // Optional logic here if needed when granted
+                            }
+                        )
+                        var isSmsPermissionGranted by androidx.compose.runtime.remember { 
+                            androidx.compose.runtime.mutableStateOf(
+                                androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.RECEIVE_SMS) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                            )
+                        }
+
                         // Recheck permissions when returning to app
                         val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
                         androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
@@ -300,6 +311,7 @@ fun OnboardingScreen(
                                 if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
                                     canDrawOverlays = android.provider.Settings.canDrawOverlays(context)
                                     isNotificationAccessGranted = androidx.core.app.NotificationManagerCompat.getEnabledListenerPackages(context).contains(context.packageName)
+                                    isSmsPermissionGranted = androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.RECEIVE_SMS) == android.content.pm.PackageManager.PERMISSION_GRANTED
                                     // Just update the states to reflect OS reality
                                     if (!isNotificationAccessGranted && settingsViewModel.isSyncEnabled.value) {
                                         settingsViewModel.setSyncEnabled(false)
@@ -317,6 +329,7 @@ fun OnboardingScreen(
                         
                         // Instant Sync Toggle
                         val isSyncEnabled by settingsViewModel.isSyncEnabled.collectAsState()
+
                         
                         Row(
                             modifier = Modifier
@@ -406,14 +419,42 @@ fun OnboardingScreen(
                             )
                         }
 
+                        Spacer(modifier = Modifier.height(16.dp))
+
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth(0.9f)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(MaterialTheme.colorScheme.surfaceVariant)
+                                .padding(16.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Column(modifier = Modifier.weight(1f, fill = false)) {
+                                Text("Advanced SMS Extraction", fontWeight = FontWeight.Bold, color = TextPrimary, fontSize = 16.sp)
+                                Text("Crucial for intercepting banking and service OTPs. We never read personal texts.", color = TextSecondary, fontSize = 12.sp)
+                            }
+                            Spacer(modifier = Modifier.width(4.dp))
+                            CustomToggle(
+                                checked = isSmsPermissionGranted,
+                                onCheckedChange = { isChecked ->
+                                    if (isChecked) {
+                                        smsPermissionLauncher.launch(arrayOf(android.Manifest.permission.RECEIVE_SMS, android.Manifest.permission.READ_SMS))
+                                    } else {
+                                        val intent = Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:${context.packageName}"))
+                                        context.startActivity(intent)
+                                    }
+                                }
+                            )
+                        }
+                        
                         val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
-                        androidx.compose.runtime.LaunchedEffect(isSyncEnabled, canDrawOverlays) {
-                            if (isSyncEnabled && canDrawOverlays) {
+                        androidx.compose.runtime.LaunchedEffect(isSyncEnabled, canDrawOverlays, isSmsPermissionGranted) {
+                            if (isSyncEnabled && canDrawOverlays && isSmsPermissionGranted) {
                                 haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
                             }
                         }
 
-                        androidx.compose.animation.AnimatedVisibility(visible = isSyncEnabled && canDrawOverlays) {
+                        androidx.compose.animation.AnimatedVisibility(visible = isSyncEnabled && canDrawOverlays && isSmsPermissionGranted) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth().padding(top = 16.dp)) {
                                 Icon(Icons.Default.CheckCircle, contentDescription = "Ready", tint = Color(0xFF10B981), modifier = Modifier.size(48.dp))
                                 Spacer(modifier = Modifier.height(8.dp))

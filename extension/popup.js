@@ -102,7 +102,7 @@ function renderOtpHistory() {
     clearOtpHistoryTimers();
     chrome.storage.local.get(['otpHistory'], (data) => {
         const history = (data.otpHistory || []).filter(item => {
-            const exp = item.expiresAt || (item.time + 5 * 60 * 1000);
+            const exp = item.expiresAt || (item.time + 10 * 60 * 1000);
             return Date.now() < exp;
         });
         chrome.storage.local.set({ otpHistory: history });
@@ -123,7 +123,7 @@ function renderOtpHistory() {
 
             // Build timer pill element id so we can update it
             const timerId = `timer-${item.time}`;
-            const expiresAt = item.expiresAt || (item.time + 5 * 60 * 1000);
+            const expiresAt = item.expiresAt || (item.time + 10 * 60 * 1000);
             const initialCountdown = formatCountdown(expiresAt - Date.now());
 
             div.innerHTML = `
@@ -140,7 +140,7 @@ function renderOtpHistory() {
             div.addEventListener('click', () => {
                 navigator.clipboard.writeText(item.otp).catch(() => {});
                 const btn = div.querySelector('.otp-copy-btn');
-                const checkSvg = `<svg class="otp-copy-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#00FFA3" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
+                const checkSvg = `<svg class="otp-copy-icon check" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#00FFA3" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg>`;
                 btn.innerHTML = checkSvg;
                 setTimeout(() => { btn.innerHTML = clipboardSvg; }, 2000);
             });
@@ -152,10 +152,8 @@ function renderOtpHistory() {
                 if (!el) { clearInterval(intervalId); return; }
                 const msLeft = expiresAt - Date.now();
                 if (msLeft <= 0) {
-                    el.textContent = '⏱ Expired';
-                    el.style.color = '#EF4444';
-                    el.style.background = '#EF44441A';
                     clearInterval(intervalId);
+                    renderOtpHistory();
                     return;
                 }
                 const fmt = formatCountdown(msLeft);
@@ -321,10 +319,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         setTimeout(() => checkDeviceStatus(uuid), 2500);
     }
 
-    function applyStatusData(data) {
-        // Update name from device data
-        const nameToShow = data.accountName || null;
-        chrome.storage.local.set({ userName: nameToShow });
+    async function applyStatusData(data) {
+        if (data.accountName) {
+            await chrome.storage.local.set({ userName: data.accountName });
+        }
+        
+        const storageData = await chrome.storage.local.get(['userName']);
+        const nameToShow = data.accountName || storageData.userName || null;
 
         const statusIndicator = document.getElementById('statusIndicator');
         const statusText = document.getElementById('statusText');
@@ -504,4 +505,20 @@ document.addEventListener('DOMContentLoaded', async () => {
             } catch (e) { console.warn("Polling for link failed:", e); }
         }, 1500);
     }
+
+    // ─── Network Status Listener ────────────────────────────────────────────────
+    const offlineOverlay = document.getElementById('offline-overlay');
+    const offlineIndicator = document.getElementById('offline-indicator');
+    function updateNetworkStatus() {
+        if (!navigator.onLine) {
+            if (offlineOverlay) offlineOverlay.classList.remove('hidden');
+            if (offlineIndicator) offlineIndicator.classList.remove('hidden');
+        } else {
+            if (offlineOverlay) offlineOverlay.classList.add('hidden');
+            if (offlineIndicator) offlineIndicator.classList.add('hidden');
+        }
+    }
+    window.addEventListener('online', updateNetworkStatus);
+    window.addEventListener('offline', updateNetworkStatus);
+    updateNetworkStatus();
 });

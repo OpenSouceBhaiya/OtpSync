@@ -133,13 +133,13 @@ object OtpExtractor {
     private fun extractFromText(text: String, receivedTimeMs: Long): ExtractionResult? {
         val normalized = normalizeText(text)
         
-        // STRICT FILTER: Use word boundaries to prevent "pin" matching inside "shopping"
+        // STRICT FILTER RELAXED: User requested ultra-aggressive extraction from ANY format.
+        // We will no longer reject outright. The scoring system below will sort it out.
         val hasOtpKeyword = triggerKeywords.any { 
             Regex("\\b${Regex.escape(it)}\\b", RegexOption.IGNORE_CASE).containsMatchIn(normalized) 
         }
         if (!hasOtpKeyword) {
-            safeLog("OtpExtractor", "Rejected: No OTP keywords found in text.")
-            return null
+            safeLog("OtpExtractor", "Warning: No standard OTP keywords found, but proceeding aggressively.")
         }
         
         val numberRegex = Regex("\\b([0-9]{4,8}|[a-zA-Z0-9]{4,8})\\b")

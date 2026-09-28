@@ -40,7 +40,11 @@ import android.content.Context
 import android.content.ClipboardManager
 import android.content.ClipData
 import android.widget.Toast
-
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.SignalWifiOff
+import androidx.compose.ui.unit.sp
+import androidx.compose.foundation.clickable
 class MainActivity : FragmentActivity() {
 
     // Lazy initialization of our dependencies
@@ -162,8 +166,74 @@ class MainActivity : FragmentActivity() {
                         containerColor = Color(0xFF1E1926)
                     )
                 } else if (isUnlocked) {
-                    AppNavigation(
-                        otpViewModel = otpViewModel,
+                    val context = LocalContext.current
+                    val networkObserver = remember { 
+                        kotlinx.coroutines.flow.callbackFlow {
+                            val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as android.net.ConnectivityManager
+                            val callback = object : android.net.ConnectivityManager.NetworkCallback() {
+                                override fun onAvailable(network: android.net.Network) { trySend(true) }
+                                override fun onLost(network: android.net.Network) { trySend(false) }
+                                override fun onCapabilitiesChanged(network: android.net.Network, networkCapabilities: android.net.NetworkCapabilities) {
+                                    trySend(networkCapabilities.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET))
+                                }
+                            }
+                            val request = android.net.NetworkRequest.Builder().addCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET).build()
+                            connectivityManager.registerNetworkCallback(request, callback)
+                            val active = connectivityManager.activeNetwork
+                            val caps = connectivityManager.getNetworkCapabilities(active)
+                            trySend(caps?.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET) == true)
+                            kotlinx.coroutines.channels.awaitClose { connectivityManager.unregisterNetworkCallback(callback) }
+                        }
+                    }
+                    val isOnline by networkObserver.collectAsState(initial = true)
+                    
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        AppNavigation(
+                            otpViewModel = otpViewModel,
+                            historyViewModel = historyViewModel,
+                            settingsViewModel = settingsViewModel,
+                            currentIntent = intentState
+                        )
+
+                        androidx.compose.animation.AnimatedVisibility(
+                            visible = !isOnline,
+                            enter = androidx.compose.animation.fadeIn(animationSpec = androidx.compose.animation.core.tween(500)),
+                            exit = androidx.compose.animation.fadeOut(animationSpec = androidx.compose.animation.core.tween(800))
+                        ) {
+                            var showBackOnline by remember { mutableStateOf(false) }
+                            LaunchedEffect(isOnline) {
+                                if (isOnline) {
+                                    showBackOnline = true
+                                    kotlinx.coroutines.delay(2000)
+                                    showBackOnline = false
+                                }
+                            }
+                            
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .background(Color(0xE60F0C16)) // Dark translucent background
+                                    .clickable(enabled = false) {}, // Intercept clicks
+                                contentAlignment = Alignment.Center
+                            ) {
+                                if (showBackOnline) {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Icon(Icons.Default.CheckCircle, contentDescription = "Online", tint = Color(0xFF10B981), modifier = Modifier.size(64.dp))
+                                        Spacer(modifier = Modifier.height(16.dp))
+                                        Text("Internet Restored", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 24.sp)
+                                    }
+                                } else {
+                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                        Icon(Icons.Default.SignalWifiOff, contentDescription = "Offline", tint = Color(0xFFEF4444), modifier = Modifier.size(64.dp))
+                                        Spacer(modifier = Modifier.height(16.dp))
+                                        Text("No Internet Connection", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 24.sp)
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Text("OTP Sync requires internet to beam codes.", color = Color.Gray, fontSize = 14.sp)
+                                    }
+                                }
+                            }
+                        }
+                    }
                         historyViewModel = historyViewModel,
                         settingsViewModel = settingsViewModel,
 
