@@ -234,11 +234,6 @@ class MainActivity : FragmentActivity() {
                             }
                         }
                     }
-                        historyViewModel = historyViewModel,
-                        settingsViewModel = settingsViewModel,
-
-                        currentIntent = intentState
-                    )
                 } else {
                     // Lock Screen
                     Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
