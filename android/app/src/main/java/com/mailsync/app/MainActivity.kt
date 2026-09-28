@@ -183,7 +183,7 @@ class MainActivity : FragmentActivity() {
                             val active = connectivityManager.activeNetwork
                             val caps = connectivityManager.getNetworkCapabilities(active)
                             trySend(caps?.hasCapability(android.net.NetworkCapabilities.NET_CAPABILITY_INTERNET) == true)
-                            kotlinx.coroutines.channels.awaitClose { connectivityManager.unregisterNetworkCallback(callback) }
+                            awaitClose { connectivityManager.unregisterNetworkCallback(callback) }
                         }
                     }
                     val isOnline by networkObserver.collectAsState(initial = true)
