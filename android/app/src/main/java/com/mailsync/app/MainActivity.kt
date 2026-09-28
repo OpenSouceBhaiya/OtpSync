@@ -45,6 +45,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.SignalWifiOff
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.clickable
+import kotlinx.coroutines.channels.awaitClose
 class MainActivity : FragmentActivity() {
 
     // Lazy initialization of our dependencies
