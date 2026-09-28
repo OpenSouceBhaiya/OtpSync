@@ -55,6 +55,7 @@ fun SettingsScreen(viewModel: SettingsViewModel, highlight: String? = null, onNa
 
     var isNotificationAccessGranted = NotificationManagerCompat.getEnabledListenerPackages(context).contains(context.packageName)
     var canDrawOverlays = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) android.provider.Settings.canDrawOverlays(context) else true
+    var isSmsPermissionGranted = androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.RECEIVE_SMS) == android.content.pm.PackageManager.PERMISSION_GRANTED
 
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
     var lifecycleTrigger by remember { mutableStateOf(0) }
@@ -80,6 +81,14 @@ fun SettingsScreen(viewModel: SettingsViewModel, highlight: String? = null, onNa
     val _trigger = lifecycleTrigger
     isNotificationAccessGranted = NotificationManagerCompat.getEnabledListenerPackages(context).contains(context.packageName)
     canDrawOverlays = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) android.provider.Settings.canDrawOverlays(context) else true
+    isSmsPermissionGranted = androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.RECEIVE_SMS) == android.content.pm.PackageManager.PERMISSION_GRANTED
+
+    val smsPermissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
+        contract = androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions(),
+        onResult = { _ ->
+            isSmsPermissionGranted = androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.RECEIVE_SMS) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        }
+    )
 
     val notificationPermissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
         contract = androidx.activity.result.contract.ActivityResultContracts.RequestPermission(),
@@ -175,7 +184,7 @@ fun SettingsScreen(viewModel: SettingsViewModel, highlight: String? = null, onNa
             var canDrawOverlays = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) Settings.canDrawOverlays(context) else true
             
             val permissionsHighlight = if (activeHighlight != null) highlightAlpha else 0f
-            val allPermissionsGranted = isNotificationAccessGranted && canDrawOverlays
+            val allPermissionsGranted = isNotificationAccessGranted && canDrawOverlays && isSmsPermissionGranted
             
             // Permissions Card (Merged Instant Sync & Clipboard)
             Column(
@@ -230,6 +239,41 @@ fun SettingsScreen(viewModel: SettingsViewModel, highlight: String? = null, onNa
                     Text("Notification Access", color = TextPrimary, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
                     Switch(
                         checked = isNotificationAccessGranted,
+                        onCheckedChange = null,
+                        colors = SwitchDefaults.colors(
+                            checkedThumbColor = Color.White,
+                            checkedTrackColor = MaterialTheme.colorScheme.primary,
+                            uncheckedThumbColor = Color.Gray,
+                            uncheckedTrackColor = Color.DarkGray
+                        ),
+                        modifier = Modifier.scale(0.8f)
+                    )
+                }
+                
+                if (!isNotificationAccessGranted && android.os.Build.VERSION.SDK_INT >= 33) {
+                    Text(
+                        "Note: If the option is greyed out, go to Android Settings -> Apps -> MailSync. Tap the 3 dots in the top right and select 'Allow restricted settings'.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = Color(0xFFFFB020),
+                        modifier = Modifier.padding(bottom = 8.dp)
+                    )
+                }
+                
+                // SMS Permission
+                Row(
+                    modifier = Modifier.fillMaxWidth().clickable {
+                        if (!isSmsPermissionGranted) {
+                            smsPermissionLauncher.launch(arrayOf(android.Manifest.permission.RECEIVE_SMS, android.Manifest.permission.READ_SMS))
+                        } else {
+                            val intent = Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:${context.packageName}"))
+                            context.startActivity(intent)
+                        }
+                    }.padding(vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("SMS OTP Extraction (Reliable)", color = TextPrimary, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                    Switch(
+                        checked = isSmsPermissionGranted,
                         onCheckedChange = null,
                         colors = SwitchDefaults.colors(
                             checkedThumbColor = Color.White,

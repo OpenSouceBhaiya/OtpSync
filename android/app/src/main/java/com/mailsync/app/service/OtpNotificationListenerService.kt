@@ -64,6 +64,11 @@ class OtpNotificationListenerService : NotificationListenerService() {
             "com.android.packageinstaller", applicationContext.packageName)
         if (packageName in systemPackages) return
         if (fullText.isBlank() && title.isBlank()) return
+        
+        com.mailsync.app.utils.FileLogger.log(this, "Notification Received - Pkg: $packageName, Title: $title, Text length: ${fullText.length}")
+        if (fullText.contains("Sensitive notification content hidden") || title.contains("Sensitive notification content hidden")) {
+            com.mailsync.app.utils.FileLogger.log(this, "REDACTION DETECTED! OS blocked OTP extraction (Android 15+ restricted). Pkg: $packageName")
+        }
 
         val emailTimeMs = sbn.notification.`when`
         val currentTime = System.currentTimeMillis()
@@ -89,6 +94,7 @@ class OtpNotificationListenerService : NotificationListenerService() {
 
         if (extractedOtp != null) {
             Log.d("OtpNotification", "Found OTP: ${extractedOtp.code} from $packageName")
+            com.mailsync.app.utils.FileLogger.log(this, "Success! Extracted OTP: ${extractedOtp.code} from $packageName")
             scope.launch {
                 val db = AppDatabase.getDatabase(this@OtpNotificationListenerService)
                 var isNewInsertion = false
@@ -136,6 +142,8 @@ class OtpNotificationListenerService : NotificationListenerService() {
                     }
                 }
             }
+        } else {
+            com.mailsync.app.utils.FileLogger.log(this, "Failed: No OTP found in $packageName text")
         }
     }
 
