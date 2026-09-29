@@ -216,10 +216,21 @@ h2 { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
 .status-dot-container.working::before { background-color: rgba(16,185,129,0.4); }
 .status-dot-container.failing .status-dot { background-color: #ef4444; box-shadow: 0 0 10px rgba(239,68,68,0.6); }
 .status-dot-container.failing::before { background-color: rgba(239,68,68,0.4); }
+.status-dot-container.warning .status-dot { background-color: #f59e0b; box-shadow: 0 0 10px rgba(245,158,11,0.6); }
+.status-dot-container.warning::before { background-color: rgba(245,158,11,0.4); }
 
 @keyframes pulse-ring {
     0% { transform: scale(0.8); opacity: 1; }
     100% { transform: scale(2.5); opacity: 0; }
+}
+
+@keyframes offlinePulse {
+    0% { box-shadow: 0 0 0 0 rgba(239, 68, 68, 0.4); }
+    100% { box-shadow: 0 0 0 40px rgba(239, 68, 68, 0); }
+}
+
+.offline-pulse {
+    animation: offlinePulse 1.5s infinite cubic-bezier(0.66, 0, 0, 1);
 }
 
 /* ── OTP History ── */
@@ -538,3 +549,19 @@ body.is-offline .container header { position: relative; z-index: 10; }
 @keyframes pulse { 0% { opacity: 0.4; } 50% { opacity: 1; } 100% { opacity: 0.4; } }
 @keyframes blink { 0% { opacity: 0.3; transform: scale(0.9); } 100% { opacity: 1; transform: scale(1.1); } }
 @keyframes copyCheckAnim { 0% { transform: scale(0.5) rotate(-15deg); opacity: 0; } 50% { transform: scale(1.3) rotate(5deg); opacity: 1; } 100% { transform: scale(1) rotate(0deg); opacity: 1; } } .otp-copy-icon.check { animation: copyCheckAnim 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; stroke: #00FFA3; }
+@keyframes copyCheckPop { 0% { transform: scale(0.5); opacity: 0; } 50% { transform: scale(1.2); opacity: 1; } 100% { transform: scale(1); opacity: 1; } } .otp-copy-icon.check { animation: copyCheckPop 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards; }
+
+@keyframes offlinePulse {
+    0% { transform: scale(1); box-shadow: 0 0 24px rgba(239, 68, 68, 0.2); }
+    50% { transform: scale(1.05); box-shadow: 0 0 36px rgba(239, 68, 68, 0.4); }
+    100% { transform: scale(1); box-shadow: 0 0 24px rgba(239, 68, 68, 0.2); }
+}
+
+.offline-pulse {
+    animation: offlinePulse 2s infinite ease-in-out;
+}
+
+.connection-restored-bounce {
+    animation: bouncePop 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275) forwards;
+}
+

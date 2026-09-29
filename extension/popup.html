@@ -113,10 +113,10 @@
         </header>
 
         <!-- Offline Overlay -->
-        <div id="offline-overlay" class="view hidden" style="position:absolute; top:0; left:0; right:0; bottom:0; background:rgba(18, 14, 23, 0.95); z-index: 1000; display:flex; flex-direction:column; align-items:center; justify-content:center;">
-            <div style="background: rgba(239, 68, 68, 0.1); padding: 20px; border-radius: 50%; border: 2px solid #EF4444; box-shadow: 0 0 24px rgba(239, 68, 68, 0.2); margin-bottom: 20px;">
-                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#EF4444" stroke-width="2">
-                    <line x1="1" y1="1" x2="23" y2="23"></line>
+        <div id="offline-overlay" class="view hidden" style="position:absolute; top:0; left:0; right:0; bottom:0; background:rgba(18, 14, 23, 0.95); z-index: 1000; display:flex; flex-direction:column; align-items:center; justify-content:center; transition: opacity 0.5s ease, visibility 0.5s ease;">
+            <div id="offline-icon-container" class="offline-pulse" style="background: rgba(239, 68, 68, 0.1); padding: 20px; border-radius: 50%; border: 2px solid #EF4444; margin-bottom: 20px; transition: all 0.3s ease;">
+                <svg id="offline-svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#EF4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="transition: all 0.3s ease;">
+                    <line x1="2" y1="2" x2="22" y2="22"></line>
                     <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"></path>
                     <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"></path>
                     <path d="M10.71 5.05A16 16 0 0 1 22.58 9"></path>
@@ -125,8 +125,8 @@
                     <line x1="12" y1="20" x2="12.01" y2="20"></line>
                 </svg>
             </div>
-            <h3 style="color:#FFF; font-size:20px; margin:0 0 8px 0;">Connection Lost</h3>
-            <p style="color:#A1A1AA; font-size:13px; text-align:center; max-width:80%;">Waiting for network to resume sync...</p>
+            <h3 id="offline-title" style="color:#FFF; font-size:20px; margin:0 0 8px 0; transition: color 0.3s ease;">Connection Lost</h3>
+            <p id="offline-desc" style="color:#A1A1AA; font-size:13px; text-align:center; max-width:80%; transition: color 0.3s ease;">Waiting for network to resume sync...</p>
         </div>
 
         <!-- Unlinked State (QR Code) -->
