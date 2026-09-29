@@ -166,6 +166,29 @@ function renderOtpHistory() {
     });
 }
 
+// ─── Debug Logger (persists to storage so it survives popup close) ───────────
+function logDebug(msg) {
+    const entry = `[${new Date().toLocaleTimeString()}] ${msg}`;
+    console.warn('[OTP-DEBUG]', entry);
+    chrome.storage.local.get(['debugLog'], (data) => {
+        const log = data.debugLog || [];
+        log.unshift(entry);
+        if (log.length > 30) log.pop();
+        chrome.storage.local.set({ debugLog: log });
+    });
+}
+
+function renderDebugLog() {
+    const panel = document.getElementById('debug-log-panel');
+    if (!panel) return;
+    chrome.storage.local.get(['debugLog'], (data) => {
+        const log = data.debugLog || [];
+        panel.innerHTML = log.length === 0
+            ? '<em style="color:#666">No log entries yet</em>'
+            : log.map(e => `<div style="border-bottom:1px solid #333;padding:3px 0;word-break:break-all">${e}</div>`).join('');
+    });
+}
+
 // ─── Global Error Log ─────────────────────────────────────────────────────────
 function updateGlobalErrors() {
     // Disabled as per user request
@@ -205,15 +228,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     window.currentDeviceStatus = null;
     window.statusLoopActive = false;
 
+    logDebug(`Popup opened. navigator.onLine=${navigator.onLine}`);
+
     // The ONLY reliable source of truth for PC internet: browser events
     window.addEventListener('offline', () => {
+        logDebug('EVENT: browser fired "offline" → showing overlay');
         window.isFetchOffline = true;
         if (typeof window.updateNetworkStatus === 'function') window.updateNetworkStatus();
     });
     window.addEventListener('online', () => {
+        logDebug('EVENT: browser fired "online" → hiding overlay');
         window.isFetchOffline = false;
         if (typeof window.updateNetworkStatus === 'function') window.updateNetworkStatus();
     });
+
+    // Show debug panel and refresh log every 2s
+    renderDebugLog();
+    setInterval(renderDebugLog, 2000);
     // Clear stale errors (only keep last 10 minutes)
     chrome.storage.local.get(['globalErrors'], (data) => {
         const TEN_MIN = 10 * 60 * 1000;
@@ -531,6 +562,10 @@ document.addEventListener('DOMContentLoaded', async () => {
     // ─── Network Status Listener ────────────────────────────────────────────────
     window.updateNetworkStatus = function() {
         try {
+            // CRITICAL DEBUG: Log exactly what state triggered this call
+            const caller = new Error().stack.split('\n')[2] || 'unknown';
+            logDebug(`updateNetworkStatus called | isFetchOffline=${window.isFetchOffline} | deviceStatus=${window.currentDeviceStatus} | onLine=${navigator.onLine} | caller=${caller.trim()}`);
+
             const fsOverlay = document.getElementById('fullscreen-overlay');
             const iconContainer = document.getElementById('fs-icon-container');
             const svg = document.getElementById('fs-svg');
@@ -542,16 +577,19 @@ document.addEventListener('DOMContentLoaded', async () => {
 
             // ── Phone offline: update status dot only, NEVER block the whole screen ──
             if (window.currentDeviceStatus === 'offline') {
+                logDebug('BRANCH: phone offline \u2192 status dot only, no overlay');
                 if (statusIndicator) statusIndicator.className = 'status-dot-container warning';
                 if (statusText) statusText.textContent = 'App Offline';
                 if (offlineIndicator) offlineIndicator.classList.remove('hidden');
                 // Do NOT show the full-screen overlay for phone offline.
                 // The PC still has internet; only the phone's sync channel is down.
+
                 return;
             }
 
-            // ── PC offline (fetch failed 3x in a row): block the screen ──
+            // ── PC offline (browser fired 'offline' event): block the screen ──
             if (window.isFetchOffline) {
+                logDebug('BRANCH: isFetchOffline=true \u2192 SHOWING BLOCKING OVERLAY');
                 if (fsOverlay) {
                     fsOverlay.style.opacity = '1';
                     fsOverlay.style.visibility = 'visible';
