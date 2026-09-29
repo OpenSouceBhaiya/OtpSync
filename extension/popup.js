@@ -332,6 +332,15 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
             if (statusIndicator) statusIndicator.className = 'status-dot-container failing';
             if (statusText) statusText.textContent = "No Accounts Linked";
+        } else if (!navigator.onLine) {
+            const linkedView = document.getElementById('linked-view');
+            if (linkedView.classList.contains('hidden')) {
+                showLinkedState(nameToShow);
+            } else {
+                renderGreeting(nameToShow);
+            }
+            if (statusIndicator) statusIndicator.className = 'status-dot-container warning';
+            if (statusText) statusText.textContent = "Connection Lost";
         } else if (data.syncEnabled === false) {
             hideAll();
             document.getElementById('paused-view').classList.remove('hidden');
@@ -492,102 +501,4 @@ document.addEventListener('DOMContentLoaded', async () => {
         }, 1500);
     }
 
-    // ─── Network Status Listener ────────────────────────────────────────────────
-    const offlineOverlay = document.getElementById('offline-overlay');
-    const offlineIndicator = document.getElementById('offline-indicator');
-    function updateNetworkStatus() {
-        try {
-            if (!navigator.onLine) {
-                // Offline state
-                if (offlineOverlay) {
-                    offlineOverlay.style.opacity = '1';
-                    offlineOverlay.style.visibility = 'visible';
-                    offlineOverlay.classList.remove('hidden');
-                    
-                    const iconContainer = document.getElementById('offline-icon-container');
-                    const svg = document.getElementById('offline-svg');
-                    const title = document.getElementById('offline-title');
-                    const desc = document.getElementById('offline-desc');
-                    
-                    if (iconContainer) {
-                        iconContainer.style.background = 'rgba(239, 68, 68, 0.1)';
-                        iconContainer.style.borderColor = '#EF4444';
-                        iconContainer.classList.add('offline-pulse');
-                        iconContainer.classList.remove('connection-restored-bounce');
-                    }
-                    if (svg) {
-                        svg.setAttribute('stroke', '#EF4444');
-                        svg.innerHTML = `
-                            <line x1="1" y1="1" x2="23" y2="23"></line>
-                            <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"></path>
-                            <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"></path>
-                            <path d="M10.71 5.05A16 16 0 0 1 22.58 9"></path>
-                            <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"></path>
-                            <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
-                            <line x1="12" y1="20" x2="12.01" y2="20"></line>
-                        `;
-                    }
-                    if (title) {
-                        title.textContent = 'Connection Lost';
-                        title.style.color = '#FFF';
-                    }
-                    if (desc) {
-                        desc.textContent = 'Waiting for network to resume sync...';
-                    }
-                }
-                if (offlineIndicator) offlineIndicator.classList.remove('hidden');
-                if (document.body) document.body.classList.add('is-offline');
-            } else {
-                // Online state - Animate to Green and Fade out
-                const iconContainer = document.getElementById('offline-icon-container');
-                const svg = document.getElementById('offline-svg');
-                const title = document.getElementById('offline-title');
-                const desc = document.getElementById('offline-desc');
-                
-                if (offlineOverlay && !offlineOverlay.classList.contains('hidden')) {
-                    if (iconContainer) {
-                        iconContainer.style.background = 'rgba(16, 185, 129, 0.1)';
-                        iconContainer.style.borderColor = '#10B981';
-                        iconContainer.style.boxShadow = '0 0 24px rgba(16, 185, 129, 0.3)';
-                        iconContainer.classList.remove('offline-pulse');
-                        
-                        // Force reflow to restart bounce animation
-                        void iconContainer.offsetWidth;
-                        iconContainer.classList.add('connection-restored-bounce');
-                    }
-                    if (svg) {
-                        svg.setAttribute('stroke', '#10B981');
-                        svg.innerHTML = `
-                            <path d="M5 12.55a11 11 0 0 1 14.08 0"></path>
-                            <path d="M1.42 9a16 16 0 0 1 21.16 0"></path>
-                            <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
-                            <line x1="12" y1="20" x2="12.01" y2="20"></line>
-                        `;
-                    }
-                    if (title) {
-                        title.textContent = 'Connection Restored';
-                        title.style.color = '#10B981';
-                    }
-                    if (desc) {
-                        desc.textContent = 'Syncing is back online.';
-                    }
-                    
-                    // Wait for the green animation to play out, then fade out
-                    setTimeout(() => {
-                        offlineOverlay.style.opacity = '0';
-                        setTimeout(() => {
-                            offlineOverlay.style.visibility = 'hidden';
-                            offlineOverlay.classList.add('hidden');
-                        }, 500); // Wait for CSS transition to finish
-                    }, 1500); // Show green state for 1.5s
-                }
-                
-                if (offlineIndicator) offlineIndicator.classList.add('hidden');
-                if (document.body) document.body.classList.remove('is-offline');
-            }
-        } catch (e) { console.warn("updateNetworkStatus error", e); }
-    }
-    window.addEventListener('online', updateNetworkStatus);
-    window.addEventListener('offline', updateNetworkStatus);
-    updateNetworkStatus();
 });

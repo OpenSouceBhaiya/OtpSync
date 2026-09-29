@@ -28,6 +28,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.foundation.background
@@ -257,7 +260,7 @@ class MainActivity : FragmentActivity() {
                                             Box(contentAlignment = Alignment.Center) {
                                                 Box(modifier = Modifier
                                                     .size(100.dp)
-                                                    .androidx.compose.ui.graphics.graphicsLayer { scaleX = scale; scaleY = scale; this.alpha = alpha }
+                                                    .graphicsLayer { scaleX = scale; scaleY = scale; this.alpha = alpha }
                                                     .background(Color(0x33EF4444), shape = androidx.compose.foundation.shape.CircleShape)
                                                 )
                                                 Icon(Icons.Default.SignalWifiOff, contentDescription = "Offline", tint = Color(0xFFEF4444), modifier = Modifier.size(64.dp))

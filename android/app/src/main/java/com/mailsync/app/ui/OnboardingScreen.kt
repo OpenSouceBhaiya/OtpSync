@@ -12,6 +12,7 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowForward
 import androidx.compose.material.icons.filled.BatteryAlert
@@ -190,6 +191,7 @@ fun OnboardingScreen(
                 Column(
                     modifier = Modifier
                         .fillMaxSize()
+                        .verticalScroll(androidx.compose.foundation.rememberScrollState())
                         .animateContentSize()
                         .padding(32.dp)
                         .graphicsLayer {
@@ -534,7 +536,7 @@ fun OnboardingScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    "Please allow both required permissions for features to work flawlessly.",
+                    "Please allow all required permissions for features to work flawlessly.",
                     color = Color.White,
                     fontWeight = FontWeight.Bold,
                     textAlign = TextAlign.Center,

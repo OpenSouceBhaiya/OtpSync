@@ -188,14 +188,45 @@ fun HomeScreen(
     if (showPermissionPrompt) {
         AlertDialog(
             onDismissRequest = { showPermissionPrompt = false },
-            title = { Text("Enhance Your Workflow", color = Color.White) },
-            text = { Text("For a flawless and magical experience, please enable both Instant Sync (Notifications) and Background Clipboard in Settings!", color = Color.LightGray) },
+            icon = { 
+                Icon(
+                    androidx.compose.material.icons.Icons.Default.SettingsSuggest, 
+                    contentDescription = null,
+                    tint = Color(0xFF00FFA3),
+                    modifier = Modifier.size(36.dp)
+                )
+            },
+            title = { 
+                Text(
+                    "Setup Incomplete", 
+                    color = Color.White,
+                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
+                    fontSize = 20.sp,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                ) 
+            },
+            text = { 
+                Text(
+                    "For a flawless and magical experience, please enable Instant Sync (Notifications), Background Clipboard, and Advanced SMS Extraction in Settings!", 
+                    color = Color(0xFFB0BEC5),
+                    fontSize = 14.sp,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                    lineHeight = 20.sp
+                ) 
+            },
             confirmButton = {
-                TextButton(onClick = { showPermissionPrompt = false }) {
-                    Text("OK", color = Color(0xFFE2C4FF))
+                Button(
+                    onClick = { showPermissionPrompt = false },
+                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FFA3)),
+                    shape = RoundedCornerShape(12.dp),
+                    contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp),
+                    modifier = Modifier.fillMaxWidth()
+                ) {
+                    Text("Got it", color = Color.Black, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
                 }
             },
-            containerColor = Color(0xFF1E1926)
+            containerColor = Color(0xFF231E2C),
+            shape = RoundedCornerShape(24.dp)
         )
     }
 

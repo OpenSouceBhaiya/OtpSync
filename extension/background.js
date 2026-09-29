@@ -277,8 +277,8 @@ async function startListening(uuid, aesKeyBase64, force = false) {
             const isError = statusData.status === 'error_no_accounts' || statusData.syncEnabled === false || statusData.status === 'paused';
             setToolbarIcon(isError ? 'error' : 'active');
 
-            if (statusData.accountName) {
-                chrome.storage.local.set({ userName: statusData.accountName });
+            if (statusData.accountName && statusData.accountName.trim() !== '') {
+                chrome.storage.local.set({ userName: statusData.accountName.trim() });
             }
             chrome.runtime.sendMessage({ action: "status_update", statusData }).catch(() => {});
 
