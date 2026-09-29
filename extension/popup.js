@@ -295,13 +295,18 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function checkDeviceStatus(uuid) {
         try {
             const res = await fetch(`https://mailsync-osb-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${uuid}.json?_t=${Date.now()}`);
+            window.isFetchOffline = false;
             const data = await res.json();
             if (!data || !data.dateLinked) {
                 showTerminatedView();
                 return;
             }
             applyStatusData(data);
-        } catch (e) { console.warn("Device status check failed:", e); }
+        } catch (e) { 
+            console.warn("Device status check failed:", e); 
+            window.isFetchOffline = true;
+            if (typeof updateNetworkStatus === 'function') updateNetworkStatus();
+        }
         setTimeout(() => checkDeviceStatus(uuid), 2500);
     }
 
@@ -334,15 +339,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
             if (statusIndicator) statusIndicator.className = 'status-dot-container failing';
             if (statusText) statusText.textContent = "No Accounts Linked";
-        } else if (!navigator.onLine) {
-            const linkedView = document.getElementById('linked-view');
-            if (linkedView.classList.contains('hidden')) {
-                showLinkedState(nameToShow);
-            } else {
-                renderGreeting(nameToShow);
-            }
-            if (statusIndicator) statusIndicator.className = 'status-dot-container warning';
-            if (statusText) statusText.textContent = "Connection Lost";
         } else if (data.syncEnabled === false) {
             hideAll();
             document.getElementById('paused-view').classList.remove('hidden');
@@ -517,9 +513,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             const desc = document.getElementById('fs-desc');
             const offlineIndicator = document.getElementById('offline-indicator'); // the little red blinker
 
-            if (!navigator.onLine || window.currentDeviceStatus === 'offline') {
+            const statusIndicator = document.getElementById('statusIndicator');
+            const statusText = document.getElementById('statusText');
+
+            if (window.isFetchOffline || window.currentDeviceStatus === 'offline') {
                 // Determine if it's PC or Phone that is offline
-                const isPcOffline = !navigator.onLine;
+                const isPcOffline = window.isFetchOffline;
 
                 if (fsOverlay) {
                     fsOverlay.style.opacity = '1';
@@ -552,6 +551,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                         desc.textContent = isPcOffline ? 'Waiting for PC network to resume sync...' : 'Your phone is currently disconnected.';
                     }
                 }
+                
+                if (statusIndicator) statusIndicator.className = 'status-dot-container warning';
+                if (statusText) statusText.textContent = isPcOffline ? 'Connection Lost' : 'App Offline';
                 
                 if (offlineIndicator) offlineIndicator.classList.remove('hidden');
                 if (document.body) document.body.classList.add('is-offline');
@@ -600,8 +602,4 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         } catch (e) { console.warn("updateNetworkStatus error", e); }
     };
-    
-    window.addEventListener('online', window.updateNetworkStatus);
-    window.addEventListener('offline', window.updateNetworkStatus);
-    window.updateNetworkStatus();
 });
