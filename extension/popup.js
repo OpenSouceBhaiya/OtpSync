@@ -292,6 +292,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         checkDeviceStatus(uuid);
     }
 
+    async function checkActualInternet() {
+        try {
+            await fetch('https://www.google.com/favicon.ico', { mode: 'no-cors', cache: 'no-store' });
+            return true;
+        } catch (e) {
+            return false;
+        }
+    }
+
     async function checkDeviceStatus(uuid) {
         try {
             const res = await fetch(`https://mailsync-osb-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${uuid}.json`);
@@ -304,8 +313,16 @@ document.addEventListener('DOMContentLoaded', async () => {
             applyStatusData(data);
         } catch (e) { 
             console.warn("Device status check failed:", e); 
-            window.isFetchOffline = true;
-            if (typeof updateNetworkStatus === 'function') updateNetworkStatus();
+            const actuallyOffline = !(await checkActualInternet());
+            if (actuallyOffline) {
+                window.isFetchOffline = true;
+                if (typeof updateNetworkStatus === 'function') updateNetworkStatus();
+            } else {
+                console.warn("False offline detected. Internet works, but Firebase failed.");
+                window.isFetchOffline = false;
+                // If it was previously showing offline, we might want to hide it
+                if (typeof updateNetworkStatus === 'function') updateNetworkStatus();
+            }
         }
         setTimeout(() => checkDeviceStatus(uuid), 2500);
     }
