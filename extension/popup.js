@@ -294,7 +294,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     async function checkDeviceStatus(uuid) {
         try {
-            const res = await fetch(`https://mailsync-osb-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${uuid}.json?_t=${Date.now()}`);
+            const res = await fetch(`https://mailsync-osb-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${uuid}.json`);
             window.isFetchOffline = false;
             const data = await res.json();
             if (!data || !data.dateLinked) {
@@ -477,7 +477,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         pollInterval = setInterval(async () => {
             try {
-                const response = await fetch(firebaseUrl + `?_t=${Date.now()}`);
+                const response = await fetch(firebaseUrl);
                 const data = await response.json();
 
                 if (data && data.dateLinked) {
