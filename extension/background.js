@@ -96,8 +96,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                     .then(r => r.json())
                     .then(statusData => {
                         if (statusData) {
-                            const isError = statusData.status === 'error_no_accounts' || statusData.syncEnabled === false || statusData.status === 'paused';
-                            setToolbarIcon(isError ? 'error' : 'active');
+                            const isError = statusData.status === 'error_no_accounts';
+                            const isWarning = statusData.syncEnabled === false || statusData.status === 'paused' || statusData.status === 'offline';
+                            setToolbarIcon(isError ? 'error' : (isWarning ? 'warning' : 'active'));
                             chrome.runtime.sendMessage({ action: "status_update", statusData }).catch(() => {});
                         }
                     }).catch(() => {});
@@ -164,21 +165,24 @@ async function setToolbarIcon(state) {
                 ctx.lineWidth = 3;
                 ctx.stroke();
 
-            } else if (state === 'error') {
+            } else if (state === 'error' || state === 'warning') {
                 const dotR = 18;
                 const cx = size - dotR - 4;
                 const cy = dotR + 4;
+                
+                const rColor = state === 'error' ? '239, 68, 68' : '255, 170, 0';
+                const hexColor = state === 'error' ? '#ef4444' : '#ffaa00';
 
                 if (dotVisible) {
                     ctx.beginPath();
                     ctx.arc(cx, cy, dotR + 6, 0, 2 * Math.PI);
-                    ctx.fillStyle = 'rgba(239, 68, 68, 0.3)';
+                    ctx.fillStyle = `rgba(${rColor}, 0.3)`;
                     ctx.fill();
                 }
 
                 ctx.beginPath();
                 ctx.arc(cx, cy, dotR, 0, 2 * Math.PI);
-                ctx.fillStyle = '#ef4444';
+                ctx.fillStyle = hexColor;
                 ctx.fill();
 
                 ctx.beginPath();
@@ -194,7 +198,7 @@ async function setToolbarIcon(state) {
 
         await drawFrame(true);
 
-        if (state === 'active' || state === 'error') {
+        if (state === 'active' || state === 'error' || state === 'warning') {
             let toggle = false;
             iconAnimInterval = setInterval(async () => {
                 toggle = !toggle;
@@ -275,8 +279,9 @@ async function startListening(uuid, aesKeyBase64, force = false) {
                 return;
             }
 
-            const isError = statusData.status === 'error_no_accounts' || statusData.syncEnabled === false || statusData.status === 'paused';
-            setToolbarIcon(isError ? 'error' : 'active');
+            const isError = statusData.status === 'error_no_accounts';
+            const isWarning = statusData.syncEnabled === false || statusData.status === 'paused' || statusData.status === 'offline';
+            setToolbarIcon(isError ? 'error' : (isWarning ? 'warning' : 'active'));
 
             if (statusData.accountName && statusData.accountName.trim() !== '') {
                 chrome.storage.local.set({ userName: statusData.accountName.trim() });

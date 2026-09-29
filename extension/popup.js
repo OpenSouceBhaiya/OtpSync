@@ -360,9 +360,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         const statusIndicator = document.getElementById('statusIndicator');
         const statusText = document.getElementById('statusText');
         const pausedSubtitle = document.getElementById('paused-subtitle');
+        const logoContainer = document.querySelector('.logo-container');
 
         window.currentDeviceStatus = data.status;
         
+        if (logoContainer) {
+            logoContainer.classList.remove('status-warning', 'status-error', 'status-active');
+        }
+
         // If status is terminated or syncEnabled is false AND status is terminated, go direct to terminated view
         if (data.status === 'terminated') {
             showTerminatedView();
@@ -378,6 +383,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
             if (statusIndicator) statusIndicator.className = 'status-dot-container failing';
             if (statusText) statusText.textContent = "No Accounts Linked";
+            if (logoContainer) logoContainer.classList.add('status-error');
         } else if (data.syncEnabled === false) {
             hideAll();
             document.getElementById('paused-view').classList.remove('hidden');
@@ -385,6 +391,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (pausedSubtitle) pausedSubtitle.textContent = "Sync is paused. Enable the master sync switch in the OTP Sync Android app.";
             if (statusIndicator) statusIndicator.className = 'status-dot-container warning';
             if (statusText) statusText.textContent = "Sync Paused";
+            if (logoContainer) logoContainer.classList.add('status-warning');
         } else if (data.status === 'paused') {
             hideAll();
             document.getElementById('paused-view').classList.remove('hidden');
@@ -392,6 +399,17 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (pausedSubtitle) pausedSubtitle.textContent = "Sync is paused. Enable \"Instant Sync Engine\" in OTP Sync Android app.";
             if (statusIndicator) statusIndicator.className = 'status-dot-container warning';
             if (statusText) statusText.textContent = "Sync Paused";
+            if (logoContainer) logoContainer.classList.add('status-warning');
+        } else if (data.status === 'offline') {
+            const linkedView = document.getElementById('linked-view');
+            if (linkedView.classList.contains('hidden')) {
+                showLinkedState(nameToShow);
+            } else {
+                renderGreeting(nameToShow);
+            }
+            if (statusIndicator) statusIndicator.className = 'status-dot-container warning';
+            if (statusText) statusText.textContent = "App Offline";
+            if (logoContainer) logoContainer.classList.add('status-warning');
         } else {
             const linkedView = document.getElementById('linked-view');
             if (linkedView.classList.contains('hidden')) {
@@ -402,6 +420,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
             if (statusIndicator) statusIndicator.className = 'status-dot-container working';
             if (statusText) statusText.textContent = "System Active";
+            if (logoContainer) logoContainer.classList.add('status-active');
         }
 
         renderOtpHistory();
@@ -551,15 +570,18 @@ document.addEventListener('DOMContentLoaded', async () => {
             const svg = document.getElementById('fs-svg');
             const title = document.getElementById('fs-title');
             const desc = document.getElementById('fs-desc');
-            const offlineIndicator = document.getElementById('offline-indicator');
             const statusIndicator = document.getElementById('statusIndicator');
             const statusText = document.getElementById('statusText');
+            const logoContainer = document.querySelector('.logo-container');
 
             // ── Phone offline: update status dot only, NEVER block the whole screen ──
             if (window.currentDeviceStatus === 'offline') {
                 if (statusIndicator) statusIndicator.className = 'status-dot-container warning';
                 if (statusText) statusText.textContent = 'App Offline';
-                if (offlineIndicator) offlineIndicator.classList.remove('hidden');
+                if (logoContainer) {
+                    logoContainer.classList.remove('status-active', 'status-error');
+                    logoContainer.classList.add('status-warning');
+                }
                 // Do NOT show the full-screen overlay for phone offline.
                 // The PC still has internet; only the phone's sync channel is down.
 
@@ -596,7 +618,10 @@ document.addEventListener('DOMContentLoaded', async () => {
                 }
                 if (statusIndicator) statusIndicator.className = 'status-dot-container warning';
                 if (statusText) statusText.textContent = 'Connection Lost';
-                if (offlineIndicator) offlineIndicator.classList.remove('hidden');
+                if (logoContainer) {
+                    logoContainer.classList.remove('status-active');
+                    logoContainer.classList.add('status-warning');
+                }
                 if (document.body) document.body.classList.add('is-offline');
             } else {
                 // ── All good: hide overlay if it was showing ──
@@ -628,7 +653,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                         }, 500);
                     }, 1500);
                 }
-                if (offlineIndicator) offlineIndicator.classList.add('hidden');
                 if (document.body) document.body.classList.remove('is-offline');
             }
         } catch (e) { console.warn('updateNetworkStatus error', e); }
