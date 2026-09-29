@@ -222,7 +222,7 @@ class MainActivity : FragmentActivity() {
                                     targetState = isOnline,
                                     transitionSpec = {
                                         androidx.compose.animation.core.tween<Float>(500).let { tween ->
-                                            androidx.compose.animation.fadeIn(animationSpec = tween) androidx.compose.animation.togetherWith androidx.compose.animation.fadeOut(animationSpec = tween)
+                                            androidx.compose.animation.fadeIn(animationSpec = tween).togetherWith(androidx.compose.animation.fadeOut(animationSpec = tween))
                                         }
                                     },
                                     label = "offline_transition"
