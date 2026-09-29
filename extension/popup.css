@@ -534,12 +534,14 @@ h2 { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
 #offline-indicator.hidden { display: none; }
 
 body.is-offline { overflow: hidden !important; }
-body.is-offline .container > *:not(header) {
+body.is-offline .container > *:not(header):not(#fullscreen-overlay) {
     filter: blur(4px);
     opacity: 0.5;
     pointer-events: none;
 }
 body.is-offline .container header { position: relative; z-index: 10; }
+/* Overlay must never be blurred — it sits on top */
+#fullscreen-overlay { filter: none !important; opacity: 1 !important; }
 
 .blink-red {
     width: 8px; height: 8px;

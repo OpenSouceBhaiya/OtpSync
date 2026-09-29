@@ -92,7 +92,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     } else if (message.action === "sse_device") {
         chrome.storage.local.get(['uuid'], (data) => {
             if (data.uuid) {
-                fetch(`https://mailsync-osb-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${data.uuid}.json?_t=${Date.now()}`)
+                fetch(`https://mailsync-osb-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${data.uuid}.json`)
                     .then(r => r.json())
                     .then(statusData => {
                         if (statusData) {
@@ -264,7 +264,8 @@ async function startListening(uuid, aesKeyBase64, force = false) {
         }
 
         try {
-            const statusRes = await fetch(`${dbBaseUrl}/devices/${uuid}.json?_t=${Date.now()}`);
+            const statusRes = await fetch(`${dbBaseUrl}/devices/${uuid}.json`);
+
             const statusData = await statusRes.json();
 
             if (!statusData || !statusData.dateLinked || statusData.status === 'terminated') {
@@ -315,7 +316,7 @@ async function fetchOtpImmediately(uuid, aesKeyBase64, providedCryptoKey = null)
 
         const dbBaseUrl = `https://mailsync-osb-default-rtdb.asia-southeast1.firebasedatabase.app`;
         const otpsUrl = `${dbBaseUrl}/otps/${uuid}.json`;
-        const otpRes = await fetch(`${otpsUrl}?_t=${Date.now()}`);
+        const otpRes = await fetch(otpsUrl);
         const otpData = await otpRes.json();
 
         if (otpData && otpData.iv && otpData.data) {
