@@ -292,15 +292,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         checkDeviceStatus(uuid);
     }
 
-    async function checkActualInternet() {
-        try {
-            await fetch('https://www.google.com/favicon.ico', { mode: 'no-cors', cache: 'no-store' });
-            return true;
-        } catch (e) {
-            return false;
-        }
-    }
-
     async function checkDeviceStatus(uuid) {
         try {
             const res = await fetch(`https://mailsync-osb-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${uuid}.json`);
@@ -313,14 +304,11 @@ document.addEventListener('DOMContentLoaded', async () => {
             applyStatusData(data);
         } catch (e) { 
             console.warn("Device status check failed:", e); 
-            const actuallyOffline = !(await checkActualInternet());
-            if (actuallyOffline) {
+            if (!navigator.onLine) {
                 window.isFetchOffline = true;
                 if (typeof updateNetworkStatus === 'function') updateNetworkStatus();
             } else {
-                console.warn("False offline detected. Internet works, but Firebase failed.");
                 window.isFetchOffline = false;
-                // If it was previously showing offline, we might want to hide it
                 if (typeof updateNetworkStatus === 'function') updateNetworkStatus();
             }
         }
@@ -533,7 +521,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const statusIndicator = document.getElementById('statusIndicator');
             const statusText = document.getElementById('statusText');
 
-            if (window.currentDeviceStatus === 'offline' || (window.isFetchOffline && !window.userDismissedOffline)) {
+            if (window.isFetchOffline || window.currentDeviceStatus === 'offline') {
                 // Determine if it's PC or Phone that is offline (Phone takes priority if both)
                 const isPcOffline = window.isFetchOffline && window.currentDeviceStatus !== 'offline';
 
@@ -619,19 +607,4 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         } catch (e) { console.warn("updateNetworkStatus error", e); }
     };
-    
-    const dismissBtn = document.getElementById('fs-dismiss-btn');
-    if (dismissBtn) {
-        dismissBtn.addEventListener('click', () => {
-            window.userDismissedOffline = true;
-            const fsOverlay = document.getElementById('fullscreen-overlay');
-            if (fsOverlay) {
-                fsOverlay.style.opacity = '0';
-                setTimeout(() => {
-                    fsOverlay.style.visibility = 'hidden';
-                    fsOverlay.classList.add('hidden');
-                }, 500);
-            }
-        });
-    }
 });
