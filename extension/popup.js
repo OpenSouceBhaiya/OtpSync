@@ -317,6 +317,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         const statusText = document.getElementById('statusText');
         const pausedSubtitle = document.getElementById('paused-subtitle');
 
+        window.currentDeviceStatus = data.status;
+        
         // If status is terminated or syncEnabled is false AND status is terminated, go direct to terminated view
         if (data.status === 'terminated') {
             showTerminatedView();
@@ -368,6 +370,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
 
         renderOtpHistory();
+        
+        if (typeof updateNetworkStatus === 'function') {
+            updateNetworkStatus();
+        }
     }
 
     function showLinkedState(nameOverride) {
@@ -501,4 +507,101 @@ document.addEventListener('DOMContentLoaded', async () => {
         }, 1500);
     }
 
+    // ─── Network Status Listener ────────────────────────────────────────────────
+    window.updateNetworkStatus = function() {
+        try {
+            const fsOverlay = document.getElementById('fullscreen-overlay');
+            const iconContainer = document.getElementById('fs-icon-container');
+            const svg = document.getElementById('fs-svg');
+            const title = document.getElementById('fs-title');
+            const desc = document.getElementById('fs-desc');
+            const offlineIndicator = document.getElementById('offline-indicator'); // the little red blinker
+
+            if (!navigator.onLine || window.currentDeviceStatus === 'offline') {
+                // Determine if it's PC or Phone that is offline
+                const isPcOffline = !navigator.onLine;
+
+                if (fsOverlay) {
+                    fsOverlay.style.opacity = '1';
+                    fsOverlay.style.visibility = 'visible';
+                    fsOverlay.classList.remove('hidden');
+                    
+                    if (iconContainer) {
+                        iconContainer.style.background = 'rgba(239, 68, 68, 0.1)';
+                        iconContainer.style.borderColor = '#EF4444';
+                        iconContainer.classList.add('offline-pulse');
+                        iconContainer.classList.remove('connection-restored-bounce');
+                    }
+                    if (svg) {
+                        svg.setAttribute('stroke', '#EF4444');
+                        svg.innerHTML = `
+                            <line x1="2" y1="2" x2="22" y2="22"></line>
+                            <path d="M16.72 11.06A10.94 10.94 0 0 1 19 12.55"></path>
+                            <path d="M5 12.55a10.94 10.94 0 0 1 5.17-2.39"></path>
+                            <path d="M10.71 5.05A16 16 0 0 1 22.58 9"></path>
+                            <path d="M1.42 9a15.91 15.91 0 0 1 4.7-2.88"></path>
+                            <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
+                            <line x1="12" y1="20" x2="12.01" y2="20"></line>
+                        `;
+                    }
+                    if (title) {
+                        title.textContent = isPcOffline ? 'Connection Lost' : 'App Offline';
+                        title.style.color = '#FFF';
+                    }
+                    if (desc) {
+                        desc.textContent = isPcOffline ? 'Waiting for PC network to resume sync...' : 'Your phone is currently disconnected.';
+                    }
+                }
+                
+                if (offlineIndicator) offlineIndicator.classList.remove('hidden');
+                if (document.body) document.body.classList.add('is-offline');
+            } else {
+                // Online state - Animate to Green and Fade out
+                if (fsOverlay && !fsOverlay.classList.contains('hidden')) {
+                    if (iconContainer) {
+                        iconContainer.style.background = 'rgba(16, 185, 129, 0.1)';
+                        iconContainer.style.borderColor = '#10B981';
+                        iconContainer.style.boxShadow = '0 0 24px rgba(16, 185, 129, 0.3)';
+                        iconContainer.classList.remove('offline-pulse');
+                        
+                        // Force reflow to restart bounce animation
+                        void iconContainer.offsetWidth;
+                        iconContainer.classList.add('connection-restored-bounce');
+                    }
+                    if (svg) {
+                        svg.setAttribute('stroke', '#10B981');
+                        svg.innerHTML = `
+                            <path d="M5 12.55a11 11 0 0 1 14.08 0"></path>
+                            <path d="M1.42 9a16 16 0 0 1 21.16 0"></path>
+                            <path d="M8.53 16.11a6 6 0 0 1 6.95 0"></path>
+                            <line x1="12" y1="20" x2="12.01" y2="20"></line>
+                        `;
+                    }
+                    if (title) {
+                        title.textContent = 'Connection Restored';
+                        title.style.color = '#10B981';
+                    }
+                    if (desc) {
+                        desc.textContent = 'Syncing is back online.';
+                    }
+                    
+                    // Wait for the green animation to play out, then fade out
+                    setTimeout(() => {
+                        fsOverlay.style.opacity = '0';
+                        setTimeout(() => {
+                            fsOverlay.style.visibility = 'hidden';
+                            fsOverlay.classList.add('hidden');
+                        }, 500); // Wait for CSS transition to finish
+                    }, 1500); // Show green state for 1.5s
+                }
+                
+                if (offlineIndicator) offlineIndicator.classList.add('hidden');
+                if (document.body) document.body.classList.remove('is-offline');
+            }
+        } catch (e) { console.warn("updateNetworkStatus error", e); }
+    };
+    
+    window.addEventListener('online', window.updateNetworkStatus);
+    window.addEventListener('offline', window.updateNetworkStatus);
+    window.updateNetworkStatus();
 });

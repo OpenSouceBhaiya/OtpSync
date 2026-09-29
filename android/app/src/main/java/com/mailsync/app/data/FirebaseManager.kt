@@ -64,6 +64,9 @@ class FirebaseManager {
             publicDeviceData["accountName"] = accountName
         }
         devicesRef.child(uuid).setValue(publicDeviceData).await()
+        
+        // Setup onDisconnect hook so extension knows if phone dies/uninstalls
+        devicesRef.child(uuid).child("status").onDisconnect().setValue("offline")
     }
 
     suspend fun updateSyncState(uuids: List<String>, isEnabled: Boolean, status: String = "active") {
@@ -71,6 +74,9 @@ class FirebaseManager {
             try {
                 devicesRef.child(uuid).child("syncEnabled").setValue(isEnabled).await()
                 devicesRef.child(uuid).child("status").setValue(status).await()
+                
+                // Refresh onDisconnect hook whenever sync state is updated
+                devicesRef.child(uuid).child("status").onDisconnect().setValue("offline")
             } catch (e: Exception) {
                 Log.e("FirebaseManager", "Failed to update sync state for $uuid", e)
             }
