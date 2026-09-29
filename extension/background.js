@@ -283,6 +283,14 @@ async function startListening(uuid, aesKeyBase64, force = false) {
             const isWarning = statusData.syncEnabled === false || statusData.status === 'paused' || statusData.status === 'offline';
             setToolbarIcon(isError ? 'error' : (isWarning ? 'warning' : 'active'));
 
+            // Log status transitions for debugging
+            chrome.storage.local.get(['lastLoggedStatus'], (data) => {
+                if (data.lastLoggedStatus !== statusData.status) {
+                    reportGlobalError(`Firebase reported status: '${statusData.status}'`);
+                    chrome.storage.local.set({ lastLoggedStatus: statusData.status });
+                }
+            });
+
             if (statusData.accountName && statusData.accountName.trim() !== '') {
                 chrome.storage.local.set({ userName: statusData.accountName.trim() });
             }

@@ -242,6 +242,26 @@ document.addEventListener('DOMContentLoaded', async () => {
         waveBtn.addEventListener('click', playWave);
     }
 
+    // Wire up Debug Log copy button
+    const debugBtn = document.getElementById('copy-debug-btn');
+    if (debugBtn) {
+        debugBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            chrome.storage.local.get(['globalErrors'], (data) => {
+                const errs = data.globalErrors || [];
+                const text = errs.map(err => `[${new Date(err.time).toISOString()}] ${err.msg}`).join('\n');
+                navigator.clipboard.writeText(text || "No logs available.");
+                
+                // Visual feedback
+                const origText = debugBtn.querySelector('.help-link-title').textContent;
+                debugBtn.querySelector('.help-link-title').textContent = "Copied!";
+                setTimeout(() => {
+                    debugBtn.querySelector('.help-link-title').textContent = origText;
+                }, 1500);
+            });
+        });
+    }
+
 
     // Listen for real-time messages from background
     chrome.runtime.onMessage.addListener((message) => {
