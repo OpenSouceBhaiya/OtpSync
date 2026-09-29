@@ -212,20 +212,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         waveBtn.addEventListener('click', playWave);
     }
 
-    // Offline indicator
-    const offlineIndicator = document.getElementById('offline-indicator');
-    function updateOnlineStatus() {
-        if (navigator.onLine) {
-            offlineIndicator.classList.add('hidden');
-            document.body.classList.remove('is-offline');
-        } else {
-            offlineIndicator.classList.remove('hidden');
-            document.body.classList.add('is-offline');
-        }
-    }
-    window.addEventListener('online', updateOnlineStatus);
-    window.addEventListener('offline', updateOnlineStatus);
-    updateOnlineStatus();
 
     // Listen for real-time messages from background
     chrome.runtime.onMessage.addListener((message) => {
@@ -320,12 +306,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     async function applyStatusData(data) {
-        if (data.accountName) {
-            await chrome.storage.local.set({ userName: data.accountName });
+        if (data.accountName && data.accountName.trim() !== '') {
+            await chrome.storage.local.set({ userName: data.accountName.trim() });
         }
         
         const storageData = await chrome.storage.local.get(['userName']);
-        const nameToShow = data.accountName || storageData.userName || null;
+        const nameToShow = (data.accountName && data.accountName.trim() !== '') ? data.accountName.trim() : (storageData.userName || null);
 
         const statusIndicator = document.getElementById('statusIndicator');
         const statusText = document.getElementById('statusText');
@@ -488,8 +474,8 @@ document.addEventListener('DOMContentLoaded', async () => {
                     if (window.timerInterval) clearInterval(window.timerInterval);
 
                     await chrome.storage.local.set({ linked: true });
-                    if (data.accountName) {
-                        await chrome.storage.local.set({ userName: data.accountName });
+                    if (data.accountName && data.accountName.trim() !== '') {
+                        await chrome.storage.local.set({ userName: data.accountName.trim() });
                     }
 
                     // Immediately hide QR screen — don't wait for applyStatusData network call
@@ -510,13 +496,17 @@ document.addEventListener('DOMContentLoaded', async () => {
     const offlineOverlay = document.getElementById('offline-overlay');
     const offlineIndicator = document.getElementById('offline-indicator');
     function updateNetworkStatus() {
-        if (!navigator.onLine) {
-            if (offlineOverlay) offlineOverlay.classList.remove('hidden');
-            if (offlineIndicator) offlineIndicator.classList.remove('hidden');
-        } else {
-            if (offlineOverlay) offlineOverlay.classList.add('hidden');
-            if (offlineIndicator) offlineIndicator.classList.add('hidden');
-        }
+        try {
+            if (!navigator.onLine) {
+                if (offlineOverlay) offlineOverlay.classList.remove('hidden');
+                if (offlineIndicator) offlineIndicator.classList.remove('hidden');
+                if (document.body) document.body.classList.add('is-offline');
+            } else {
+                if (offlineOverlay) offlineOverlay.classList.add('hidden');
+                if (offlineIndicator) offlineIndicator.classList.add('hidden');
+                if (document.body) document.body.classList.remove('is-offline');
+            }
+        } catch (e) { console.warn("updateNetworkStatus error", e); }
     }
     window.addEventListener('online', updateNetworkStatus);
     window.addEventListener('offline', updateNetworkStatus);
