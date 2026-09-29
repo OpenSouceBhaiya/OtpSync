@@ -199,6 +199,10 @@ async function getDeviceName() {
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
+    // Initialize connectivity state — explicit false prevents stale 'true' from lingering
+    window.isFetchOffline = false;
+    window.consecutiveFetchFailures = 0;
+    window.currentDeviceStatus = null;
     // Clear stale errors (only keep last 10 minutes)
     chrome.storage.local.get(['globalErrors'], (data) => {
         const TEN_MIN = 10 * 60 * 1000;
@@ -295,6 +299,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function checkDeviceStatus(uuid) {
         try {
             const res = await fetch(`https://mailsync-osb-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${uuid}.json`);
+            // SUCCESS — reset failure counter and mark online
+            window.consecutiveFetchFailures = 0;
             window.isFetchOffline = false;
             const data = await res.json();
             if (!data || !data.dateLinked) {
@@ -302,15 +308,17 @@ document.addEventListener('DOMContentLoaded', async () => {
                 return;
             }
             applyStatusData(data);
-        } catch (e) { 
-            console.warn("Device status check failed:", e); 
-            if (!navigator.onLine) {
+        } catch (e) {
+            window.consecutiveFetchFailures = (window.consecutiveFetchFailures || 0) + 1;
+            console.warn(`Device status check failed (attempt ${window.consecutiveFetchFailures}):`, e.message);
+            // Only trigger the offline UI after 3 consecutive failures.
+            // This prevents a single transient error (CORS blip, DNS timeout, brief server hiccup)
+            // from being treated as a full connectivity loss.
+            if (window.consecutiveFetchFailures >= 3) {
                 window.isFetchOffline = true;
                 if (typeof updateNetworkStatus === 'function') updateNetworkStatus();
-            } else {
-                window.isFetchOffline = false;
-                if (typeof updateNetworkStatus === 'function') updateNetworkStatus();
             }
+            // If under 3 failures, don't touch the UI — it's almost certainly a transient blip.
         }
         setTimeout(() => checkDeviceStatus(uuid), 2500);
     }
