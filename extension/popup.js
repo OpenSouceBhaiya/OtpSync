@@ -199,10 +199,21 @@ async function getDeviceName() {
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
-    // Initialize connectivity state — explicit false prevents stale 'true' from lingering
+    // Initialize connectivity state explicitly
     window.isFetchOffline = false;
     window.consecutiveFetchFailures = 0;
     window.currentDeviceStatus = null;
+    window.statusLoopActive = false;
+
+    // The ONLY reliable source of truth for PC internet: browser events
+    window.addEventListener('offline', () => {
+        window.isFetchOffline = true;
+        if (typeof window.updateNetworkStatus === 'function') window.updateNetworkStatus();
+    });
+    window.addEventListener('online', () => {
+        window.isFetchOffline = false;
+        if (typeof window.updateNetworkStatus === 'function') window.updateNetworkStatus();
+    });
     // Clear stale errors (only keep last 10 minutes)
     chrome.storage.local.get(['globalErrors'], (data) => {
         const TEN_MIN = 10 * 60 * 1000;
@@ -293,34 +304,34 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // ─── Status Loop ──────────────────────────────────────────────────────────
     function startStatusLoop(uuid) {
+        window.statusLoopActive = true;
         checkDeviceStatus(uuid);
     }
 
+    function stopStatusLoop() {
+        window.statusLoopActive = false;
+    }
+
     async function checkDeviceStatus(uuid) {
+        if (!window.statusLoopActive) return; // stopped
         try {
             const res = await fetch(`https://mailsync-osb-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${uuid}.json`);
-            // SUCCESS — reset failure counter and mark online
-            window.consecutiveFetchFailures = 0;
-            window.isFetchOffline = false;
             const data = await res.json();
             if (!data || !data.dateLinked) {
+                stopStatusLoop();
                 showTerminatedView();
                 return;
             }
             applyStatusData(data);
         } catch (e) {
-            window.consecutiveFetchFailures = (window.consecutiveFetchFailures || 0) + 1;
-            console.warn(`Device status check failed (attempt ${window.consecutiveFetchFailures}):`, e.message);
-            // Only trigger the offline UI after 3 consecutive failures.
-            // This prevents a single transient error (CORS blip, DNS timeout, brief server hiccup)
-            // from being treated as a full connectivity loss.
-            if (window.consecutiveFetchFailures >= 3) {
-                window.isFetchOffline = true;
-                if (typeof updateNetworkStatus === 'function') updateNetworkStatus();
-            }
-            // If under 3 failures, don't touch the UI — it's almost certainly a transient blip.
+            // Firebase fetch failed — DO NOT show the overlay.
+            // navigator.onLine is the correct source of truth for real connectivity in popup context.
+            // The online/offline event listeners above handle the overlay correctly.
+            console.warn('Firebase status check failed (ignoring for overlay):', e.message);
         }
-        setTimeout(() => checkDeviceStatus(uuid), 2500);
+        if (window.statusLoopActive) {
+            setTimeout(() => checkDeviceStatus(uuid), 2500);
+        }
     }
 
     async function applyStatusData(data) {
@@ -395,6 +406,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 
     function showTerminatedView() {
+        stopStatusLoop();
         hideAll();
         document.getElementById('terminated-view').classList.remove('hidden');
         chrome.runtime.sendMessage({ action: "stop_listening" });
