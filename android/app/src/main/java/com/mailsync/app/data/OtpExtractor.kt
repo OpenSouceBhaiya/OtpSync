@@ -160,10 +160,14 @@ object OtpExtractor {
             val windowEnd = minOf(normalized.length, startPos + candidate.length + 150)
             val window = normalized.substring(windowStart, windowEnd).lowercase()
             
-            val nearOtpKeyword = window.contains("otp") || window.contains("code") || 
-                window.contains("verification") || window.contains("pin") || 
-                window.contains("password") || window.contains("token") ||
-                window.contains("authenticate") || window.contains("access")
+            val nearOtpKeyword = listOf("otp", "code", "verification", "pin", "password", "token", "authenticate", "access").any {
+                Regex("\\b${it}\\b", RegexOption.IGNORE_CASE).containsMatchIn(window)
+            }
+            
+            // Reject if it's a decimal number or price
+            if (startPos > 0 && (normalized[startPos - 1] == '.' || normalized[startPos - 1] == '$' || normalized[startPos - 1] == '₹')) {
+                continue
+            }
             
             // Reject pure letters ONLY if they are NOT near any OTP keyword
             // Many services (Microsoft, GitHub, Notion) send pure-alpha codes like "ABCDEF"
@@ -271,10 +275,18 @@ object OtpExtractor {
                 calendar.set(java.util.Calendar.HOUR_OF_DAY, hr)
                 calendar.set(java.util.Calendar.MINUTE, min)
                 calendar.set(java.util.Calendar.SECOND, 0)
-                val expMs = calendar.timeInMillis
-                // Only use if it's in the future within 24h
+                var expMs = calendar.timeInMillis
+                
+                // If the time already passed today, assume it's for tomorrow
+                if (expMs < receivedTimeMs) {
+                    expMs += 24 * 60 * 60 * 1000L
+                }
+                
                 val diffMs = expMs - receivedTimeMs
-                if (diffMs in 0L..86400000L) return expMs
+                if (diffMs in 0L..86400000L) {
+                    // Clamp to max 15 minutes
+                    return if (diffMs > 15 * 60 * 1000L) receivedTimeMs + 15 * 60 * 1000L else expMs
+                }
             } catch (e: Exception) { /* ignore */ }
         }
         
@@ -283,20 +295,20 @@ object OtpExtractor {
             val amount = match.groupValues[1].toLongOrNull() ?: continue
             val unit = match.groupValues[2].lowercase()
             
-            // Validation: Cap unreasonable expiry times
-            if ((unit.startsWith("min") || unit == "m") && amount > 20) continue
-            if ((unit.startsWith("hour") || unit.startsWith("hr") || unit == "h") && amount > 24) continue
-            if ((unit.startsWith("sec") || unit == "s") && amount > 3600) continue
-
             val multiplier = when {
                 unit.startsWith("sec") || unit == "s" -> 1000L
                 unit.startsWith("hour") || unit.startsWith("hr") || unit == "h" -> 60 * 60 * 1000L
                 else -> 60 * 1000L
             }
-            val expiresAt = receivedTimeMs + (amount * multiplier)
-            // Sanity: never more than 24 hours from now
-            if (expiresAt - receivedTimeMs > 24 * 60 * 60 * 1000L) continue
-            return expiresAt
+            
+            var diffMs = amount * multiplier
+            
+            // Clamp unreasonable expiry times to 15 minutes max
+            if (diffMs > 15 * 60 * 1000L) {
+                diffMs = 15 * 60 * 1000L
+            }
+            
+            return receivedTimeMs + diffMs
         }
         return null
     }

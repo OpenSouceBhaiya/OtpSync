@@ -95,9 +95,14 @@ class SettingsViewModel(
                             }
                         }
                         
+                        val oldStatus = settingsManager.getLinkedDevicesMetadata().find { it.id == uuid }?.status
                         var changed = false
                         if (finalStatus != null) {
                             settingsManager.updateLinkedDeviceStatus(uuid, finalStatus)
+                            if (oldStatus == "inactive" && finalStatus == "active") {
+                                val sdf = java.text.SimpleDateFormat("hh:mm a", java.util.Locale.getDefault())
+                                settingsManager.updateLinkedDeviceLastOtpTime(uuid, sdf.format(java.util.Date()))
+                            }
                             changed = true
                         }
                         if (name != null) {
@@ -172,9 +177,14 @@ class SettingsViewModel(
                                 return
                             }
                             
+                            val oldStatus = settingsManager.getLinkedDevicesMetadata().find { it.id == uuid }?.status
                             var changed = false
                             if (finalStatus != null) {
                                 settingsManager.updateLinkedDeviceStatus(uuid, finalStatus)
+                                if (oldStatus == "inactive" && finalStatus == "active") {
+                                    val sdf = java.text.SimpleDateFormat("hh:mm a", java.util.Locale.getDefault())
+                                    settingsManager.updateLinkedDeviceLastOtpTime(uuid, sdf.format(java.util.Date()))
+                                }
                                 changed = true
                             }
                             if (name != null) {

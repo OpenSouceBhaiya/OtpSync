@@ -196,40 +196,77 @@ class MainActivity : FragmentActivity() {
                             currentIntent = intentState
                         )
 
+                        var showOverlay by remember { mutableStateOf(false) }
+                        LaunchedEffect(isOnline) {
+                            if (!isOnline) {
+                                showOverlay = true
+                            } else if (showOverlay) {
+                                kotlinx.coroutines.delay(2000)
+                                showOverlay = false
+                            }
+                        }
+
                         androidx.compose.animation.AnimatedVisibility(
-                            visible = !isOnline,
+                            visible = showOverlay,
                             enter = androidx.compose.animation.fadeIn(animationSpec = androidx.compose.animation.core.tween(500)),
                             exit = androidx.compose.animation.fadeOut(animationSpec = androidx.compose.animation.core.tween(800))
                         ) {
-                            var showBackOnline by remember { mutableStateOf(false) }
-                            LaunchedEffect(isOnline) {
-                                if (isOnline) {
-                                    showBackOnline = true
-                                    kotlinx.coroutines.delay(2000)
-                                    showBackOnline = false
-                                }
-                            }
-                            
                             Box(
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .background(Color(0xE60F0C16)) // Dark translucent background
-                                    .clickable(enabled = false) {}, // Intercept clicks
+                                    .background(Color(0xE60F0C16))
+                                    .clickable(enabled = false) {}, 
                                 contentAlignment = Alignment.Center
                             ) {
-                                if (showBackOnline) {
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Icon(Icons.Default.CheckCircle, contentDescription = "Online", tint = Color(0xFF10B981), modifier = Modifier.size(64.dp))
-                                        Spacer(modifier = Modifier.height(16.dp))
-                                        Text("Internet Restored", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 24.sp)
-                                    }
-                                } else {
-                                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                        Icon(Icons.Default.SignalWifiOff, contentDescription = "Offline", tint = Color(0xFFEF4444), modifier = Modifier.size(64.dp))
-                                        Spacer(modifier = Modifier.height(16.dp))
-                                        Text("No Internet Connection", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 24.sp)
-                                        Spacer(modifier = Modifier.height(8.dp))
-                                        Text("OTP Sync requires internet to beam codes.", color = Color.Gray, fontSize = 14.sp)
+                                androidx.compose.animation.AnimatedContent(
+                                    targetState = isOnline,
+                                    transitionSpec = {
+                                        androidx.compose.animation.core.tween<Float>(500).let { tween ->
+                                            androidx.compose.animation.fadeIn(animationSpec = tween) androidx.compose.animation.togetherWith androidx.compose.animation.fadeOut(animationSpec = tween)
+                                        }
+                                    },
+                                    label = "offline_transition"
+                                ) { currentlyOnline ->
+                                    if (currentlyOnline) {
+                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                            Icon(Icons.Default.CheckCircle, contentDescription = "Online", tint = Color(0xFF10B981), modifier = Modifier.size(80.dp))
+                                            Spacer(modifier = Modifier.height(16.dp))
+                                            Text("Internet Restored", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 24.sp)
+                                        }
+                                    } else {
+                                        val infiniteTransition = androidx.compose.animation.core.rememberInfiniteTransition(label = "pulse")
+                                        val scale by infiniteTransition.animateFloat(
+                                            initialValue = 0.9f,
+                                            targetValue = 1.1f,
+                                            animationSpec = androidx.compose.animation.core.infiniteRepeatable(
+                                                animation = androidx.compose.animation.core.tween(1000, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+                                                repeatMode = androidx.compose.animation.core.RepeatMode.Reverse
+                                            ),
+                                            label = "scale"
+                                        )
+                                        val alpha by infiniteTransition.animateFloat(
+                                            initialValue = 0.5f,
+                                            targetValue = 1f,
+                                            animationSpec = androidx.compose.animation.core.infiniteRepeatable(
+                                                animation = androidx.compose.animation.core.tween(1000, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+                                                repeatMode = androidx.compose.animation.core.RepeatMode.Reverse
+                                            ),
+                                            label = "alpha"
+                                        )
+                                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                            Box(contentAlignment = Alignment.Center) {
+                                                Box(modifier = Modifier
+                                                    .size(100.dp)
+                                                    .androidx.compose.ui.graphics.graphicsLayer { scaleX = scale; scaleY = scale; this.alpha = alpha }
+                                                    .background(Color(0x33EF4444), shape = androidx.compose.foundation.shape.CircleShape)
+                                                )
+                                                Icon(Icons.Default.SignalWifiOff, contentDescription = "Offline", tint = Color(0xFFEF4444), modifier = Modifier.size(64.dp))
+                                            }
+                                            Spacer(modifier = Modifier.height(16.dp))
+                                            Text("No Internet Connection", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 24.sp)
+                                            Spacer(modifier = Modifier.height(8.dp))
+                                            Text("OTP Sync requires internet to beam codes.", color = Color.Gray, fontSize = 14.sp)
+                                        }
                                     }
                                 }
                             }

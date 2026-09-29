@@ -56,7 +56,8 @@ fun HomeScreen(
     historyViewModel: OtpHistoryViewModel,
     settingsViewModel: SettingsViewModel,
     onNavigateToSettings: (String?) -> Unit,
-    onNavigateToScanner: () -> Unit
+    onNavigateToScanner: () -> Unit,
+    onNavigateToDevices: () -> Unit
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val lastScanTime by viewModel.lastScanTime.collectAsState()
@@ -540,6 +541,24 @@ fun HomeScreen(
                         }
                     }
                 }
+                
+                Surface(
+                    modifier = Modifier.fillMaxWidth().clickable {
+                        showAddMenu = false
+                        onNavigateToDevices()
+                    },
+                    shape = RoundedCornerShape(12.dp),
+                    color = Color(0xFF2D2938)
+                ) {
+                    Row(modifier = Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Icon(Icons.Default.Settings, contentDescription = "Manage Linked PCs", tint = Color(0xFF00FFA3), modifier = Modifier.size(32.dp))
+                        Spacer(modifier = Modifier.width(16.dp))
+                        Column {
+                            Text("Manage Linked PCs", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                            Text("View and manage connected devices", color = Color.Gray, fontSize = 14.sp)
+                        }
+                    }
+                }
             }
         }
     }
@@ -682,8 +701,8 @@ fun OtpListItemFeed(otp: OtpEntity, context: Context) {
 
 @Composable
 fun WavingHandGreeting(fullName: String?) {
-    var isWaving by remember { mutableStateOf(true) } // Auto-wave on launch
     var hasPlayedStartup by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
+    var isWaving by remember { mutableStateOf(!hasPlayedStartup) } // Auto-wave only once per session
     val rotation = remember { androidx.compose.animation.core.Animatable(0f) }
     
     // Animation for gradient text
@@ -709,6 +728,7 @@ fun WavingHandGreeting(fullName: String?) {
             rotation.animateTo(-20f, animationSpec = androidx.compose.animation.core.tween(150))
             rotation.animateTo(0f, animationSpec = androidx.compose.animation.core.tween(150))
             isWaving = false
+            hasPlayedStartup = true
         }
     }
 

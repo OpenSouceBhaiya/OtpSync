@@ -283,6 +283,8 @@ fun AppNavigation(
                         navController.navigate(route)
                     }, onNavigateToScanner = {
                         navController.navigate("qr_scanner")
+                    }, onNavigateToDevices = {
+                        navController.navigate("devices")
                     })
                 }
             }
