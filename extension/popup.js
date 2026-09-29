@@ -602,4 +602,18 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         } catch (e) { console.warn("updateNetworkStatus error", e); }
     };
+    
+    const dismissBtn = document.getElementById('fs-dismiss-btn');
+    if (dismissBtn) {
+        dismissBtn.addEventListener('click', () => {
+            const fsOverlay = document.getElementById('fullscreen-overlay');
+            if (fsOverlay) {
+                fsOverlay.style.opacity = '0';
+                setTimeout(() => {
+                    fsOverlay.style.visibility = 'hidden';
+                    fsOverlay.classList.add('hidden');
+                }, 500);
+            }
+        });
+    }
 });

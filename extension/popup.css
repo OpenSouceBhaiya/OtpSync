@@ -530,6 +530,7 @@ h2 { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
 }
 #offline-indicator.hidden { display: none; }
 
+body.is-offline { overflow: hidden !important; }
 body.is-offline .container > *:not(header) {
     filter: blur(4px);
     opacity: 0.5;
