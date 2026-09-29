@@ -18,10 +18,41 @@ class OtpNotificationListenerService : NotificationListenerService() {
     private val scope = CoroutineScope(Dispatchers.IO)
     private lateinit var settingsManager: SettingsManager
 
+    private var connectedListener: com.google.firebase.database.ValueEventListener? = null
+
     override fun onCreate() {
         super.onCreate()
         settingsManager = SettingsManager(this)
         Log.d("OtpNotification", "Notification Listener Service Created")
+    }
+
+    override fun onListenerConnected() {
+        super.onListenerConnected()
+        Log.d("OtpNotification", "Notification Listener Connected")
+        connectedListener = com.google.firebase.database.FirebaseDatabase.getInstance().getReference(".info/connected")
+            .addValueEventListener(object : com.google.firebase.database.ValueEventListener {
+                override fun onDataChange(snapshot: com.google.firebase.database.DataSnapshot) {
+                    val connected = snapshot.getValue(Boolean::class.java) ?: false
+                    if (connected) {
+                        val uuids = settingsManager.getLinkedDevicesMetadata().map { it.id }
+                        if (uuids.isNotEmpty()) {
+                            val enabled = settingsManager.isSyncEnabled()
+                            val status = if (enabled) "active" else "paused"
+                            scope.launch {
+                                com.mailsync.app.data.FirebaseManager().updateSyncState(uuids, enabled, status)
+                            }
+                        }
+                    }
+                }
+                override fun onCancelled(error: com.google.firebase.database.DatabaseError) {}
+            })
+    }
+
+    override fun onListenerDisconnected() {
+        super.onListenerDisconnected()
+        connectedListener?.let {
+            com.google.firebase.database.FirebaseDatabase.getInstance().getReference(".info/connected").removeEventListener(it)
+        }
     }
 
     override fun onDestroy() {
