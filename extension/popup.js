@@ -516,9 +516,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             const statusIndicator = document.getElementById('statusIndicator');
             const statusText = document.getElementById('statusText');
 
-            if (window.isFetchOffline || window.currentDeviceStatus === 'offline') {
-                // Determine if it's PC or Phone that is offline
-                const isPcOffline = window.isFetchOffline;
+            if (window.currentDeviceStatus === 'offline' || (window.isFetchOffline && !window.userDismissedOffline)) {
+                // Determine if it's PC or Phone that is offline (Phone takes priority if both)
+                const isPcOffline = window.isFetchOffline && window.currentDeviceStatus !== 'offline';
 
                 if (fsOverlay) {
                     fsOverlay.style.opacity = '1';
@@ -606,6 +606,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const dismissBtn = document.getElementById('fs-dismiss-btn');
     if (dismissBtn) {
         dismissBtn.addEventListener('click', () => {
+            window.userDismissedOffline = true;
             const fsOverlay = document.getElementById('fullscreen-overlay');
             if (fsOverlay) {
                 fsOverlay.style.opacity = '0';
