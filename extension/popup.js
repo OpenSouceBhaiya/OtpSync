@@ -524,20 +524,26 @@ document.addEventListener('DOMContentLoaded', async () => {
             const svg = document.getElementById('fs-svg');
             const title = document.getElementById('fs-title');
             const desc = document.getElementById('fs-desc');
-            const offlineIndicator = document.getElementById('offline-indicator'); // the little red blinker
-
+            const offlineIndicator = document.getElementById('offline-indicator');
             const statusIndicator = document.getElementById('statusIndicator');
             const statusText = document.getElementById('statusText');
 
-            if (window.isFetchOffline || window.currentDeviceStatus === 'offline') {
-                // Determine if it's PC or Phone that is offline (Phone takes priority if both)
-                const isPcOffline = window.isFetchOffline && window.currentDeviceStatus !== 'offline';
+            // ── Phone offline: update status dot only, NEVER block the whole screen ──
+            if (window.currentDeviceStatus === 'offline') {
+                if (statusIndicator) statusIndicator.className = 'status-dot-container warning';
+                if (statusText) statusText.textContent = 'App Offline';
+                if (offlineIndicator) offlineIndicator.classList.remove('hidden');
+                // Do NOT show the full-screen overlay for phone offline.
+                // The PC still has internet; only the phone's sync channel is down.
+                return;
+            }
 
+            // ── PC offline (fetch failed 3x in a row): block the screen ──
+            if (window.isFetchOffline) {
                 if (fsOverlay) {
                     fsOverlay.style.opacity = '1';
                     fsOverlay.style.visibility = 'visible';
                     fsOverlay.classList.remove('hidden');
-                    
                     if (iconContainer) {
                         iconContainer.style.background = 'rgba(239, 68, 68, 0.1)';
                         iconContainer.style.borderColor = '#EF4444';
@@ -556,30 +562,21 @@ document.addEventListener('DOMContentLoaded', async () => {
                             <line x1="12" y1="20" x2="12.01" y2="20"></line>
                         `;
                     }
-                    if (title) {
-                        title.textContent = isPcOffline ? 'Connection Lost' : 'App Offline';
-                        title.style.color = '#FFF';
-                    }
-                    if (desc) {
-                        desc.textContent = isPcOffline ? 'Waiting for PC network to resume sync...' : 'Your phone is currently disconnected.';
-                    }
+                    if (title) { title.textContent = 'Connection Lost'; title.style.color = '#FFF'; }
+                    if (desc) { desc.textContent = 'Your PC lost internet. Waiting to resume sync...'; }
                 }
-                
                 if (statusIndicator) statusIndicator.className = 'status-dot-container warning';
-                if (statusText) statusText.textContent = isPcOffline ? 'Connection Lost' : 'App Offline';
-                
+                if (statusText) statusText.textContent = 'Connection Lost';
                 if (offlineIndicator) offlineIndicator.classList.remove('hidden');
                 if (document.body) document.body.classList.add('is-offline');
             } else {
-                // Online state - Animate to Green and Fade out
+                // ── All good: hide overlay if it was showing ──
                 if (fsOverlay && !fsOverlay.classList.contains('hidden')) {
                     if (iconContainer) {
                         iconContainer.style.background = 'rgba(16, 185, 129, 0.1)';
                         iconContainer.style.borderColor = '#10B981';
                         iconContainer.style.boxShadow = '0 0 24px rgba(16, 185, 129, 0.3)';
                         iconContainer.classList.remove('offline-pulse');
-                        
-                        // Force reflow to restart bounce animation
                         void iconContainer.offsetWidth;
                         iconContainer.classList.add('connection-restored-bounce');
                     }
@@ -592,27 +589,20 @@ document.addEventListener('DOMContentLoaded', async () => {
                             <line x1="12" y1="20" x2="12.01" y2="20"></line>
                         `;
                     }
-                    if (title) {
-                        title.textContent = 'Connection Restored';
-                        title.style.color = '#10B981';
-                    }
-                    if (desc) {
-                        desc.textContent = 'Syncing is back online.';
-                    }
-                    
-                    // Wait for the green animation to play out, then fade out
+                    if (title) { title.textContent = 'Connection Restored'; title.style.color = '#10B981'; }
+                    if (desc) { desc.textContent = 'Syncing is back online.'; }
                     setTimeout(() => {
                         fsOverlay.style.opacity = '0';
                         setTimeout(() => {
                             fsOverlay.style.visibility = 'hidden';
                             fsOverlay.classList.add('hidden');
-                        }, 500); // Wait for CSS transition to finish
-                    }, 1500); // Show green state for 1.5s
+                        }, 500);
+                    }, 1500);
                 }
-                
                 if (offlineIndicator) offlineIndicator.classList.add('hidden');
                 if (document.body) document.body.classList.remove('is-offline');
             }
-        } catch (e) { console.warn("updateNetworkStatus error", e); }
+        } catch (e) { console.warn('updateNetworkStatus error', e); }
     };
 });
+
