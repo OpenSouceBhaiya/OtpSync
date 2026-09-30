@@ -41,6 +41,8 @@ chrome.runtime.onStartup.addListener(() => {
         if (data.linked && data.uuid && data.aesKey) {
             const hasDoc = await chrome.offscreen.hasDocument().catch(() => false);
             startListening(data.uuid, data.aesKey, !hasDoc);
+        } else {
+            setToolbarIcon('error');
         }
     });
 });
@@ -55,6 +57,8 @@ chrome.storage.local.get(['linked', 'uuid', 'aesKey'], async (data) => {
 
         const hasDoc = await chrome.offscreen.hasDocument().catch(() => false);
         startListening(data.uuid, data.aesKey, !hasDoc);
+    } else {
+        setToolbarIcon('error');
     }
 });
 
@@ -405,11 +409,13 @@ function reportGlobalError(msg) {
 chrome.tabs.onActivated.addListener((activeInfo) => {
     chrome.storage.local.get(['pendingToast'], (data) => {
         if (data.pendingToast && data.pendingToast.showUntil > Date.now()) {
+            const tr = data.pendingToast.showUntil - Date.now();
             chrome.tabs.sendMessage(activeInfo.tabId, {
                 action: "show_toast_and_copy",
                 otp: data.pendingToast.otp,
                 sender: data.pendingToast.sender,
-                isCarryForward: true
+                isCarryForward: true,
+                timeRemaining: tr
             }).catch(async () => {
                 try {
                     await chrome.scripting.insertCSS({ target: { tabId: activeInfo.tabId }, files: ["content.css"] });
@@ -419,7 +425,8 @@ chrome.tabs.onActivated.addListener((activeInfo) => {
                         action: "show_toast_and_copy",
                         otp: data.pendingToast.otp,
                         sender: data.pendingToast.sender,
-                        isCarryForward: true
+                        isCarryForward: true,
+                        timeRemaining: tr
                     });
                 } catch (e) { /* ignore restricted pages */ }
             });
@@ -455,22 +462,22 @@ async function handleEncryptedOtp(ivBase64, dataBase64, cryptoKey) {
         setTimeout(() => copyToClipboard(' '), 60000);
 
         // 3. Save pendingToast to storage so content.js can re-show it after page navigation
-        // TTL = 12 seconds — enough for a login redirect to complete and new page to load
+        // TTL = 6 seconds (exact duration of the toast)
         chrome.storage.local.set({
             pendingToast: {
                 otp: otpCode,
                 sender: sender,
-                showUntil: Date.now() + 12000
+                showUntil: Date.now() + 6000
             }
         });
-        // Auto-clear after 12s
+        // Auto-clear after 6s
         setTimeout(() => {
             chrome.storage.local.get(['pendingToast'], (d) => {
                 if (d.pendingToast && d.pendingToast.otp === otpCode) {
                     chrome.storage.local.remove('pendingToast');
                 }
             });
-        }, 12000);
+        }, 6000);
 
         // 4. Save to local history
         chrome.storage.local.get(['otpHistory', 'uuid'], (data) => {

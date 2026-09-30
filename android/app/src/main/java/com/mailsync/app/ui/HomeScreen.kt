@@ -730,10 +730,11 @@ fun OtpListItemFeed(otp: OtpEntity, context: Context) {
     }
 }
 
+var globalHasPlayedStartup = false
+
 @Composable
 fun WavingHandGreeting(fullName: String?) {
-    var hasPlayedStartup by androidx.compose.runtime.saveable.rememberSaveable { mutableStateOf(false) }
-    var isWaving by remember { mutableStateOf(!hasPlayedStartup) } // Auto-wave only once per session
+    var isWaving by remember { mutableStateOf(!globalHasPlayedStartup) } // Auto-wave only once per session
     val rotation = remember { androidx.compose.animation.core.Animatable(0f) }
     
     // Animation for gradient text
@@ -759,7 +760,7 @@ fun WavingHandGreeting(fullName: String?) {
             rotation.animateTo(-20f, animationSpec = androidx.compose.animation.core.tween(150))
             rotation.animateTo(0f, animationSpec = androidx.compose.animation.core.tween(150))
             isWaving = false
-            hasPlayedStartup = true
+            globalHasPlayedStartup = true
         }
     }
 

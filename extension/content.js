@@ -2,31 +2,25 @@
 // CSS is injected via content.css (manifest), NOT inline here.
 
 // ─── Persistent Toast: Re-show on page navigation ────────────────────────────
-// When a login page redirects to a dashboard, the toast on the old page is lost.
-// We save a pendingToast in storage (12s TTL) and re-show it here on every new page.
 (function checkPendingToast() {
     try {
         chrome.storage.local.get(['pendingToast'], (data) => {
             if (chrome.runtime.lastError) return;
             const pt = data.pendingToast;
             if (pt && pt.showUntil && Date.now() < pt.showUntil) {
-                // Valid pending toast — show it on this new page
-                showToast(pt.otp, pt.sender);
+                showToast(pt.otp, pt.sender, true, pt.showUntil - Date.now());
             }
         });
-    } catch (e) { /* extension context invalidated — ignore */ }
+    } catch (e) { }
 })();
 
 // ─── Guard: Don't inject twice ────────────────────────────────────────────────
 {
-    // ─── Toast Message Handler ────────────────────────────────────────────────────
     chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         if (request.action === "show_toast_and_copy") {
-            // Attempt to copy natively in the active tab context as a robust fallback
             if (navigator.clipboard && navigator.clipboard.writeText) {
                 navigator.clipboard.writeText(request.otp).catch(() => {});
             } else {
-                // Legacy fallback if navigator.clipboard is unavailable
                 try {
                     const textArea = document.createElement("textarea");
                     textArea.value = request.otp;
@@ -37,26 +31,29 @@
                     textArea.select();
                     document.execCommand('copy');
                     document.body.removeChild(textArea);
-                } catch (e) { console.warn("OTPSync legacy copy failed:", e); }
+                } catch (e) { }
             }
             
-            showToast(request.otp, request.sender, request.isCarryForward);
+            showToast(request.otp, request.sender, request.isCarryForward, request.timeRemaining);
             sendResponse({success: true});
             return true;
         }
     });
-
 }
 
-// ─── Toast Functions (outside guard — accessible to pendingToast check above) ─
-function showToast(otp, sender, isCarryForward = false) {
+function showToast(otp, sender, isCarryForward = false, timeRemaining = 6000) {
     let existing = document.getElementById('otpsync-toast');
     if (existing) {
+        if (isCarryForward && existing.dataset.otp === otp) {
+            // Already showing this exact OTP on this tab, do not recreate.
+            return;
+        }
         existing.remove();
     }
 
     const toast = document.createElement('div');
     toast.id = 'otpsync-toast';
+    toast.dataset.otp = otp; // store to prevent recreation
 
     const displaySender = sender && sender.length > 25 ? sender.substring(0, 23) + '…' : (sender || 'OTP Sync');
     const iconUrl = chrome.runtime.getURL('icon48.png');
@@ -96,7 +93,7 @@ function showToast(otp, sender, isCarryForward = false) {
     
     setTimeout(() => {
         snapThanos(toast);
-    }, 6000);
+    }, timeRemaining);
 }
 
     function snapThanos(element) {
