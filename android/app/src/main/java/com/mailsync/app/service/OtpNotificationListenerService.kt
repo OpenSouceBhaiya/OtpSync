@@ -113,36 +113,43 @@ class OtpNotificationListenerService : NotificationListenerService() {
             if (packageName.contains("messaging") || packageName.contains("mms") || packageName.contains("sms")) {
                 if (androidx.core.content.ContextCompat.checkSelfPermission(this, android.Manifest.permission.READ_SMS) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
                     com.mailsync.app.utils.FileLogger.log(this, "Attempting instant SMS fallback extraction...")
-                    try {
-                        val cursor = contentResolver.query(
-                            android.net.Uri.parse("content://sms/inbox"),
-                            arrayOf("address", "body", "date"),
-                            null,
-                            null,
-                            "date DESC LIMIT 3"
-                        )
-                        cursor?.use { c ->
-                            val currentT = System.currentTimeMillis()
-                            while (c.moveToNext()) {
-                                val address = c.getString(c.getColumnIndexOrThrow("address")) ?: ""
-                                val body = c.getString(c.getColumnIndexOrThrow("body")) ?: ""
-                                val date = c.getLong(c.getColumnIndexOrThrow("date"))
-                                
-                                if (currentT - date < 15000) { // Only consider SMS received in the last 15 seconds
-                                    val fallbackOtp = OtpExtractor.extractOtp(this, address, body, null, date)
-                                    if (fallbackOtp != null) {
-                                        com.mailsync.app.utils.FileLogger.log(this, "Success! Instant fallback extracted SMS OTP: ${fallbackOtp.code} from $address")
-                                        handleExtractedOtp(fallbackOtp, address, "SMS", "SMS")
-                                        return
+                    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+                        kotlinx.coroutines.delay(1500) // Wait for SMS/RCS database to sync
+                        try {
+                            val cursor = contentResolver.query(
+                                android.net.Uri.parse("content://sms/inbox"),
+                                arrayOf("address", "body", "date"),
+                                null,
+                                null,
+                                "date DESC LIMIT 3"
+                            )
+                            cursor?.use { c ->
+                                val currentT = System.currentTimeMillis()
+                                while (c.moveToNext()) {
+                                    val address = c.getString(c.getColumnIndexOrThrow("address")) ?: ""
+                                    val body = c.getString(c.getColumnIndexOrThrow("body")) ?: ""
+                                    val date = c.getLong(c.getColumnIndexOrThrow("date"))
+                                    
+                                    com.mailsync.app.utils.FileLogger.log(this@OtpNotificationListenerService, "Fallback check: \$address - \${currentT - date}ms ago")
+                                    
+                                    if (currentT - date < 300000) { // Consider SMS received in the last 5 minutes
+                                        val fallbackOtp = OtpExtractor.extractOtp(this@OtpNotificationListenerService, address, body, null, date)
+                                        if (fallbackOtp != null) {
+                                            com.mailsync.app.utils.FileLogger.log(this@OtpNotificationListenerService, "Success! Instant fallback extracted SMS OTP: \${fallbackOtp.code} from \$address")
+                                            handleExtractedOtp(fallbackOtp, address, "SMS", "SMS")
+                                            return@launch
+                                        }
                                     }
                                 }
+                                com.mailsync.app.utils.FileLogger.log(this@OtpNotificationListenerService, "Fallback check finished without finding OTP.")
                             }
+                        } catch (e: Exception) {
+                            com.mailsync.app.utils.FileLogger.log(this@OtpNotificationListenerService, "Instant fallback failed: \${e.message}")
                         }
-                    } catch (e: Exception) {
-                        com.mailsync.app.utils.FileLogger.log(this, "Instant fallback failed: ${e.message}")
                     }
                 }
             }
+            return // Skip further extraction because the text is redacted anyway!
         }
 
         val emailTimeMs = sbn.notification.`when`
