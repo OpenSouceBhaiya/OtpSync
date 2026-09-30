@@ -242,27 +242,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         waveBtn.addEventListener('click', playWave);
     }
 
-    // Wire up Debug Log copy button
-    const debugBtn = document.getElementById('copy-debug-btn');
-    if (debugBtn) {
-        debugBtn.addEventListener('click', (e) => {
-            e.preventDefault();
-            chrome.storage.local.get(['globalErrors'], (data) => {
-                const errs = data.globalErrors || [];
-                const text = errs.map(err => `[${new Date(err.time).toISOString()}] ${err.msg}`).join('\n');
-                navigator.clipboard.writeText(text || "No logs available.");
-                
-                // Visual feedback
-                const origText = debugBtn.querySelector('.help-link-title').textContent;
-                debugBtn.querySelector('.help-link-title').textContent = "Copied!";
-                setTimeout(() => {
-                    debugBtn.querySelector('.help-link-title').textContent = origText;
-                }, 1500);
-            });
-        });
-    }
-
-
     // Listen for real-time messages from background
     chrome.runtime.onMessage.addListener((message) => {
         if (message.action === "device_terminated") {
@@ -419,16 +398,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (pausedSubtitle) pausedSubtitle.textContent = "Sync is paused. Enable \"Instant Sync Engine\" in OTP Sync Android app.";
             if (statusIndicator) statusIndicator.className = 'status-dot-container warning';
             if (statusText) statusText.textContent = "Sync Paused";
-            if (logoContainer) logoContainer.classList.add('status-warning');
-        } else if (data.status === 'offline') {
-            const linkedView = document.getElementById('linked-view');
-            if (linkedView.classList.contains('hidden')) {
-                showLinkedState(nameToShow);
-            } else {
-                renderGreeting(nameToShow);
-            }
-            if (statusIndicator) statusIndicator.className = 'status-dot-container warning';
-            if (statusText) statusText.textContent = "App Offline";
             if (logoContainer) logoContainer.classList.add('status-warning');
         } else {
             const linkedView = document.getElementById('linked-view');

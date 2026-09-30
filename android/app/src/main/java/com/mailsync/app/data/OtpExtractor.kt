@@ -240,6 +240,29 @@ object OtpExtractor {
             return ExtractionResult(bestMatch, extractExpiry(normalized, receivedTimeMs))
         }
 
+        // FAILSAFE: If the message explicitly contains an OTP keyword but the smart scorer rejected it,
+        // force extract the first pure 4-8 digit number we find.
+        if (hasOtpKeyword) {
+            val fallback = matches.firstOrNull { match -> 
+                val c = match.groupValues[1]
+                c.all { it.isDigit() } && (c.length == 4 || c.length == 6 || c.length == 8)
+            }
+            if (fallback != null) {
+                safeLog("OtpExtractor", "Failsafe Match: ${fallback.groupValues[1]}")
+                return ExtractionResult(fallback.groupValues[1], extractExpiry(normalized, receivedTimeMs))
+            }
+            
+            // Second failsafe: any 4-8 digit number
+            val fallbackAny = matches.firstOrNull { match -> 
+                val c = match.groupValues[1]
+                c.count { it.isDigit() } >= 4 && c.count { it.isLetter() } == 0
+            }
+            if (fallbackAny != null) {
+                safeLog("OtpExtractor", "Failsafe Match (Any Digit): ${fallbackAny.groupValues[1]}")
+                return ExtractionResult(fallbackAny.groupValues[1], extractExpiry(normalized, receivedTimeMs))
+            }
+        }
+
         return null
     }
     
