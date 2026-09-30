@@ -44,19 +44,19 @@ object OtpExtractor {
         }
     }
 
-    fun extractOtp(subject: String?, bodyText: String?, bodyHtml: String?, receivedTimeMs: Long): ExtractionResult? {
+    fun extractOtp(context: android.content.Context, subject: String?, bodyText: String?, bodyHtml: String?, receivedTimeMs: Long): ExtractionResult? {
         val rawText = if (!bodyText.isNullOrBlank()) bodyText.trim() else stripHtml(bodyHtml ?: "")
         val truncatedBody = rawText.take(50000)
 
         // Try extracting from subject first
         var result: ExtractionResult? = null
         if (subject != null) {
-            result = extractFromText(subject, receivedTimeMs)
+            result = extractFromText(context, subject, receivedTimeMs)
         }
         
         // If not found in subject, try body
         if (result == null) {
-            result = extractFromText(truncatedBody, receivedTimeMs)
+            result = extractFromText(context, truncatedBody, receivedTimeMs)
         }
         
         return result
@@ -130,8 +130,11 @@ object OtpExtractor {
         return false
     }
 
-    private fun extractFromText(text: String, receivedTimeMs: Long): ExtractionResult? {
+    private fun extractFromText(context: android.content.Context, text: String, receivedTimeMs: Long): ExtractionResult? {
         val normalized = normalizeText(text)
+        
+        com.mailsync.app.utils.FileLogger.log(context, "[OtpExtractor] --- EVALUATING TEXT ---")
+        com.mailsync.app.utils.FileLogger.log(context, "[OtpExtractor] Normalized Text: $normalized")
         
         // STRICT FILTER RELAXED: User requested ultra-aggressive extraction from ANY format.
         // We will no longer reject outright. The scoring system below will sort it out.
@@ -155,6 +158,8 @@ object OtpExtractor {
             val digitCount = candidate.count { it.isDigit() }
             val letterCount = candidate.count { it.isLetter() }
 
+            com.mailsync.app.utils.FileLogger.log(context, "[OtpExtractor] Found Candidate: $candidate at pos $startPos")
+
             // Calculate proximity context FIRST — needed to evaluate pure-alpha OTPs
             val windowStart = maxOf(0, startPos - 150)
             val windowEnd = minOf(normalized.length, startPos + candidate.length + 150)
@@ -166,21 +171,31 @@ object OtpExtractor {
             
             // Reject if it's a decimal number or price
             if (startPos > 0 && (normalized[startPos - 1] == '.' || normalized[startPos - 1] == '$' || normalized[startPos - 1] == '₹')) {
+                com.mailsync.app.utils.FileLogger.log(context, "[OtpExtractor]   -> Rejected: Prefix is price or decimal")
                 continue
             }
             
             // Reject pure letters ONLY if they are NOT near any OTP keyword
             // Many services (Microsoft, GitHub, Notion) send pure-alpha codes like "ABCDEF"
-            if (digitCount == 0 && !nearOtpKeyword) continue
+            if (digitCount == 0 && !nearOtpKeyword) {
+                com.mailsync.app.utils.FileLogger.log(context, "[OtpExtractor]   -> Rejected: Pure letters not near keyword")
+                continue
+            }
             
             // If it has letters and digits, require at least 2 digits to avoid tracking IDs
-            if (letterCount > 0 && digitCount < 2) continue
+            if (letterCount > 0 && digitCount < 2) {
+                com.mailsync.app.utils.FileLogger.log(context, "[OtpExtractor]   -> Rejected: Mixed letters but < 2 digits (tracking ID)")
+                continue
+            }
             
             // Ultra-good Alpha OTP Filtering:
             // Pure alphabetical candidates MUST be fully uppercase (e.g., "ASDFGH").
             // Normal lowercase/mixed-case words in sentences will be rejected to prevent false positives.
             if (digitCount == 0) {
-                if (!candidate.all { it.isUpperCase() } || candidate.length < 5) continue
+                if (!candidate.all { it.isUpperCase() } || candidate.length < 5) {
+                    com.mailsync.app.utils.FileLogger.log(context, "[OtpExtractor]   -> Rejected: Pure letters not fully uppercase or too short")
+                    continue
+                }
             }
             
             var score = 0
@@ -188,36 +203,47 @@ object OtpExtractor {
             // 2. Length scoring (Standard OTPs are usually 4, 6 or 8 digits)
             if (candidate.length == 4 || candidate.length == 6 || candidate.length == 8) {
                 score += 50
+                com.mailsync.app.utils.FileLogger.log(context, "[OtpExtractor]   -> +50 (Length 4, 6, or 8)")
             }
             
             // 2b. Penalize years (e.g., 2023, 2024, 2026)
             if (candidate.length == 4 && (candidate.startsWith("201") || candidate.startsWith("202"))) {
                 score -= 150
+                com.mailsync.app.utils.FileLogger.log(context, "[OtpExtractor]   -> -150 (Looks like a year)")
             }
             
             // 3. Position scoring (earlier in email is better)
-            score += (normalized.length - startPos) / 100
+            val posBonus = (normalized.length - startPos) / 100
+            score += posBonus
+            com.mailsync.app.utils.FileLogger.log(context, "[OtpExtractor]   -> +$posBonus (Position bonus)")
             
             // 4. Positive context (Proximity to OTP keywords)
             if (nearOtpKeyword) {
                 score += 100
+                com.mailsync.app.utils.FileLogger.log(context, "[OtpExtractor]   -> +100 (Near OTP keyword)")
             } else {
                 // If it's not near an OTP keyword, heavily penalize it! (E.g. random amounts in a bank statement)
                 score -= 300
+                com.mailsync.app.utils.FileLogger.log(context, "[OtpExtractor]   -> -300 (Not near OTP keyword)")
             }
             
             // 4b. Extra bonus for pure-digit codes (most common OTP format)
-            if (letterCount == 0) score += 30
+            if (letterCount == 0) {
+                score += 30
+                com.mailsync.app.utils.FileLogger.log(context, "[OtpExtractor]   -> +30 (Pure digits)")
+            }
             
             // 5. Negative context (Metadata prefixes immediately before)
             // Use -1000 so if it's an Aadhaar or PAN number it's strictly rejected
             if (hasMetadataPrefix(normalized, startPos)) {
                 score -= 1000 // Penalize IDs, references, orders, aadhaar, pan
+                com.mailsync.app.utils.FileLogger.log(context, "[OtpExtractor]   -> -1000 (Has metadata prefix like Ref or Rs)")
             }
             
             // 6. Negative context (Footers)
             if (isAfterFooter(normalized, startPos)) {
                 score -= 150
+                com.mailsync.app.utils.FileLogger.log(context, "[OtpExtractor]   -> -150 (In footer)")
             }
             
             // 7. Negative context (Phone numbers, Aadhaar, or long strings of digits)
@@ -225,10 +251,14 @@ object OtpExtractor {
             if (wideWindow.count { it.isDigit() } >= 10) {
                 // If there are 10 or more digits around/including it (like a phone number or 12-digit Aadhaar), completely reject it
                 score -= 1000
+                com.mailsync.app.utils.FileLogger.log(context, "[OtpExtractor]   -> -1000 (Too many nearby digits, likely phone/Aadhaar)")
             } else if (wideWindow.count { it.isDigit() } > 8) {
                 score -= 200
+                com.mailsync.app.utils.FileLogger.log(context, "[OtpExtractor]   -> -200 (Nearby digits)")
             }
             
+            com.mailsync.app.utils.FileLogger.log(context, "[OtpExtractor]   => Total Score: $score")
+
             if (score > highestScore) {
                 highestScore = score
                 bestMatch = candidate
@@ -237,6 +267,7 @@ object OtpExtractor {
         
         if (bestMatch != null && highestScore >= 0) {
             safeLog("OtpExtractor", "Smart Score Engine Match: $bestMatch, Score: $highestScore")
+            com.mailsync.app.utils.FileLogger.log(context, "[OtpExtractor] Final Decision: Extracted $bestMatch with score $highestScore")
             return ExtractionResult(bestMatch, extractExpiry(normalized, receivedTimeMs))
         }
 
@@ -248,6 +279,7 @@ object OtpExtractor {
                 c.all { it.isDigit() } && (c.length == 4 || c.length == 6 || c.length == 8)
             }
             if (fallback != null) {
+                com.mailsync.app.utils.FileLogger.log(context, "[OtpExtractor] Final Decision: Failsafe forced extraction of ${fallback.groupValues[1]}")
                 safeLog("OtpExtractor", "Failsafe Match: ${fallback.groupValues[1]}")
                 return ExtractionResult(fallback.groupValues[1], extractExpiry(normalized, receivedTimeMs))
             }

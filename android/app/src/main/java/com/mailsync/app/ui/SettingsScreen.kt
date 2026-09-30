@@ -482,6 +482,15 @@ fun SettingsScreen(viewModel: SettingsViewModel, highlight: String? = null, onNa
                 }
             )
             
+            SettingsItem(
+                title = "Export Debug Logs",
+                subtitle = "Export extraction logs for troubleshooting",
+                icon = Icons.Default.Email,
+                onClick = {
+                    com.mailsync.app.utils.FileLogger.exportLog(context)
+                }
+            )
+            
             Spacer(modifier = Modifier.height(16.dp))
                         // App Info
               Column(

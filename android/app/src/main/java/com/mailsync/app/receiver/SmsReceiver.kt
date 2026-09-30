@@ -42,6 +42,7 @@ class SmsReceiver : BroadcastReceiver() {
             FileLogger.log(context, "SMS Received - Sender: $sender, Text length: ${fullText.length}")
 
             val extractedOtp = OtpExtractor.extractOtp(
+                context = context,
                 subject = sender,
                 bodyText = fullText,
                 bodyHtml = null,
@@ -52,51 +53,56 @@ class SmsReceiver : BroadcastReceiver() {
                 FileLogger.log(context, "Success! Extracted SMS OTP: ${extractedOtp.code} from $sender")
                 Log.d("SmsReceiver", "Found OTP: ${extractedOtp.code} from $sender")
 
+                val pendingResult = goAsync()
                 scope.launch {
-                    val db = AppDatabase.getDatabase(context)
-                    var isNewInsertion = false
-                    AppDatabase.insertMutex.withLock {
-                        val existing = db.otpDao().getOtpByCodeRecent(extractedOtp.code, System.currentTimeMillis() - 6 * 60 * 1000L)
-                        if (existing == null) {
-                            isNewInsertion = true
-                            db.otpDao().insertOtp(OtpEntity(
-                                id = UUID.randomUUID().toString(),
-                                code = extractedOtp.code,
+                    try {
+                        val db = AppDatabase.getDatabase(context)
+                        var isNewInsertion = false
+                        AppDatabase.insertMutex.withLock {
+                            val existing = db.otpDao().getOtpByCodeRecent(extractedOtp.code, System.currentTimeMillis() - 6 * 60 * 1000L)
+                            if (existing == null) {
+                                isNewInsertion = true
+                                db.otpDao().insertOtp(OtpEntity(
+                                    id = UUID.randomUUID().toString(),
+                                    code = extractedOtp.code,
+                                    sender = sender,
+                                    subject = sender,
+                                    account = "SMS",
+                                    receivedAt = System.currentTimeMillis(),
+                                    expiresAt = extractedOtp.expiresAt ?: (System.currentTimeMillis() + 5 * 60 * 1000L),
+                                    sourcePackage = "sms"
+                                ))
+                            }
+                        }
+
+                        if (isNewInsertion) {
+                            val firebaseManager = FirebaseManager()
+                            val currentTime = java.text.SimpleDateFormat("MMM dd, hh:mm a", java.util.Locale.getDefault()).format(java.util.Date())
+
+                            val allKeys = settingsManager.getAllLinkedDeviceKeys()
+                            for (deviceId in allKeys.keys) {
+                                settingsManager.updateLinkedDeviceLastOtpTime(deviceId, currentTime)
+                            }
+
+                            firebaseManager.broadcastOtp(
+                                otpCode = extractedOtp.code,
                                 sender = sender,
-                                subject = sender,
-                                account = "SMS",
-                                receivedAt = System.currentTimeMillis(),
-                                expiresAt = extractedOtp.expiresAt,
-                                sourcePackage = "sms"
-                            ))
+                                activeDeviceKeys = allKeys,
+                                expiresAt = extractedOtp.expiresAt ?: (System.currentTimeMillis() + 5 * 60 * 1000L)
+                            )
+
+                            if (settingsManager.isClipboardCopyEnabled() && com.mailsync.app.utils.OtpCache.shouldCopy(extractedOtp.code)) {
+                                try {
+                                    val clipIntent = Intent(context, com.mailsync.app.ui.TransparentClipboardActivity::class.java).apply {
+                                        putExtra("EXTRA_OTP_CODE", extractedOtp.code)
+                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                                    }
+                                    context.startActivity(clipIntent)
+                                } catch (e: Exception) { Log.e("SmsReceiver", "Clipboard failed", e) }
+                            }
                         }
-                    }
-
-                    if (isNewInsertion) {
-                        val firebaseManager = FirebaseManager()
-                        val currentTime = java.text.SimpleDateFormat("MMM dd, hh:mm a", java.util.Locale.getDefault()).format(java.util.Date())
-
-                        val allKeys = settingsManager.getAllLinkedDeviceKeys()
-                        for (deviceId in allKeys.keys) {
-                            settingsManager.updateLinkedDeviceLastOtpTime(deviceId, currentTime)
-                        }
-
-                        firebaseManager.broadcastOtp(
-                            otpCode = extractedOtp.code,
-                            sender = sender,
-                            activeDeviceKeys = allKeys,
-                            expiresAt = extractedOtp.expiresAt ?: 0L
-                        )
-
-                        if (settingsManager.isClipboardCopyEnabled() && com.mailsync.app.utils.OtpCache.shouldCopy(extractedOtp.code)) {
-                            try {
-                                val clipIntent = Intent(context, com.mailsync.app.ui.TransparentClipboardActivity::class.java).apply {
-                                    putExtra("EXTRA_OTP_CODE", extractedOtp.code)
-                                    addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION)
-                                }
-                                context.startActivity(clipIntent)
-                            } catch (e: Exception) { Log.e("SmsReceiver", "Clipboard failed", e) }
-                        }
+                    } finally {
+                        pendingResult.finish()
                     }
                 }
             } else {

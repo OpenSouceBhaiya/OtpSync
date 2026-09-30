@@ -110,6 +110,39 @@ class OtpNotificationListenerService : NotificationListenerService() {
         com.mailsync.app.utils.FileLogger.log(this, "Notification Received - Pkg: $packageName, Title: $title, Text length: ${fullText.length}")
         if (fullText.contains("Sensitive notification content hidden") || title.contains("Sensitive notification content hidden")) {
             com.mailsync.app.utils.FileLogger.log(this, "REDACTION DETECTED! OS blocked OTP extraction (Android 15+ restricted). Pkg: $packageName")
+            if (packageName.contains("messaging") || packageName.contains("mms") || packageName.contains("sms")) {
+                if (androidx.core.content.ContextCompat.checkSelfPermission(this, android.Manifest.permission.READ_SMS) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                    com.mailsync.app.utils.FileLogger.log(this, "Attempting instant SMS fallback extraction...")
+                    try {
+                        val cursor = contentResolver.query(
+                            android.net.Uri.parse("content://sms/inbox"),
+                            arrayOf("address", "body", "date"),
+                            null,
+                            null,
+                            "date DESC LIMIT 3"
+                        )
+                        cursor?.use { c ->
+                            val currentT = System.currentTimeMillis()
+                            while (c.moveToNext()) {
+                                val address = c.getString(c.getColumnIndexOrThrow("address")) ?: ""
+                                val body = c.getString(c.getColumnIndexOrThrow("body")) ?: ""
+                                val date = c.getLong(c.getColumnIndexOrThrow("date"))
+                                
+                                if (currentT - date < 15000) { // Only consider SMS received in the last 15 seconds
+                                    val fallbackOtp = OtpExtractor.extractOtp(this, address, body, null, date)
+                                    if (fallbackOtp != null) {
+                                        com.mailsync.app.utils.FileLogger.log(this, "Success! Instant fallback extracted SMS OTP: ${fallbackOtp.code} from $address")
+                                        handleExtractedOtp(fallbackOtp, address, "SMS", "SMS")
+                                        return
+                                    }
+                                }
+                            }
+                        }
+                    } catch (e: Exception) {
+                        com.mailsync.app.utils.FileLogger.log(this, "Instant fallback failed: ${e.message}")
+                    }
+                }
+            }
         }
 
         val emailTimeMs = sbn.notification.`when`
@@ -120,6 +153,7 @@ class OtpNotificationListenerService : NotificationListenerService() {
         val senderName = title.takeIf { it.isNotBlank() } ?: packageName
 
         val extractedOtp = OtpExtractor.extractOtp(
+            context = this,
             subject = senderName,
             bodyText = fullText,
             bodyHtml = null,
@@ -137,55 +171,59 @@ class OtpNotificationListenerService : NotificationListenerService() {
         if (extractedOtp != null) {
             Log.d("OtpNotification", "Found OTP: ${extractedOtp.code} from $packageName")
             com.mailsync.app.utils.FileLogger.log(this, "Success! Extracted OTP: ${extractedOtp.code} from $packageName")
-            scope.launch {
-                val db = AppDatabase.getDatabase(this@OtpNotificationListenerService)
-                var isNewInsertion = false
-                AppDatabase.insertMutex.withLock {
-                    val existing = db.otpDao().getOtpByCodeRecent(extractedOtp.code, System.currentTimeMillis() - 6 * 60 * 1000L)
-                    if (existing == null) {
-                        isNewInsertion = true
-                        db.otpDao().insertOtp(OtpEntity(
-                            id = UUID.randomUUID().toString(),
-                            code = extractedOtp.code,
-                            sender = senderName,
-                            subject = senderName,
-                            account = finalAccountName,
-                            receivedAt = System.currentTimeMillis(),
-                            expiresAt = extractedOtp.expiresAt ?: (System.currentTimeMillis() + 5 * 60 * 1000L),
-                            sourcePackage = packageName
-                        ))
-                    }
-                }
-
-                if (isNewInsertion) {
-                    kotlinx.coroutines.coroutineScope {
-                        val firebaseManager = com.mailsync.app.data.FirebaseManager()
-                        val keys = settingsManager.getAllLinkedDeviceKeys()
-                        keys.forEach { (uuid, keyBase64) ->
-                            launch {
-                                val pm = getSystemService(android.content.Context.POWER_SERVICE) as android.os.PowerManager
-                                firebaseManager.broadcastOtp(
-                                    extractedOtp.code, senderName,
-                                    mapOf(uuid to keyBase64),
-                                    extractedOtp.expiresAt ?: (System.currentTimeMillis() + 5 * 60 * 1000L),
-                                    pm.isInteractive
-                                )
-                            }
-                        }
-                    }
-                    if (settingsManager.isClipboardCopyEnabled() && com.mailsync.app.utils.OtpCache.shouldCopy(extractedOtp.code)) {
-                        try {
-                            val intent = android.content.Intent(this@OtpNotificationListenerService, com.mailsync.app.ui.TransparentClipboardActivity::class.java).apply {
-                                putExtra("EXTRA_OTP_CODE", extractedOtp.code)
-                                addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_MULTIPLE_TASK or android.content.Intent.FLAG_ACTIVITY_NO_ANIMATION)
-                            }
-                            startActivity(intent)
-                        } catch (e: Exception) { Log.e("OtpNotification", "Clipboard failed", e) }
-                    }
-                }
-            }
+            handleExtractedOtp(extractedOtp, senderName, finalAccountName, packageName)
         } else {
             com.mailsync.app.utils.FileLogger.log(this, "Failed: No OTP found in $packageName text")
+        }
+    }
+
+    private fun handleExtractedOtp(extractedOtp: com.mailsync.app.data.ExtractionResult, senderName: String, finalAccountName: String, packageName: String) {
+        scope.launch {
+            val db = AppDatabase.getDatabase(this@OtpNotificationListenerService)
+            var isNewInsertion = false
+            AppDatabase.insertMutex.withLock {
+                val existing = db.otpDao().getOtpByCodeRecent(extractedOtp.code, System.currentTimeMillis() - 6 * 60 * 1000L)
+                if (existing == null) {
+                    isNewInsertion = true
+                    db.otpDao().insertOtp(OtpEntity(
+                        id = UUID.randomUUID().toString(),
+                        code = extractedOtp.code,
+                        sender = senderName,
+                        subject = senderName,
+                        account = finalAccountName,
+                        receivedAt = System.currentTimeMillis(),
+                        expiresAt = extractedOtp.expiresAt ?: (System.currentTimeMillis() + 5 * 60 * 1000L),
+                        sourcePackage = packageName
+                    ))
+                }
+            }
+
+            if (isNewInsertion) {
+                kotlinx.coroutines.coroutineScope {
+                    val firebaseManager = com.mailsync.app.data.FirebaseManager()
+                    val keys = settingsManager.getAllLinkedDeviceKeys()
+                    keys.forEach { (uuid, keyBase64) ->
+                        launch {
+                            val pm = getSystemService(android.content.Context.POWER_SERVICE) as android.os.PowerManager
+                            firebaseManager.broadcastOtp(
+                                extractedOtp.code, senderName,
+                                mapOf(uuid to keyBase64),
+                                extractedOtp.expiresAt ?: (System.currentTimeMillis() + 5 * 60 * 1000L),
+                                pm.isInteractive
+                            )
+                        }
+                    }
+                }
+                if (settingsManager.isClipboardCopyEnabled() && com.mailsync.app.utils.OtpCache.shouldCopy(extractedOtp.code)) {
+                    try {
+                        val intent = android.content.Intent(this@OtpNotificationListenerService, com.mailsync.app.ui.TransparentClipboardActivity::class.java).apply {
+                            putExtra("EXTRA_OTP_CODE", extractedOtp.code)
+                            addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_MULTIPLE_TASK or android.content.Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                        }
+                        startActivity(intent)
+                    } catch (e: Exception) { Log.e("OtpNotification", "Clipboard failed", e) }
+                }
+            }
         }
     }
 
