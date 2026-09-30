@@ -79,6 +79,17 @@ class OtpNotificationListenerService : NotificationListenerService() {
                     if (!msgText.isNullOrBlank()) {
                         messagesText += "$msgText\n"
                     }
+                } else {
+                    // Handle newer Android versions where it's a Notification.MessagingStyle.Message object
+                    try {
+                        val method = msg.javaClass.getMethod("getText")
+                        val msgText = method.invoke(msg)?.toString()
+                        if (!msgText.isNullOrBlank()) {
+                            messagesText += "$msgText\n"
+                        }
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
                 }
             }
         }
