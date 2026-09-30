@@ -336,12 +336,19 @@ document.addEventListener('DOMContentLoaded', async () => {
                 showTerminatedView();
                 return;
             }
+            window.consecutiveFetchFailures = 0;
+            if (window.isFetchOffline && navigator.onLine) {
+                window.isFetchOffline = false;
+                if (typeof window.updateNetworkStatus === 'function') window.updateNetworkStatus();
+            }
             applyStatusData(data);
         } catch (e) {
-            // Firebase fetch failed — DO NOT show the overlay.
-            // navigator.onLine is the correct source of truth for real connectivity in popup context.
-            // The online/offline event listeners above handle the overlay correctly.
-            console.warn('Firebase status check failed (ignoring for overlay):', e.message);
+            window.consecutiveFetchFailures++;
+            if (window.consecutiveFetchFailures >= 3) {
+                window.isFetchOffline = true;
+                if (typeof window.updateNetworkStatus === 'function') window.updateNetworkStatus();
+            }
+            // Suppress the console warning to keep the console clean as requested by the user
         }
         if (window.statusLoopActive) {
             setTimeout(() => checkDeviceStatus(uuid), 2500);
@@ -557,7 +564,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                     applyStatusData(data);
                     startStatusLoop(uuid);
                 }
-            } catch (e) { console.warn("Polling for link failed:", e); }
+            } catch (e) {
+                // Suppress console warning to keep console clean
+            }
         }, 1500);
     }
 
