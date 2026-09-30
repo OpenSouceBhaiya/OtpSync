@@ -212,7 +212,7 @@ async function getDeviceName() {
 // ─── Main ─────────────────────────────────────────────────────────────────────
 document.addEventListener('DOMContentLoaded', async () => {
     // Initialize connectivity state explicitly
-    window.isFetchOffline = false;
+    window.isFetchOffline = !navigator.onLine;
     window.consecutiveFetchFailures = 0;
     window.currentDeviceStatus = null;
     window.statusLoopActive = false;
@@ -398,6 +398,16 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (pausedSubtitle) pausedSubtitle.textContent = "Sync is paused. Enable \"Instant Sync Engine\" in OTP Sync Android app.";
             if (statusIndicator) statusIndicator.className = 'status-dot-container warning';
             if (statusText) statusText.textContent = "Sync Paused";
+            if (logoContainer) logoContainer.classList.add('status-warning');
+        } else if (data.status === 'offline') {
+            const linkedView = document.getElementById('linked-view');
+            if (linkedView.classList.contains('hidden')) {
+                showLinkedState(nameToShow);
+            } else {
+                renderGreeting(nameToShow);
+            }
+            if (statusIndicator) statusIndicator.className = 'status-dot-container warning';
+            if (statusText) statusText.textContent = "App Offline";
             if (logoContainer) logoContainer.classList.add('status-warning');
         } else {
             const linkedView = document.getElementById('linked-view');
@@ -646,5 +656,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         } catch (e) { console.warn('updateNetworkStatus error', e); }
     };
-});
 
+    // Immediately reflect PC offline status if disconnected on startup
+    if (window.isFetchOffline && typeof window.updateNetworkStatus === 'function') {
+        window.updateNetworkStatus();
+    }
+});

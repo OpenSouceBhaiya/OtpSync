@@ -280,7 +280,7 @@ async function startListening(uuid, aesKeyBase64, force = false) {
             }
 
             const isError = statusData.status === 'error_no_accounts';
-            const isWarning = statusData.syncEnabled === false || statusData.status === 'paused';
+            const isWarning = statusData.syncEnabled === false || statusData.status === 'paused' || statusData.status === 'offline';
             setToolbarIcon(isError ? 'error' : (isWarning ? 'warning' : 'active'));
 
             // Log status transitions for debugging
