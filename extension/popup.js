@@ -451,7 +451,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         stopStatusLoop();
         hideAll();
         document.getElementById('terminated-view').classList.remove('hidden');
-        chrome.runtime.sendMessage({ action: "stop_listening" });
+        chrome.runtime.sendMessage({ action: "stop_listening" }).catch(() => {});
     }
 
     function hideAll() {
@@ -562,7 +562,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     renderGreeting(data.accountName || null);
                     setTimeout(playWave, 300);
 
-                    chrome.runtime.sendMessage({ action: "start_listening" });
+                    chrome.runtime.sendMessage({ action: "start_listening" }).catch(() => {});
                     applyStatusData(data);
                     startStatusLoop(uuid);
                 }

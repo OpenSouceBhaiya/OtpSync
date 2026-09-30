@@ -29,14 +29,14 @@
 }
 
 #otpsync-toast.show {
-    right: 24px;
-    opacity: 1;
+    right: 24px !important;
+    opacity: 1 !important;
 }
 
 #otpsync-toast.hide {
-    right: -380px;
-    opacity: 0;
-    transition: right 0.35s ease-in, opacity 0.35s ease-in;
+    right: -380px !important;
+    opacity: 0 !important;
+    transition: right 0.35s ease-in, opacity 0.35s ease-in !important;
 }
 
 #otpsync-toast:hover {
