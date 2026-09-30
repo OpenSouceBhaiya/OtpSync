@@ -131,9 +131,6 @@ let currentUuid = null;
 
 // ─── Toolbar Icon with Animated Dot ──────────────────────────────────────────
 async function setToolbarIcon(state) {
-    if (!navigator.onLine && state === 'active') {
-        state = 'warning';
-    }
     if (currentIconState === state) return;
     currentIconState = state;
     try {

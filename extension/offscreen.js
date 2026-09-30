@@ -109,3 +109,11 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 function notifyBg(action) {
     chrome.runtime.sendMessage({ target: 'background', action: action }).catch(() => {});
 }
+
+window.addEventListener('offline', () => {
+    chrome.runtime.sendMessage({ action: 'force_icon', state: 'warning' }).catch(() => {});
+});
+
+window.addEventListener('online', () => {
+    chrome.runtime.sendMessage({ action: 'force_icon', state: 'active' }).catch(() => {});
+});
