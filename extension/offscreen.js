@@ -110,10 +110,11 @@ function notifyBg(action) {
     chrome.runtime.sendMessage({ target: 'background', action: action }).catch(() => {});
 }
 
-window.addEventListener('offline', () => {
-    chrome.runtime.sendMessage({ action: 'force_icon', state: 'warning' }).catch(() => {});
-});
-
-window.addEventListener('online', () => {
-    chrome.runtime.sendMessage({ action: 'force_icon', state: 'active' }).catch(() => {});
-});
+let lastNetworkState = navigator.onLine;
+setInterval(() => {
+    if (navigator.onLine !== lastNetworkState) {
+        lastNetworkState = navigator.onLine;
+        const state = navigator.onLine ? 'active' : 'warning';
+        chrome.runtime.sendMessage({ action: 'force_icon', state: state }).catch(() => {});
+    }
+}, 1000);

@@ -62,6 +62,16 @@ chrome.storage.local.get(['linked', 'uuid', 'aesKey'], async (data) => {
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.action === "force_icon") {
         setToolbarIcon(message.state);
+        if (message.state === 'active' && currentUuid) {
+            // Immediately attempt to fetch the latest state since internet is back
+            fetch(`https://mailsync-osb-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${currentUuid}.json`, { cache: 'no-store' })
+                .then(r => r.json())
+                .then(statusData => {
+                    if (statusData && statusData.status === 'offline') {
+                        setToolbarIcon('warning');
+                    }
+                }).catch(() => {});
+        }
     } else if (message.action === "start_listening") {
         chrome.storage.local.get(['uuid', 'aesKey'], (data) => {
             if (data.uuid && data.aesKey) {
