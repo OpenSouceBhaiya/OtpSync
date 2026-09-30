@@ -261,6 +261,8 @@ async function startListening(uuid, aesKeyBase64, force = false) {
         }
     }
 
+    let bgFetchFailures = 0;
+
     const pollLoop = async () => {
         if (!isListening) {
             setToolbarIcon('none');
@@ -301,10 +303,16 @@ async function startListening(uuid, aesKeyBase64, force = false) {
                 fetch(`${dbBaseUrl}/devices/${uuid}/app_error.json`, { method: 'DELETE' }).catch(() => {});
             }
 
+            bgFetchFailures = 0; // reset on success
+
             // Fallback poll — in case SSE missed something
             await fetchOtpImmediately(uuid, aesKeyBase64, cryptoKey);
         } catch (e) {
             // Silent — network hiccup
+            bgFetchFailures++;
+            if (bgFetchFailures >= 2) {
+                setToolbarIcon('warning');
+            }
         }
 
         if (isListening) {
