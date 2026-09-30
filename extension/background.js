@@ -60,7 +60,9 @@ chrome.storage.local.get(['linked', 'uuid', 'aesKey'], async (data) => {
 
 // ─── Message Handler ──────────────────────────────────────────────────────────
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.action === "start_listening") {
+    if (message.action === "force_icon") {
+        setToolbarIcon(message.state);
+    } else if (message.action === "start_listening") {
         chrome.storage.local.get(['uuid', 'aesKey'], (data) => {
             if (data.uuid && data.aesKey) {
                 startListening(data.uuid, data.aesKey, true);

@@ -222,11 +222,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         logDebug('Browser went offline → showing Connection Lost overlay');
         window.isFetchOffline = true;
         if (typeof window.updateNetworkStatus === 'function') window.updateNetworkStatus();
+        chrome.runtime.sendMessage({ action: "force_icon", state: "warning" }).catch(() => {});
     });
     window.addEventListener('online', () => {
         logDebug('Browser came back online → hiding overlay');
         window.isFetchOffline = false;
         if (typeof window.updateNetworkStatus === 'function') window.updateNetworkStatus();
+        chrome.runtime.sendMessage({ action: "force_icon", state: "active" }).catch(() => {});
     });
 
     // Clear stale errors (only keep last 10 minutes)
@@ -669,5 +671,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Immediately reflect PC offline status if disconnected on startup
     if (window.isFetchOffline && typeof window.updateNetworkStatus === 'function') {
         window.updateNetworkStatus();
+        chrome.runtime.sendMessage({ action: "force_icon", state: "warning" }).catch(() => {});
     }
 });
