@@ -1,5 +1,12 @@
 // background.js — MailSync Chrome Extension
 
+self.addEventListener('offline', () => {
+    setToolbarIcon('warning');
+});
+self.addEventListener('online', () => {
+    setToolbarIcon('active');
+});
+
 // ─── Keep-Alive Alarm ────────────────────────────────────────────────────────
 chrome.alarms.create("keepAlive", { periodInMinutes: 1 });
 chrome.alarms.onAlarm.addListener(async (alarm) => {
@@ -122,6 +129,9 @@ let currentUuid = null;
 
 // ─── Toolbar Icon with Animated Dot ──────────────────────────────────────────
 async function setToolbarIcon(state) {
+    if (!navigator.onLine && state === 'active') {
+        state = 'warning';
+    }
     if (currentIconState === state) return;
     currentIconState = state;
     try {
