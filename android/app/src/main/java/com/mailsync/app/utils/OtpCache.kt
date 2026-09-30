@@ -8,8 +8,8 @@ object OtpCache {
     fun shouldCopy(code: String): Boolean {
         val sanitizedCode = code.replace("\\s".toRegex(), "")
         val now = System.currentTimeMillis()
-        if (sanitizedCode == lastCopiedCode && (now - lastCopiedTime) < 60000) {
-            return false // Skip if exact same code was copied in last 60 seconds
+        if (sanitizedCode == lastCopiedCode && (now - lastCopiedTime) < 5000) {
+            return false // Skip if exact same code was copied in last 5 seconds
         }
         lastCopiedCode = sanitizedCode
         lastCopiedTime = now

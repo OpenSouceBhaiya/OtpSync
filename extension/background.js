@@ -481,8 +481,19 @@ async function handleEncryptedOtp(ivBase64, dataBase64, cryptoKey) {
 
         // 4. Save to local history
         chrome.storage.local.get(['otpHistory', 'uuid'], (data) => {
-            const history = data.otpHistory || [];
+            let history = data.otpHistory || [];
+            
+            // Check if exact same OTP from exact same sender is already in history
+            const duplicateIndex = history.findIndex(h => h.otp === otpCode && h.sender === sender);
+            
+            if (duplicateIndex !== -1) {
+                // It's a duplicate. Remove it from its current position so we can move it to the top
+                history.splice(duplicateIndex, 1);
+            }
+            
+            // Add to top of history (new or updated)
             history.unshift({ otp: otpCode, sender, time: Date.now(), expiresAt: expiresAt });
+            
             if (history.length > 3) history.pop();
             chrome.storage.local.set({ otpHistory: history });
             chrome.runtime.sendMessage({ action: "otp_received", otpCode, sender }).catch(() => {});

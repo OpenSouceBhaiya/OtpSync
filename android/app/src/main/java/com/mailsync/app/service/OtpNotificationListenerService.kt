@@ -189,7 +189,11 @@ class OtpNotificationListenerService : NotificationListenerService() {
             val db = AppDatabase.getDatabase(this@OtpNotificationListenerService)
             var isNewInsertion = false
             AppDatabase.insertMutex.withLock {
-                val existing = db.otpDao().getOtpByCodeRecent(extractedOtp.code, System.currentTimeMillis() - 6 * 60 * 1000L)
+                var existing = db.otpDao().getOtpByCodeRecent(extractedOtp.code, System.currentTimeMillis() - 6 * 60 * 1000L)
+                if (existing != null && existing.sender != senderName) {
+                    existing = null // Treat as completely new if the sender is different
+                }
+
                 if (existing == null) {
                     isNewInsertion = true
                     db.otpDao().insertOtp(OtpEntity(
@@ -202,6 +206,10 @@ class OtpNotificationListenerService : NotificationListenerService() {
                         expiresAt = extractedOtp.expiresAt ?: (System.currentTimeMillis() + 5 * 60 * 1000L),
                         sourcePackage = packageName
                     ))
+                } else {
+                    isNewInsertion = true // Re-trigger broadcast and copy
+                    existing.receivedAt = System.currentTimeMillis()
+                    db.otpDao().updateOtp(existing)
                 }
             }
 
