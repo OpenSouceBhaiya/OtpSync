@@ -405,34 +405,7 @@ function reportGlobalError(msg) {
     });
 }
 
-// ─── Carry Forward Toast on Tab Switch ────────────────────────────────────────
-chrome.tabs.onActivated.addListener((activeInfo) => {
-    chrome.storage.local.get(['pendingToast'], (data) => {
-        if (data.pendingToast && data.pendingToast.showUntil > Date.now()) {
-            const tr = data.pendingToast.showUntil - Date.now();
-            chrome.tabs.sendMessage(activeInfo.tabId, {
-                action: "show_toast_and_copy",
-                otp: data.pendingToast.otp,
-                sender: data.pendingToast.sender,
-                isCarryForward: true,
-                timeRemaining: tr
-            }).catch(async () => {
-                try {
-                    await chrome.scripting.insertCSS({ target: { tabId: activeInfo.tabId }, files: ["content.css"] });
-                    await chrome.scripting.executeScript({ target: { tabId: activeInfo.tabId }, files: ["content.js"] });
-                    await new Promise(resolve => setTimeout(resolve, 200));
-                    await chrome.tabs.sendMessage(activeInfo.tabId, {
-                        action: "show_toast_and_copy",
-                        otp: data.pendingToast.otp,
-                        sender: data.pendingToast.sender,
-                        isCarryForward: true,
-                        timeRemaining: tr
-                    });
-                } catch (e) { /* ignore restricted pages */ }
-            });
-        }
-    });
-});
+// Removed Carry Forward Toast logic as requested by user to prevent duplicate animations on tab switch
 // ─── Decrypt & Deliver OTP ───────────────────────────────────────────────────
 async function handleEncryptedOtp(ivBase64, dataBase64, cryptoKey) {
     try {
@@ -461,23 +434,7 @@ async function handleEncryptedOtp(ivBase64, dataBase64, cryptoKey) {
         // 2. Auto-clear clipboard after 60s
         setTimeout(() => copyToClipboard(' '), 60000);
 
-        // 3. Save pendingToast to storage so content.js can re-show it after page navigation
-        // TTL = 6 seconds (exact duration of the toast)
-        chrome.storage.local.set({
-            pendingToast: {
-                otp: otpCode,
-                sender: sender,
-                showUntil: Date.now() + 6000
-            }
-        });
-        // Auto-clear after 6s
-        setTimeout(() => {
-            chrome.storage.local.get(['pendingToast'], (d) => {
-                if (d.pendingToast && d.pendingToast.otp === otpCode) {
-                    chrome.storage.local.remove('pendingToast');
-                }
-            });
-        }, 6000);
+        // Removed pendingToast saving logic
 
         // 4. Save to local history
         chrome.storage.local.get(['otpHistory', 'uuid'], (data) => {

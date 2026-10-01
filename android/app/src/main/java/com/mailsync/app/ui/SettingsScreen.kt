@@ -481,10 +481,8 @@ fun SettingsScreen(viewModel: SettingsViewModel, highlight: String? = null, onNa
                     context.startActivity(intent)
                 }
             )
-            
 
-            
-            Spacer(modifier = Modifier.height(16.dp))
+
                         // App Info
               Column(
                   modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),

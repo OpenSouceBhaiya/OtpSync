@@ -48,6 +48,23 @@ Unlike traditional cloud-sync applications, OTP Sync operates on a strict **Loca
 
 ---
 
+## ⚠️ Known Limitations
+
+### Android 15 & RCS Business Messages
+On newer Android versions (Android 15+), the operating system introduces a security feature that **actively redacts OTPs** appearing in notifications. The OS replaces the actual code with the text `"Sensitive notification content hidden"`. 
+
+This redaction completely blocks third-party apps from extracting OTPs that arrive via **RCS Business Messaging** (e.g., from Google or Microsoft with the blue verified checkmark). Because RCS bypasses the standard SMS broadcast receiver, the `NotificationListenerService` is the only way to read them, and it is blinded by the OS.
+
+**The Workaround:** 
+To allow OTP Sync to extract these messages, you must force them to arrive as standard SMS:
+1. Open the **Google Messages** app.
+2. Go to **Messages settings** > **RCS chats**.
+3. Toggle off **Turn on RCS chats**. 
+
+When sent as standard SMS, the messages are intercepted securely at the hardware level via `SmsReceiver` *before* the notification system redacts them, allowing instant sync to your PC.
+
+---
+
 ## 🛡️ Privacy & Security
 
 We believe your data is yours alone. For a detailed breakdown of our security practices, encryption methods, and threat models, please refer to our [SECURITY.md](SECURITY.md).

@@ -94,13 +94,49 @@ class OtpNotificationListenerService : NotificationListenerService() {
             }
         }
 
-        val fullText = when {
-            messagesText.isNotBlank() -> messagesText.trim()
-            bigText.isBlank() || bigText == text -> text
-            text.isBlank() -> bigText
-            bigText.startsWith(text) -> bigText
-            else -> "$text $bigText".trim()
+        val allTextBuilder = StringBuilder()
+        
+        // Append standard fields first to maintain order
+        val ticker = sbn.notification.tickerText?.toString() ?: ""
+        if (ticker.isNotBlank()) allTextBuilder.append(ticker).append("\n")
+        if (title.isNotBlank()) allTextBuilder.append(title).append("\n")
+        if (text.isNotBlank()) allTextBuilder.append(text).append("\n")
+        if (bigText.isNotBlank() && bigText != text) allTextBuilder.append(bigText).append("\n")
+        if (messagesText.isNotBlank()) allTextBuilder.append(messagesText).append("\n")
+        
+        // Loop through all extras to catch hidden fields used by verified businesses / RCS
+        try {
+            for (key in extras.keySet()) {
+                if (key == Notification.EXTRA_TITLE || key == Notification.EXTRA_TEXT || key == Notification.EXTRA_BIG_TEXT || key == Notification.EXTRA_MESSAGES) {
+                    continue
+                }
+                val value = extras.get(key)
+                when (value) {
+                    is CharSequence -> {
+                        val strValue = value.toString()
+                        if (strValue.isNotBlank()) allTextBuilder.append(strValue).append("\n")
+                    }
+                    is Array<*> -> {
+                        for (item in value) {
+                            if (item is CharSequence && item.isNotBlank()) {
+                                allTextBuilder.append(item.toString()).append("\n")
+                            }
+                        }
+                    }
+                    is Iterable<*> -> {
+                        for (item in value) {
+                            if (item is CharSequence && item.isNotBlank()) {
+                                allTextBuilder.append(item.toString()).append("\n")
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
+
+        val fullText = allTextBuilder.toString().trim()
 
         val systemPackages = setOf("android", "com.android.systemui", "com.android.settings",
             "com.android.packageinstaller", applicationContext.packageName)
@@ -121,7 +157,7 @@ class OtpNotificationListenerService : NotificationListenerService() {
                                 arrayOf("address", "body", "date"),
                                 null,
                                 null,
-                                "date DESC LIMIT 3"
+                                "date DESC LIMIT 10"
                             )
                             cursor?.use { c ->
                                 val currentT = System.currentTimeMillis()

@@ -10,7 +10,7 @@ data class OtpEntity(
     val sender: String,
     val subject: String,
     val account: String,
-    val receivedAt: Long,
+    var receivedAt: Long,
     val expiresAt: Long? = null,
     val isUsed: Boolean = false,
     val sourcePackage: String? = null  // e.g. "com.whatsapp", "com.android.mms", "com.google.android.gm"
