@@ -138,6 +138,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 // ─── State ───────────────────────────────────────────────────────────────────
 let isListening = false;
 let lastHandledOtp = null;
+let lastHandledTime = 0;
+let lastDeliveredOtp = null;
+let lastDeliveredTime = 0;
 let iconAnimInterval = null;
 let currentIconState = 'none';
 // Track current UUID so we know if a new QR scan happened
@@ -347,11 +350,16 @@ async function startListening(uuid, aesKeyBase64, force = false) {
     pollLoop();
 }
 
+let isFetchingOtp = false;
+
 async function fetchOtpImmediately(uuid, aesKeyBase64, providedCryptoKey = null) {
-    const local = await chrome.storage.local.get(['linked']);
-    if (!local.linked) return;
-    
+    if (isFetchingOtp) return;
+    isFetchingOtp = true;
+
     try {
+        const local = await chrome.storage.local.get(['linked']);
+        if (!local || !local.linked) return;
+        
         const rawKey = Uint8Array.from(atob(aesKeyBase64), c => c.charCodeAt(0));
         const cryptoKey = providedCryptoKey || await crypto.subtle.importKey(
             'raw', rawKey,
@@ -366,15 +374,21 @@ async function fetchOtpImmediately(uuid, aesKeyBase64, providedCryptoKey = null)
 
         if (otpData && otpData.iv && otpData.data) {
             const sig = otpData.iv + otpData.data;
-            if (sig !== lastHandledOtp) {
-                lastHandledOtp = sig;
-                // Delete from Firebase FIRST — prevent duplicate delivery if SSE fires again before we finish
-                await fetch(otpsUrl, { method: 'DELETE' }).catch(() => {});
-                await handleEncryptedOtp(otpData.iv, otpData.data, cryptoKey);
+            const now = Date.now();
+            if (sig === lastHandledOtp && (now - lastHandledTime) < 20000) {
+                return;
             }
+            lastHandledOtp = sig;
+            lastHandledTime = now;
+
+            // Delete from Firebase FIRST — prevent duplicate delivery if SSE fires again before we finish
+            await fetch(otpsUrl, { method: 'DELETE' }).catch(() => {});
+            await handleEncryptedOtp(otpData.iv, otpData.data, cryptoKey);
         }
     } catch(e) {
         // silent
+    } finally {
+        isFetchingOtp = false;
     }
 }
 
@@ -429,6 +443,16 @@ async function handleEncryptedOtp(ivBase64, dataBase64, cryptoKey) {
 
         const otpCode = parts[0].trim();
         const sender = parts[1].trim();
+
+        // Strict Deduplication: never deliver identical OTP code within 15 seconds
+        const now = Date.now();
+        if (lastDeliveredOtp === otpCode && (now - lastDeliveredTime) < 15000) {
+            console.log(`[MailSync] Duplicate delivery of ${otpCode} suppressed within debounce window.`);
+            return;
+        }
+        lastDeliveredOtp = otpCode;
+        lastDeliveredTime = now;
+
         // parts[2] = timestamp
         // parts[3] = expiresAt timestamp in ms
         const expiresAt = parts.length >= 4 ? parseInt(parts[3], 10) : (Date.now() + 10 * 60 * 1000);
@@ -471,49 +495,58 @@ async function handleEncryptedOtp(ivBase64, dataBase64, cryptoKey) {
                 }).catch(() => {});
             }
 
-            // 4.6 Native Chrome/Windows Desktop Notification
-            try {
-                chrome.notifications.create(`otp-${Date.now()}`, {
-                    type: 'basic',
-                    iconUrl: 'icon128.png',
-                    title: `✓ OTP Copied: ${otpCode}`,
-                    message: `from ${sender} • Auto-copied to clipboard!`,
-                    priority: 2,
-                    requireInteraction: false
-                }, () => {});
-            } catch (_) {}
-        });
-
-        // 5. In-page toast notification — send to active tab across ALL windows
-        chrome.windows.getAll({ populate: true }, (windows) => {
-            const allActiveTabs = [];
-            for (const win of windows) {
-                const activeTab = win.tabs && win.tabs.find(t => t.active);
-                if (activeTab) allActiveTabs.push(activeTab);
-            }
-            allActiveTabs.forEach(tab => {
-                if (!tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://') || tab.url.startsWith('about:')) {
-                    return;
-                }
-                chrome.tabs.sendMessage(tab.id, {
-                    action: "show_toast_and_copy",
-                    otp: otpCode,
-                    sender
-                }).catch(async (err) => {
-                    if (err.message && (err.message.includes("Receiving end does not exist") || err.message.includes("Could not establish connection"))) {
-                        try {
-                            await chrome.scripting.insertCSS({ target: { tabId: tab.id }, files: ["content.css"] });
-                            await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["content.js"] });
-                            // Small delay to allow content.js to initialize its message listener
-                            await new Promise(resolve => setTimeout(resolve, 200));
-                            await chrome.tabs.sendMessage(tab.id, { action: "show_toast_and_copy", otp: otpCode, sender });
-                        } catch (injectErr) { /* ignore restricted pages */ }
+            // In-page toast when viewing an active web page; fallback to native desktop notification if minimized or restricted.
+            // This strictly guarantees NEVER showing two dialogues simultaneously!
+            chrome.tabs.query({ active: true, lastFocusedWindow: true }, (tabs) => {
+                let sentInPageToast = false;
+                if (tabs && tabs.length > 0) {
+                    const tab = tabs[0];
+                    const isRestrictedUrl = !tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://') || tab.url.startsWith('about:');
+                    if (!isRestrictedUrl) {
+                        sentInPageToast = true;
+                        chrome.tabs.sendMessage(tab.id, {
+                            action: "show_toast_and_copy",
+                            otp: otpCode,
+                            sender
+                        }).catch(async (err) => {
+                            if (err.message && (err.message.includes("Receiving end does not exist") || err.message.includes("Could not establish connection"))) {
+                                try {
+                                    await chrome.scripting.insertCSS({ target: { tabId: tab.id }, files: ["content.css"] });
+                                    await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["content.js"] });
+                                    await new Promise(resolve => setTimeout(resolve, 200));
+                                    await chrome.tabs.sendMessage(tab.id, { action: "show_toast_and_copy", otp: otpCode, sender });
+                                } catch (_) {
+                                    showNativeNotification(otpCode, sender);
+                                }
+                            } else {
+                                showNativeNotification(otpCode, sender);
+                            }
+                        });
                     }
-                });
+                }
+
+                // If not viewing an active webpage (e.g. Chrome minimized or on system page), show native notification
+                if (!sentInPageToast) {
+                    showNativeNotification(otpCode, sender);
+                }
             });
         });
 
     } catch (e) {
         reportGlobalError(`Decryption failed: ${e.message}`);
     }
+}
+
+function showNativeNotification(otpCode, sender) {
+    try {
+        chrome.notifications.create(`otp-${Date.now()}`, {
+            type: 'basic',
+            iconUrl: 'icon128.png',
+            title: `✓ OTP Copied: ${otpCode}`,
+            message: `from ${sender} • Auto-copied to clipboard!`,
+            priority: 2,
+            silent: true,
+            requireInteraction: false
+        }, () => {});
+    } catch (_) {}
 }

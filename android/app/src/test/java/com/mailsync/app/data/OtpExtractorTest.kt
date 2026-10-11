@@ -296,4 +296,146 @@ class OtpExtractorTest {
         val result = OtpExtractor.extractOtp(null, text, null, 0L)
         assertNull(result)
     }
+
+    // ─── JEE ADVANCED LEVEL ADVERSARIAL TEST CASES (THE HARDEST TEST SUITE) ──────
+
+    @Test
+    fun testJeeAdvMultiDecoyDeliveryAWBAndOtp() {
+        val text = "Order #984210 shipped via AWB 8492019482. Delivery boy will arrive at pincode 110001. Pay Rs 1,499. Share delivery OTP 395128 with delivery executive."
+        val result = OtpExtractor.extractOtp(null, text, null, 0L)
+        assertEquals("395128", result?.code)
+    }
+
+    @Test
+    fun testJeeAdvBankingDebitDecoyAccountAndOtp() {
+        val text = "INR 45,000 debited from A/c XX4892 on 11-10-2026 14:30:22. For netbanking transfer Ref #83910248 to Beneficiary 9283719, use OTP 604928. Valid 3 mins. Call 1800-222-333 if not requested."
+        val result = OtpExtractor.extractOtp(null, text, null, 0L)
+        assertEquals("604928", result?.code)
+    }
+
+    @Test
+    fun testJeeAdvQuotedAndSpecialCharsAroundOtp() {
+        val text = "Your one-time authentication code is: \"948201\"! Please do not disclose it."
+        val result = OtpExtractor.extractOtp(null, text, null, 0L)
+        assertEquals("948201", result?.code)
+    }
+
+    @Test
+    fun testJeeAdvBracketedCode() {
+        val text = "Your login verification code is [849201]. Valid for 5 minutes."
+        val result = OtpExtractor.extractOtp(null, text, null, 0L)
+        assertEquals("849201", result?.code)
+    }
+
+    @Test
+    fun testJeeAdvNineDigitPasscode() {
+        val text = "Use 739201849 as your one-time verification code to approve login."
+        val result = OtpExtractor.extractOtp(null, text, null, 0L)
+        assertEquals("739201849", result?.code)
+    }
+
+    @Test
+    fun testJeeAdvTenDigitPasscode() {
+        val text = "Your verification code is 9182736450 to authorize transaction of USD 250.00."
+        val result = OtpExtractor.extractOtp(null, text, null, 0L)
+        assertEquals("9182736450", result?.code)
+    }
+
+    @Test
+    fun testJeeAdvFrenchMultiDecoyTransaction() {
+        val text = "Votre commande #948201 d'un montant de 129,00 EUR a été validée. Pour autoriser le paiement de votre carte finissant par 4910, votre mot de passe temporaire à usage unique est le 482910. Réf transaction: TR938201."
+        val result = OtpExtractor.extractOtp(null, text, null, 0L)
+        assertEquals("482910", result?.code)
+    }
+
+    @Test
+    fun testJeeAdvGermanInvertedSyntaxWithDecoys() {
+        val text = "Bestellnummer 849201. Rechnungsbetrag 89,95 EUR für Konto DE893704829. Zur Freigabe lautet Ihr Einmalpasswort 604928. Rufen Sie niemals +49 800 111222 an."
+        val result = OtpExtractor.extractOtp(null, text, null, 0L)
+        assertEquals("604928", result?.code)
+    }
+
+    @Test
+    fun testJeeAdvArabicMultiDecoyBanking() {
+        val text = "تم خصم 500 ر.س من حسابك المنتهي برقم 4829. مرجع التحويل 928371. رمز التحقق لمرة واحدة هو 839104 لإتمام العملية. لا تشارك الرمز."
+        val result = OtpExtractor.extractOtp(null, text, null, 0L)
+        assertEquals("839104", result?.code)
+    }
+
+    @Test
+    fun testJeeAdvRussianBankCardOperation() {
+        val text = "Покупка 4500 руб. Карта *4829. Баланс 12500 руб. Для подтверждения операции на сайте Код: 582914. Не сообщайте код никому!"
+        val result = OtpExtractor.extractOtp(null, text, null, 0L)
+        assertEquals("582914", result?.code)
+    }
+
+    @Test
+    fun testJeeAdvChineseOrderAndDynamicVerification() {
+        val text = "【京东】您的订单号 98402910 已发货，快递单号 7739182049。本次登录动态验证码是 492018（10分钟有效），请勿向任何人泄露。"
+        val result = OtpExtractor.extractOtp(null, text, null, 0L)
+        assertEquals("492018", result?.code)
+    }
+
+    @Test
+    fun testJeeAdvSpacedOutDigits() {
+        val text = "Your verification code is 5 8 2 9 1 0. Enter this within 5 minutes."
+        val result = OtpExtractor.extractOtp(null, text, null, 0L)
+        assertEquals("582910", result?.code)
+    }
+
+    @Test
+    fun testJeeAdvColonImmediatelyFollowedByDigits() {
+        val text = "Your One-Time Passcode is:839201"
+        val result = OtpExtractor.extractOtp(null, text, null, 0L)
+        assertEquals("839201", result?.code)
+    }
+
+    @Test
+    fun testJeeAdvItalianMultiDecoyBanking() {
+        val text = "Gentile cliente, per confermare l'operazione di 150 EUR con carta terminata con 4829, il tuo codice di verifica è 918234. Riferimento operazione 839201."
+        val result = OtpExtractor.extractOtp(null, text, null, 0L)
+        assertEquals("918234", result?.code)
+    }
+
+    @Test
+    fun testJeeAdvRejectMarketingTrackingWithNoOtp() {
+        val text = "Flat 50% OFF! Use coupon code SALE50 on order 849201. Call 9876543210 for help. Track at example.com/t/928301"
+        val result = OtpExtractor.extractOtp(null, text, null, 0L)
+        assertNull(result)
+    }
+
+    @Test
+    fun testJeeAdvRejectTransactionReceiptAlert() {
+        val text = "Dear Customer, Txn of INR 2,500.00 on Card ending 4829 was successful at Store 849201 on 10-Oct-26. Avl Bal: INR 15,200.50. Call 1800112211 if not you."
+        val result = OtpExtractor.extractOtp(null, text, null, 0L)
+        assertNull(result)
+    }
+
+    @Test
+    fun testJeeAdvRejectDeliveryUpdateWithoutOtp() {
+        val text = "Your package with tracking number 948201948231 has been delivered to 123 Main St, Apt 4B. Thank you for shopping with us!"
+        val result = OtpExtractor.extractOtp(null, text, null, 0L)
+        assertNull(result)
+    }
+
+    @Test
+    fun testJeeAdvRejectFlightBookingReference() {
+        val text = "Booking Confirmed! PNR: W8K2P9, Flight 6E-849 on 15-Oct. Seat 12A. Gate 4. Total Paid: $340.00."
+        val result = OtpExtractor.extractOtp(null, text, null, 0L)
+        assertNull(result)
+    }
+
+    @Test
+    fun testJeeAdvHindiComplexMultiDecoy() {
+        val text = "खाता संख्या XX8492 से रु 5,000 का लेनदेन संदर्भ संख्या 928301 के लिए आपका लॉगिन ओटीपी 739104 है। वैधता 5 मिनट। सहायता के लिए 18002001 पर संपर्क करें।"
+        val result = OtpExtractor.extractOtp(null, text, null, 0L)
+        assertEquals("739104", result?.code)
+    }
+
+    @Test
+    fun testJeeAdvZeroWidthSpacesAndNonBreakingSpaces() {
+        val text = "Your\u200B verification\u00A0code\u200C is \u200D849201."
+        val result = OtpExtractor.extractOtp(null, text, null, 0L)
+        assertEquals("849201", result?.code)
+    }
 }

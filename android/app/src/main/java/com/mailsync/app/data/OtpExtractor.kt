@@ -19,7 +19,7 @@ object OtpExtractor {
         "otp:", "otp -", "aotp:", "otp code", "your otp", "your code", "code is",
         "use this code", "enter this code", "enter the code", "use the code", "code to sign in",
         "code to log in", "code to verify", "your code is", "your code:", "pin is",
-        "your pin", "secret pin", "temporary password",
+        "your pin", "secret pin", "temporary password", "delivery otp", "pickup otp",
         // Spanish (Español)
         "código de verificación", "codigo de verificacion", "código de seguridad", "codigo de seguridad",
         "código de confirmación", "codigo de confirmacion", "código de acceso", "codigo de acceso",
@@ -58,7 +58,7 @@ object OtpExtractor {
         "인증번호", "인증코드", "보안코드", "확인코드",
         // Hindi & Hinglish (हिंदी)
         "ओटीपी", "सत्यापन कोड", "सुरक्षा कोड", "aapka otp", "apna otp",
-        "otp hai", "otp darj",
+        "otp hai", "otp darj", "تصدیقی کوڈ", "او ٹی پی",
         // Turkish (Türkçe)
         "doğrulama kodu", "dogrulama kodu", "güvenlik kodu", "guvenlik kodu",
         "onay kodu", "tek kullanımlık şifre", "tek kullanimlik sifre",
@@ -150,6 +150,9 @@ object OtpExtractor {
         
         // Strip invisible unicode characters
         normalized = normalized.replace(Regex("[\\u200B\\u200C\\u200D\\uFEFF]"), "")
+        // Normalize quotes and brackets wrapping codes
+        normalized = normalized.replace(Regex("(?<=[^\\w]|^)[\"'\\[\\]()<>]+(?=\\d)"), " ")
+        normalized = normalized.replace(Regex("(?<=\\d)[\"'\\[\\]()<>]+(?=[^\\w]|$)"), " ")
         return normalized
     }
 
@@ -200,8 +203,8 @@ object OtpExtractor {
 
     private fun isMaskedCardOrAccount(text: String, startPos: Int): Boolean {
         val prefix = text.substring(maxOf(0, startPos - 35), startPos).lowercase()
-        // Matches "ending 4821", "ending in 4821", "terminada en 4821", "card ending 4821", "a/c ending 4821", "**4821", "xx4821"
-        return Regex("(?:ending(?:\\s+in|\\s+with)?|terminada\\s+en|finissant\\s+par|endend\\s+auf|card|tarjeta|carte|karte|a/c|ac|account|cuenta|compte|konto|kart)\\s*[:#]?\\s*[*xX]*\\s*$").containsMatchIn(prefix) ||
+        // Matches "ending 4821", "terminada en 4821", "terminata con 4821", "card ending 4821", "a/c ending 4821", "**4821", "xx4821", "المنتهي برقم"
+        return Regex("(?:ending(?:\\s+in|\\s+with)?|terminada\\s+en|terminata\\s+con|finissant\\s+par|endend\\s+auf|card|tarjeta|carte|karte|a/c|ac|account|cuenta|compte|konto|kart|المنتهي(?:\\s+برقم)?|खाता|कार्ड)\\s*[:#]?\\s*[*xX]*\\s*$").containsMatchIn(prefix) ||
                Regex("[*xX]{2,}\\s*$").containsMatchIn(prefix)
     }
 
@@ -211,19 +214,19 @@ object OtpExtractor {
             if (prevChar == '₹' || prevChar == '$' || prevChar == '€' || prevChar == '£' || prevChar == '¥' || prevChar == '.') return true
         }
         val prefix = text.substring(maxOf(0, startPos - 20), startPos).lowercase()
-        if (Regex("(?:rs\\.?|inr|usd|eur|gbp|cad|aud|sgd|brl|rub|jpy|cny|amount|amt|importe|monto|montant|betrag|importo|сумма|金额|金額|tutar|jumlah)\\s*[:=]?\\s*$").containsMatchIn(prefix)) return true
+        if (Regex("(?:rs\\.?|inr|usd|eur|gbp|cad|aud|sgd|brl|rub|jpy|cny|amount|amt|importe|monto|montant|betrag|importo|сумма|金额|金額|tutar|jumlah|مبلغ|ر\\.س|रु|र)\\s*[:=]?\\s*$").containsMatchIn(prefix)) return true
 
         val afterPos = startPos + length
         if (afterPos < text.length) {
             val suffix = text.substring(afterPos, minOf(text.length, afterPos + 10)).lowercase()
-            if (suffix.startsWith(".00") || suffix.startsWith("/-") || Regex("^\\s*(?:rs|inr|usd|eur|gbp|cad|aud|rub)").containsMatchIn(suffix)) return true
+            if (suffix.startsWith(".00") || suffix.startsWith("/-") || Regex("^\\s*(?:rs|inr|usd|eur|gbp|cad|aud|rub|元|ر\\.س)").containsMatchIn(suffix)) return true
         }
         return false
     }
 
     private fun isIdentifierOrReference(text: String, startPos: Int): Boolean {
         val prefix = text.substring(maxOf(0, startPos - 25), startPos).lowercase()
-        return Regex("(?:ref(?:erence|erencia|érence)?|order|pedido|commande|bestellung|ordine|заказ|订单|注文|sipariş|txn|ticket|case|awb|tracking|invoice|factura|rechnung|statement)\\s*(?:no\\.?|id|#|:|-|\\s)\\s*$").containsMatchIn(prefix)
+        return Regex("(?:ref(?:erence|erencia|érence)?|riferimento|order|pedido|commande|bestellung|ordine|заказ|订单|注文|sipariş|مرجع|رقم\\s+المرجع|संदर्भ|txn|ticket|case|awb|tracking|单号|快递单号|invoice|factura|rechnung|statement|beneficiary|destinatario|empfänger|bénéficiaire|store|tienda|magasin)\\s*(?:no\\.?|id|#|:|-|\\s)\\s*$").containsMatchIn(prefix)
     }
 
     private fun isPincode(text: String, startPos: Int, candidate: String): Boolean {
@@ -233,11 +236,14 @@ object OtpExtractor {
     }
 
     private fun isPhoneNumber(text: String, startPos: Int, candidate: String): Boolean {
-        val window = text.substring(maxOf(0, startPos - 6), minOf(text.length, startPos + candidate.length + 6))
-        val consecutiveDigits = window.count { it.isDigit() }
-        if (consecutiveDigits >= 10) return true
-        val prefix = text.substring(maxOf(0, startPos - 20), startPos).lowercase()
-        return Regex("(?:call|helpline|contact|tel|phone|support|teléfono|téléphone|telefon|toll\\s*free)\\s*[:=]?\\s*$").containsMatchIn(prefix)
+        val prefix = text.substring(maxOf(0, startPos - 30), startPos).lowercase()
+        if (Regex("(?:call|helpline|contact|tel|phone|support|teléfono|téléphone|telefon|toll\\s*free|helpdesk|संपर्क)\\s*[:=]?\\s*$").containsMatchIn(prefix)) return true
+
+        val window = text.substring(maxOf(0, startPos - 4), minOf(text.length, startPos + candidate.length + 4))
+        val digitsInWindow = window.count { it.isDigit() }
+        if (digitsInWindow > candidate.length && digitsInWindow >= 10) return true
+
+        return false
     }
 
     private fun isValidCandidate(candidate: String, text: String, startPos: Int): Boolean {
@@ -306,6 +312,7 @@ object OtpExtractor {
 
             // 6. German assignment: "Ihr Bestätigungscode lautet 829104", "Sicherheitscode: 829104"
             Regex("(?i)\\b(?:(?:sicherheits|bestätigungs|verifizierungs)?code|einmalpasswort|einmalkennwort)\\s*(?:lautet|ist|:|–|-|=|#)\\s*([0-9A-Za-z]{4,10})\\b"),
+            Regex("(?i)\\blautet\\s+(?:ihr\\s+)?(?:sicherheits|bestätigungs|verifizierungs)?(?:code|einmalpasswort|passwort)\\s*[:=—–-]?\\s*([0-9A-Za-z]{4,10})\\b"),
 
             // 7. Portuguese assignment: "Seu código de verificação é 618294"
             Regex("(?i)\\b(?:código|codigo)\\s+(?:de\\s+(?:verificação|verificacao|segurança|seguranca|confirmação|confirmacao))?\\s*(?:é|e|:|–|-|=|#)\\s*([0-9A-Za-z]{4,10})\\b"),
@@ -313,12 +320,15 @@ object OtpExtractor {
             // 8. Italian assignment: "Il tuo codice di verifica è 618294"
             Regex("(?i)\\b(?:codice\\s+di\\s+(?:verifica|sicurezza|conferma)|codice\\s+otp)\\s*(?:è|e|:|–|-|=|#)\\s*([0-9A-Za-z]{4,10})\\b"),
 
-            // 9. Russian assignment: "Ваш проверочный код: 391820"
+            // 9. Russian assignment: "Ваш проверочный код: 391820", "Код: 582914"
+            Regex("(?iu)(?:код\\s+(?:подтверждения(?:\\s+операции)?|безопасности)|проверочный\\s+код|одноразовый\\s+пароль|пароль)\\s*(?:[:=—–-]|это)\\s*([0-9A-Za-z]{4,10})\\b"),
+            Regex("(?iu)(?:ваш\\s+(?:проверочный\\s+)?код)\\s*[:=—–-]\\s*([0-9A-Za-z]{4,10})\\b"),
+            Regex("(?iu)(?:^|\\s|[.,;])(?:код|пароль)\\s*[:=—–-]\\s*([0-9A-Za-z]{4,10})\\b"),
             Regex("(?i)(?:код\\s+(?:подтверждения|безопасности)|проверочный\\s+код|одноразовый\\s+пароль|пароль)\\s*(?:[:=—–-]|это)\\s*([0-9A-Za-z]{4,10})\\b"),
             Regex("(?i)(?:ваш\\s+(?:проверочный\\s+)?код)\\s*[:=—–-]\\s*([0-9A-Za-z]{4,10})\\b"),
 
             // 10. Chinese assignment: "您的动态验证码为 582910", "验证码：582910"
-            Regex("(?:验证码|驗證碼|确认码|確認碼|安全码|动态码|动态口令)(?:为|是|：|:|\\s)*([0-9A-Za-z]{4,10})\\b"),
+            Regex("(?:动态验证码|动态密码|动态口令|验证码|驗證碼|确认码|確認碼|安全码|动态码)(?:为|是|：|:|\\s)*([0-9A-Za-z]{4,10})\\b"),
 
             // 11. Japanese assignment: "認証コードは 928301 です"
             Regex("(?:認証コード|確認コード|セキュリティコード|ワンタイムパスワード)(?:は|：|:|\\s)*([0-9A-Za-z]{4,10})\\b"),
@@ -360,7 +370,7 @@ object OtpExtractor {
             Regex("(?i)\\b(?:one[- ]time\\s+(?:password|code)|verification\\s+code|security\\s+code|login\\s+code|sign[- ]in\\s+code|access\\s+code|auth(?:entication)?\\s+code|confirmation\\s+code|secret\\s+code|passcode|a?otp|pin(?:\\s+code)?)\\s+([0-9]{4,10})\\b"),
 
             // 23. Direct labeled: "Code: 482913", "Code is 482913", "OTP: 123456"
-            Regex("(?i)\\b(?:code|pin|a?otp)\\s*(?:is|:|–|-|=|#)\\s*([0-9A-Za-z]{4,10})\\b")
+            Regex("(?i)\\b(?:code|pin|a?otp|код)\\s*(?:is|:|–|-|=|#)\\s*([0-9A-Za-z]{4,10})\\b")
         )
 
         for (pattern in anchorPatterns) {
