@@ -2152,6 +2152,7 @@ const SUPPORTED_LANGUAGES = [
   { code: 'ta', name: 'Tamil', native: 'தமிழ்' },
   { code: 'gu', name: 'Gujarati', native: 'ગુજરાતી' }
 ];
+const AVAILABLE_LANGUAGES = SUPPORTED_LANGUAGES;
 
 let currentLang = 'en';
 
