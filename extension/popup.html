@@ -98,18 +98,10 @@
 <body>
     <div class="container">
         <header>
-            <div style="display: flex; align-items: center; justify-content: space-between; width: 100%;">
-                <div style="display: flex; align-items: center; gap: 12px;">
-                    <div class="logo-container" style="position: relative;">
-                        <img src="icon48.png" alt="OTP Sync Logo" width="28" height="28" style="border-radius: 6px; display: block;">
-                    </div>
-                    <h1 data-i18n="app_name">OTP Sync</h1>
-                </div>
-                <div style="display: flex; align-items: center; gap: 6px;">
-                    <select id="lang-select" title="Change Language" style="background:#161925; color:#F3F4F6; border:1px solid #2E344A; border-radius:6px; padding:4px 8px; font-size:11px; outline:none; cursor:pointer;">
-                    </select>
-                </div>
+            <div class="logo-container" style="position: relative;">
+                <img src="icon48.png" alt="OTP Sync Logo" width="28" height="28" style="border-radius: 6px; display: block;">
             </div>
+            <h1 data-i18n="app_name">OTP Sync</h1>
         </header>
 
         <!-- Fullscreen Status Overlay -->
@@ -223,6 +215,29 @@
         <div class="help-support-section">
             <h3 class="help-support-title" data-i18n="help_support_section">Help &amp; Support</h3>
             
+            <div class="help-link lang-setting-card">
+                <div class="help-link-left">
+                    <div class="help-link-icon" style="background: rgba(123, 97, 255, 0.12);">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#7B61FF" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="2" y1="12" x2="22" y2="12"></line>
+                            <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path>
+                        </svg>
+                    </div>
+                    <div>
+                        <div class="help-link-title" data-i18n="language_section">Language</div>
+                        <div class="help-link-sub" id="current-lang-display">English (English)</div>
+                    </div>
+                </div>
+                <div class="lang-select-wrapper">
+                    <select id="lang-select" class="lang-dropdown-select" title="Change Language">
+                    </select>
+                    <svg class="lang-select-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#8E8A9F" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="6 9 12 15 18 9"></polyline>
+                    </svg>
+                </div>
+            </div>
+
             <a href="https://www.opensourcebhaiya.online/contact" target="_blank" class="help-link">
                 <div class="help-link-icon" style="background: rgba(0,255,163,0.1);">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00FFA3" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>

@@ -457,6 +457,60 @@ h2 { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
 .help-link-title { color: #FFFFFF; font-weight: 600; font-size: 14px; }
 .help-link-sub { color: #8E8A9F; font-size: 12px; margin-top: 2px; }
 
+/* ── Language Setting Card ── */
+.lang-setting-card {
+    justify-content: space-between;
+    cursor: default;
+}
+.lang-setting-card:hover {
+    border-color: rgba(123, 97, 255, 0.3);
+}
+.help-link-left {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+}
+.lang-select-wrapper {
+    position: relative;
+    display: flex;
+    align-items: center;
+    flex-shrink: 0;
+}
+.lang-dropdown-select {
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    background: #252033;
+    color: #FFFFFF;
+    border: 1px solid #3d3550;
+    border-radius: 8px;
+    padding: 6px 28px 6px 10px;
+    font-size: 12px;
+    font-weight: 500;
+    font-family: inherit;
+    cursor: pointer;
+    outline: none;
+    transition: all 0.2s ease;
+    max-width: 140px;
+}
+.lang-dropdown-select:hover {
+    border-color: #7B61FF;
+}
+.lang-dropdown-select:focus {
+    border-color: #7B61FF;
+    box-shadow: 0 0 0 2px rgba(123, 97, 255, 0.25);
+}
+.lang-dropdown-select option {
+    background: #1a1624;
+    color: #FFFFFF;
+    padding: 8px;
+}
+.lang-select-chevron {
+    position: absolute;
+    right: 8px;
+    pointer-events: none;
+}
+
 /* ── Footer ── */
 .footer-credit {
     text-align: center;

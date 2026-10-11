@@ -716,4 +716,69 @@ document.addEventListener('DOMContentLoaded', async () => {
         window.updateNetworkStatus();
         chrome.runtime.sendMessage({ action: "force_icon", state: "warning" }).catch(() => {});
     }
+
+    // ── Language Selector Initialization ──
+    const initLanguageSelector = () => {
+        const langSelect = document.getElementById('lang-select');
+        const langDisplay = document.getElementById('current-lang-display');
+        if (!langSelect || !window.I18N) return;
+
+        const languages = window.I18N.getAvailableLanguages();
+        const currentLang = window.I18N.getCurrentLanguage();
+
+        langSelect.innerHTML = '';
+        languages.forEach(lang => {
+            const opt = document.createElement('option');
+            opt.value = lang.code;
+            const lName = lang.name || lang.displayName || lang.code;
+            const lNative = lang.native || lang.nativeName || '';
+            opt.textContent = lNative && lNative !== lName ? `${lName} (${lNative})` : lName;
+            if (lang.code === currentLang) {
+                opt.selected = true;
+            }
+            langSelect.appendChild(opt);
+        });
+
+        const updateDisplay = (code) => {
+            const found = languages.find(l => l.code === code);
+            if (found && langDisplay) {
+                const lName = found.name || found.displayName || found.code;
+                const lNative = found.native || found.nativeName || '';
+                langDisplay.textContent = lNative && lNative !== lName ? `${lName} (${lNative})` : lName;
+            }
+        };
+
+        updateDisplay(currentLang);
+
+        langSelect.addEventListener('change', (e) => {
+            const newLang = e.target.value;
+            window.I18N.setAppLanguage(newLang);
+            updateDisplay(newLang);
+            if (typeof updateGreeting === 'function') {
+                updateGreeting();
+            }
+        });
+    };
+
+    initLanguageSelector();
+
+    chrome.storage.onChanged.addListener((changes, area) => {
+        if (area === 'local' && changes.appLanguage && changes.appLanguage.newValue) {
+            const newLang = changes.appLanguage.newValue;
+            const langSelect = document.getElementById('lang-select');
+            if (langSelect && langSelect.value !== newLang) {
+                langSelect.value = newLang;
+            }
+            const langDisplay = document.getElementById('current-lang-display');
+            if (langDisplay && window.I18N) {
+                const found = window.I18N.getAvailableLanguages().find(l => l.code === newLang);
+                if (found) {
+                    const lName = found.name || found.displayName || found.code;
+                    const lNative = found.native || found.nativeName || '';
+                    langDisplay.textContent = lNative && lNative !== lName ? `${lName} (${lNative})` : lName;
+                }
+            }
+        }
+    });
 });
+
