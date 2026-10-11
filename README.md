@@ -23,6 +23,8 @@ Unlike traditional cloud-sync applications, OTP Sync operates on a strict **Loca
 * **⚡ Lightning Fast Sync:** Beams OTPs from your phone to your PC clipboard the millisecond they arrive.
 * **🔒 Military-Grade Encryption:** Utilizes AES-256-GCM End-to-End Encryption. Only your paired PC has the keys required to decrypt the payload.
 * **🕵️ Zero-Knowledge Architecture:** Firebase is utilized strictly as a transient, real-time relay. Encrypted packets self-destruct within 5 seconds and are completely unreadable by our systems or any third-party.
+* **🌐 19 Languages Supported:** Fully localized across 19 languages (English, Hindi, Spanish, French, German, Portuguese, Russian, Japanese, Chinese, Arabic, Italian, Indonesian, Turkish, Korean, Bengali, Marathi, Telugu, Tamil, Gujarati) with instant language syncing between phone and browser extension.
+* **🧠 Advanced Multilingual OTP Extraction:** High-accuracy natural language code extraction engine supporting multilingual SMS/email templates across 17+ languages with adversarial decoy rejection.
 * **🎨 Seamless UI/UX:** Enjoy Mac-style slide-in notifications on your PC whenever an OTP is securely copied, keeping you in the flow.
 * **🔋 Battery Optimized:** Leverages the native Android Notification Listener to instantly detect OTPs without polling, saving your battery life.
 

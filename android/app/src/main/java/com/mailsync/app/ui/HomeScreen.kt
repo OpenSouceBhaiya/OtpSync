@@ -61,6 +61,7 @@ fun HomeScreen(
 ) {
     val uiState by viewModel.uiState.collectAsState()
     val lastScanTime by viewModel.lastScanTime.collectAsState()
+    val currentLang by settingsViewModel.appLanguage.collectAsState()
 
     val isSyncEnabled by settingsViewModel.isSyncEnabled.collectAsState()
     val context = LocalContext.current
@@ -419,7 +420,7 @@ fun HomeScreen(
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(if (isTrulyActive) Color(0xFF10B981) else Color.Gray))
                                 Spacer(modifier = Modifier.width(6.dp))
-                                val statusText = if (!isNotificationAccessGranted || !canDrawOverlays) "AUTO-FETCH INACTIVE" else if (isTrulyActive) "AUTO-FETCH ACTIVE" else "AUTO-FETCH PAUSED"
+                                val statusText = if (!isNotificationAccessGranted || !canDrawOverlays) com.mailsync.app.data.AppStrings.get("setup_required", currentLang).uppercase() else if (isTrulyActive) com.mailsync.app.data.AppStrings.get("system_active", currentLang).uppercase() else com.mailsync.app.data.AppStrings.get("system_paused", currentLang).uppercase()
                                 val statusColor = if (!isNotificationAccessGranted || !canDrawOverlays) Color(0xFFE53935) else if (isTrulyActive) Color(0xFF10B981) else Color.Gray
                                 Text(statusText, color = statusColor, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                             }
@@ -503,7 +504,7 @@ fun HomeScreen(
 
             // Live OTP Feed
             item {
-                Text("Live OTP Feed", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp, modifier = Modifier.padding(top = 16.dp, bottom = 8.dp))
+                Text(com.mailsync.app.data.AppStrings.get("recent_otps", currentLang), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp, modifier = Modifier.padding(top = 16.dp, bottom = 8.dp))
                 
                 if (uiState is OtpUiState.Loading && allOtps.isEmpty()) {
                     LoadingWithTips(modifier = Modifier.fillMaxWidth().height(300.dp))
@@ -523,7 +524,7 @@ fun HomeScreen(
                     }
                 } else if (allOtps.isEmpty()) {
                     Box(modifier = Modifier.fillMaxWidth().padding(32.dp), contentAlignment = Alignment.Center) {
-                        Text("No OTPs found yet.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(com.mailsync.app.data.AppStrings.get("no_otps_yet", currentLang), color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 }
             }
@@ -567,8 +568,8 @@ fun HomeScreen(
                         Icon(Icons.Default.Computer, contentDescription = "Link PC", tint = Color(0xFF00FFA3), modifier = Modifier.size(32.dp))
                         Spacer(modifier = Modifier.width(16.dp))
                         Column {
-                            Text("Link PC", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                            Text("Scan QR code from extension", color = Color.Gray, fontSize = 14.sp)
+                            Text(com.mailsync.app.data.AppStrings.get("link_new_pc", currentLang), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                            Text(com.mailsync.app.data.AppStrings.get("scan_qr_to_link", currentLang), color = Color.Gray, fontSize = 14.sp)
                         }
                     }
                 }

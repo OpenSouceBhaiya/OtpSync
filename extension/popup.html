@@ -103,7 +103,11 @@
                     <div class="logo-container" style="position: relative;">
                         <img src="icon48.png" alt="OTP Sync Logo" width="28" height="28" style="border-radius: 6px; display: block;">
                     </div>
-                    <h1>OTP Sync</h1>
+                    <h1 data-i18n="app_name">OTP Sync</h1>
+                </div>
+                <div style="display: flex; align-items: center; gap: 6px;">
+                    <select id="lang-select" title="Change Language" style="background:#161925; color:#F3F4F6; border:1px solid #2E344A; border-radius:6px; padding:4px 8px; font-size:11px; outline:none; cursor:pointer;">
+                    </select>
                 </div>
             </div>
         </header>
@@ -121,14 +125,14 @@
                     <line x1="12" y1="20" x2="12.01" y2="20"></line>
                 </svg>
             </div>
-            <h3 id="fs-title" style="color:#FFF; font-size:20px; margin:0 0 8px 0; transition: color 0.3s ease;">Connection Lost</h3>
-            <p id="fs-desc" style="color:#A1A1AA; font-size:13px; text-align:center; max-width:80%; transition: color 0.3s ease;">Waiting for network to resume sync...</p>
+            <h3 id="fs-title" data-i18n="ext_conn_lost" style="color:#FFF; font-size:20px; margin:0 0 8px 0; transition: color 0.3s ease;">Connection Lost</h3>
+            <p id="fs-desc" data-i18n="ext_conn_lost_desc" style="color:#A1A1AA; font-size:13px; text-align:center; max-width:80%; transition: color 0.3s ease;">Waiting for network to resume sync...</p>
         </div>
 
         <!-- Unlinked State (QR Code) -->
         <div id="unlinked-view" class="view hidden">
-            <h2>Link your Android</h2>
-            <p class="subtitle">Open OTP Sync on your phone, go to Settings &gt; Linked PCs, and scan this QR code.</p>
+            <h2 data-i18n="ext_link_android">Link your Android</h2>
+            <p class="subtitle" data-i18n="ext_link_desc">Open OTP Sync on your phone, go to Settings &gt; Linked PCs, and scan this QR code.</p>
             
             <div class="qr-wrapper">
                 <div class="qr-glow"></div>
@@ -137,12 +141,12 @@
             
             <div class="qr-timer">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
-                Expires in <span id="timer-text">03:00</span>
+                <span data-i18n="ext_expires_in">Expires in</span> <span id="timer-text">03:00</span>
             </div>
             
             <p class="security-note">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
-                End-to-End Encrypted (AES-256)
+                <span data-i18n="ext_encrypted_note">End-to-End Encrypted (AES-256)</span>
             </p>
         </div>
 
@@ -165,23 +169,23 @@
             <div class="success-icon">
                 <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#00FFA3" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
             </div>
-            <h2>Device Linked!</h2>
-            <p class="subtitle">Your PC is actively listening for OTPs.</p>
+            <h2 data-i18n="ext_device_linked">Device Linked!</h2>
+            <p class="subtitle" data-i18n="ext_listening_sub">Your PC is actively listening for OTPs.</p>
             
             <div class="status-badge" id="linked-status">
                 <div class="status-dot-container working" id="statusIndicator">
                     <div class="status-dot"></div>
                 </div>
-                <span id="statusText">System Active</span>
+                <span id="statusText" data-i18n="system_active">System Active</span>
             </div>
 
             <!-- OTP History Section -->
             <div id="otp-history-section" class="otp-history hidden">
-                <div class="otp-history-header">Recent OTPs</div>
+                <div class="otp-history-header" data-i18n="recent_otps">Recent OTPs</div>
                 <div id="otp-history-list"></div>
             </div>
 
-            <button id="unlink-btn" class="danger-btn">Unlink PC</button>
+            <button id="unlink-btn" class="danger-btn" data-i18n="unlink_device">Unlink PC</button>
         </div>
 
         <!-- Terminated State -->
@@ -189,9 +193,9 @@
             <div class="error-icon">
                 <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#FF4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="15" y1="9" x2="9" y2="15"></line><line x1="9" y1="9" x2="15" y2="15"></line></svg>
             </div>
-            <h2>Session Ended</h2>
-            <p class="subtitle">This PC was unlinked. Generate a fresh QR to reconnect.</p>
-            <button id="relogin-btn" class="primary-btn" style="margin-top: 16px;">Link New PC</button>
+            <h2 data-i18n="ext_session_ended">Session Ended</h2>
+            <p class="subtitle" data-i18n="ext_session_ended_sub">This PC was unlinked. Generate a fresh QR to reconnect.</p>
+            <button id="relogin-btn" class="primary-btn" data-i18n="ext_reconnect_btn" style="margin-top: 16px;">Link New PC</button>
         </div>
 
         <!-- Sync Paused State -->
@@ -199,9 +203,9 @@
             <div class="paused-icon">
                 <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#FFAA00" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="4" width="4" height="16"></rect><rect x="14" y="4" width="4" height="16"></rect></svg>
             </div>
-            <h2>Sync Paused</h2>
-            <p class="subtitle" id="paused-subtitle">Sync is currently paused on your phone.</p>
-            <button id="unlink-btn-paused" class="danger-btn" style="margin-top: 16px;">Unlink PC</button>
+            <h2 data-i18n="ext_sync_paused">Sync Paused</h2>
+            <p class="subtitle" id="paused-subtitle" data-i18n="ext_sync_paused_sub">Sync is currently paused on your phone.</p>
+            <button id="unlink-btn-paused" class="danger-btn" data-i18n="unlink_device" style="margin-top: 16px;">Unlink PC</button>
         </div>
 
         <!-- No Accounts Error State -->
@@ -209,23 +213,23 @@
             <div class="no-account-icon">
                 <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="#FF4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
             </div>
-            <h2>No Account Added</h2>
-            <p class="subtitle">Please add a Gmail account in the OTP Sync Android app to start receiving OTPs.</p>
-            <button id="unlink-btn-no-account" class="danger-btn" style="margin-top: 16px;">Unlink PC</button>
+            <h2 data-i18n="setup_required">No Account Added</h2>
+            <p class="subtitle" data-i18n="engine_setup_sub">Please complete setup in the OTP Sync Android app to start receiving OTPs.</p>
+            <button id="unlink-btn-no-account" class="danger-btn" data-i18n="unlink_device" style="margin-top: 16px;">Unlink PC</button>
         </div>
 
 
         <!-- Help & Support -->
         <div class="help-support-section">
-            <h3 class="help-support-title">Help &amp; Support</h3>
+            <h3 class="help-support-title" data-i18n="help_support_section">Help &amp; Support</h3>
             
             <a href="https://www.opensourcebhaiya.online/contact" target="_blank" class="help-link">
                 <div class="help-link-icon" style="background: rgba(0,255,163,0.1);">
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#00FFA3" stroke-width="2"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z"></path></svg>
                 </div>
                 <div>
-                    <div class="help-link-title">Contact Us</div>
-                    <div class="help-link-sub">Get in touch with support</div>
+                    <div class="help-link-title" data-i18n="contact_us_title">Contact Us</div>
+                    <div class="help-link-sub" data-i18n="contact_us_sub">Get in touch with support</div>
                 </div>
             </a>
 
@@ -234,8 +238,8 @@
                     <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#FF4444" stroke-width="2"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
                 </div>
                 <div>
-                    <div class="help-link-title">Report a Bug</div>
-                    <div class="help-link-sub">Help us improve OTP Sync</div>
+                    <div class="help-link-title" data-i18n="report_bug_title">Report a Bug</div>
+                    <div class="help-link-sub" data-i18n="report_bug_sub">Help us improve OTP Sync</div>
                 </div>
             </a>
         </div>
@@ -250,17 +254,18 @@
                 <div class="modal-icon">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#FF4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path><line x1="12" y1="9" x2="12" y2="13"></line><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
                 </div>
-                <h3 style="color: white; margin-bottom: 8px;">Are you sure?</h3>
-                <p style="color: #8E8A9F; font-size: 13px; margin-bottom: 20px; line-height: 1.4;">This will disconnect your PC and you will stop receiving OTPs.</p>
+                <h3 data-i18n="unlink_confirm_title" style="color: white; margin-bottom: 8px;">Are you sure?</h3>
+                <p data-i18n="unlink_confirm_msg" style="color: #8E8A9F; font-size: 13px; margin-bottom: 20px; line-height: 1.4;">This will disconnect your PC and you will stop receiving OTPs.</p>
                 <div style="display: flex; gap: 12px; width: 100%;">
-                    <button id="modal-cancel-btn" class="secondary-btn" style="flex: 1;">Cancel</button>
-                    <button id="modal-confirm-btn" class="danger-btn" style="flex: 1; margin: 0;">Unlink</button>
+                    <button id="modal-cancel-btn" class="secondary-btn" data-i18n="cancel_btn" style="flex: 1;">Cancel</button>
+                    <button id="modal-confirm-btn" class="danger-btn" data-i18n="unlink_device" style="flex: 1; margin: 0;">Unlink</button>
                 </div>
             </div>
         </div>
     </div>
     
     <script src="qrious.min.js"></script>
+    <script src="i18n.js"></script>
     <script src="popup.js"></script>
 </body>
 </html>

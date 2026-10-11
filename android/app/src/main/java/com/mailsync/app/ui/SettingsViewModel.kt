@@ -39,6 +39,29 @@ class SettingsViewModel(
 
     private val _isSyncEnabled = MutableStateFlow(settingsManager.isSyncEnabled())
     val isSyncEnabled: StateFlow<Boolean> = _isSyncEnabled.asStateFlow()
+
+    private val _appLanguage = MutableStateFlow(settingsManager.getAppLanguage())
+    val appLanguage: StateFlow<com.mailsync.app.data.AppLanguage> = _appLanguage.asStateFlow()
+
+    private val _userPhoneNumber = MutableStateFlow(settingsManager.getUserPhoneNumber() ?: "")
+    val userPhoneNumber: StateFlow<String> = _userPhoneNumber.asStateFlow()
+
+    fun setAppLanguage(lang: com.mailsync.app.data.AppLanguage) {
+        settingsManager.setAppLanguage(lang)
+        _appLanguage.value = lang
+        // Broadcast language update to all linked devices in Firebase
+        viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+            val uuids = settingsManager.getLinkedDeviceUuids()
+            for (uuid in uuids) {
+                firebaseManager.updateDeviceLanguage(uuid, lang.code)
+            }
+        }
+    }
+
+    fun setUserPhoneNumber(phone: String) {
+        settingsManager.setUserPhoneNumber(phone)
+        _userPhoneNumber.value = phone
+    }
     
     private val _systemErrors = MutableStateFlow<List<String>>(
         parseSystemErrors(otpPrefs.getString("system_errors", "[]"))
@@ -225,8 +248,9 @@ class SettingsViewModel(
         viewModelScope.launch(kotlinx.coroutines.Dispatchers.IO) {
             try {
                 val manualName = settingsManager.getManualUserName()
-                // This writes dateLinked to Firebase — the extension polls for this field
-                firebaseManager.linkDeviceMetadata(uuid, pcName, browser, manualName)
+                val currentLang = settingsManager.getAppLanguage().code
+                // This writes dateLinked and language to Firebase — the extension reads this
+                firebaseManager.linkDeviceMetadata(uuid, pcName, browser, manualName, currentLang)
                 checkForegroundServiceStatePublic()
                 android.util.Log.d("SettingsViewModel", "linkDevice: Firebase write complete for uuid=$uuid")
             } catch (e: Exception) {

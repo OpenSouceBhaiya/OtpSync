@@ -136,6 +136,8 @@ fun AppNavigation(
                 route.startsWith(Screen.Settings.route)
             )
 
+            val currentLang by settingsViewModel.appLanguage.collectAsState()
+
             if (showBottomBar) {
                 NavigationBar(
                     containerColor = com.mailsync.app.ui.theme.DarkSurface,
@@ -144,6 +146,12 @@ fun AppNavigation(
 
                     items.forEach { screen ->
                     val selected = currentDestination?.hierarchy?.any { it.route?.startsWith(screen.route) == true } == true
+                    val screenTitle = when(screen) {
+                        Screen.Home -> com.mailsync.app.data.AppStrings.get("nav_home", currentLang)
+                        Screen.Inbox -> com.mailsync.app.data.AppStrings.get("nav_inbox", currentLang)
+                        Screen.Settings -> com.mailsync.app.data.AppStrings.get("nav_settings", currentLang)
+                        else -> screen.title
+                    }
 
                     // Animation 1: Smooth color transition
                     val iconColor by animateColorAsState(
@@ -172,14 +180,14 @@ fun AppNavigation(
                         icon = {
                             Icon(
                                 imageVector = screen.icon,
-                                contentDescription = screen.title,
+                                contentDescription = screenTitle,
                                 modifier = Modifier
                                     .scale(iconScale)
                                     .rotate(iconRotation),
                                 tint = iconColor
                             )
                         },
-                        label = { Text(screen.title) },
+                        label = { Text(screenTitle) },
                         selected = selected,
                         onClick = {
                             haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
@@ -233,12 +241,20 @@ fun AppNavigation(
             composable("onboarding") {
                 OnboardingScreen(
                     onFinishOnboarding = {
+                        navController.navigate("complete_profile")
+                    },
+                    settingsViewModel = settingsViewModel
+                )
+            }
+            composable("complete_profile") {
+                CompleteProfileScreen(
+                    settingsViewModel = settingsViewModel,
+                    onContinue = {
                         settingsViewModel.setHasSeenOnboarding(true)
                         navController.navigate(Screen.Home.route) {
                             popUpTo("onboarding") { inclusive = true }
                         }
-                    },
-                    settingsViewModel = settingsViewModel
+                    }
                 )
             }
 

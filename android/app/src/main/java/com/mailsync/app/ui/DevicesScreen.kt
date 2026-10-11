@@ -43,6 +43,7 @@ fun DevicesScreen(
     viewModel: SettingsViewModel
 ) {
     val devices by viewModel.linkedDevices.collectAsState()
+    val currentLang by viewModel.appLanguage.collectAsState()
     var selectedDevice by remember { mutableStateOf<LinkedDevice?>(null) }
     var showBottomSheet by remember { mutableStateOf(false) }
     var showRenameDialog by remember { mutableStateOf<LinkedDevice?>(null) }
@@ -55,7 +56,7 @@ fun DevicesScreen(
         var newName by remember { mutableStateOf(showRenameDialog!!.name) }
         AlertDialog(
             onDismissRequest = { showRenameDialog = null },
-            title = { Text("Rename PC", color = Color.White) },
+            title = { Text(com.mailsync.app.data.AppStrings.get("rename_device", currentLang), color = Color.White) },
             text = {
                 OutlinedTextField(
                     value = newName,
@@ -73,12 +74,12 @@ fun DevicesScreen(
                     viewModel.renameLinkedDevice(showRenameDialog!!.id, newName)
                     showRenameDialog = null
                 }) {
-                    Text("Save", color = Color(0xFF00FFA3))
+                    Text(com.mailsync.app.data.AppStrings.get("save_btn", currentLang), color = Color(0xFF00FFA3))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showRenameDialog = null }) {
-                    Text("Cancel", color = Color.Gray)
+                    Text(com.mailsync.app.data.AppStrings.get("cancel_btn", currentLang), color = Color.Gray)
                 }
             },
             containerColor = Color(0xFF1E1926)
@@ -88,7 +89,7 @@ fun DevicesScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Linked PCs", color = Color.White, fontWeight = FontWeight.Bold) },
+                title = { Text(com.mailsync.app.data.AppStrings.get("devices_title", currentLang), color = Color.White, fontWeight = FontWeight.Bold) },
                 navigationIcon = {
                     IconButton(onClick = onNavigateBack) {
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, "Back", tint = Color.White)
@@ -139,14 +140,14 @@ fun DevicesScreen(
                         }
                         Spacer(modifier = Modifier.height(24.dp))
                         Text(
-                            text = "No PCs Linked",
+                            text = com.mailsync.app.data.AppStrings.get("no_devices_title", currentLang),
                             color = Color.White,
                             fontSize = 22.sp,
                             fontWeight = FontWeight.Bold
                         )
                         Spacer(modifier = Modifier.height(12.dp))
                         Text(
-                            text = "To start syncing OTPs seamlessly, install the MailSync Companion extension on your PC.",
+                            text = com.mailsync.app.data.AppStrings.get("no_devices_sub", currentLang),
                             color = Color.Gray,
                             fontSize = 15.sp,
                             textAlign = androidx.compose.ui.text.style.TextAlign.Center,

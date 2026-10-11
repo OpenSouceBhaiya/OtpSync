@@ -50,6 +50,9 @@ import kotlinx.coroutines.delay
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsScreen(viewModel: SettingsViewModel, highlight: String? = null, onNavigateToDevices: () -> Unit) {
+    val currentLang by viewModel.appLanguage.collectAsState()
+    var expandedLanguageDropdown by remember { mutableStateOf(false) }
+
     val context = LocalContext.current
     val scrollState = rememberScrollState()
 
@@ -127,14 +130,14 @@ fun SettingsScreen(viewModel: SettingsViewModel, highlight: String? = null, onNa
             
             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
                 Text(
-                    text = "OTP Sync",
+                    text = com.mailsync.app.data.AppStrings.get("app_name", currentLang),
                     style = MaterialTheme.typography.headlineMedium,
                     color = TextPrimary,
                     fontWeight = FontWeight.Bold
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 Text(
-                    text = "Settings",
+                    text = com.mailsync.app.data.AppStrings.get("settings_title", currentLang),
                     style = MaterialTheme.typography.titleLarge,
                     color = TextPrimary,
                     fontWeight = FontWeight.Bold
@@ -144,12 +147,12 @@ fun SettingsScreen(viewModel: SettingsViewModel, highlight: String? = null, onNa
             Spacer(modifier = Modifier.height(48.dp))
 
             // General Settings
-            Text("General", style = MaterialTheme.typography.titleMedium, color = TextPrimary, fontWeight = FontWeight.Bold)
+            Text(com.mailsync.app.data.AppStrings.get("general_section", currentLang), style = MaterialTheme.typography.titleMedium, color = TextPrimary, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(16.dp))
 
             SettingsItem(
-                title = "Linked PCs",
-                subtitle = "Manage active sessions & browser extensions",
+                title = com.mailsync.app.data.AppStrings.get("linked_pcs_title", currentLang),
+                subtitle = com.mailsync.app.data.AppStrings.get("linked_pcs_sub", currentLang),
                 icon = Icons.Default.Computer,
                 onClick = onNavigateToDevices
             )
@@ -157,7 +160,7 @@ fun SettingsScreen(viewModel: SettingsViewModel, highlight: String? = null, onNa
             Spacer(modifier = Modifier.height(32.dp))
 
             // Sync Settings
-            Text("Sync & Permissions", style = MaterialTheme.typography.titleMedium, color = TextPrimary, fontWeight = FontWeight.Bold)
+            Text(com.mailsync.app.data.AppStrings.get("sync_permissions_section", currentLang), style = MaterialTheme.typography.titleMedium, color = TextPrimary, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(16.dp))
             
             var activeHighlight by remember { mutableStateOf(highlight) }
@@ -204,13 +207,13 @@ fun SettingsScreen(viewModel: SettingsViewModel, highlight: String? = null, onNa
                     Spacer(modifier = Modifier.width(12.dp))
                     Column(modifier = Modifier.weight(1f)) {
                         Text(
-                            text = "Background Engine",
+                            text = com.mailsync.app.data.AppStrings.get("background_engine_title", currentLang),
                             fontWeight = FontWeight.Bold,
                             color = TextPrimary,
                             style = MaterialTheme.typography.titleMedium
                         )
                         Text(
-                            text = if (allPermissionsGranted) "All permissions granted. Engine is running 24/7." else "Setup required to capture and copy OTPs.",
+                            text = if (allPermissionsGranted) com.mailsync.app.data.AppStrings.get("background_engine_active_sub", currentLang) else com.mailsync.app.data.AppStrings.get("background_engine_setup_sub", currentLang),
                             style = MaterialTheme.typography.bodySmall,
                             color = TextSecondary
                         )
@@ -236,7 +239,7 @@ fun SettingsScreen(viewModel: SettingsViewModel, highlight: String? = null, onNa
                     }.padding(vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Notification Access", color = TextPrimary, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                    Text(com.mailsync.app.data.AppStrings.get("notification_access_title", currentLang), color = TextPrimary, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
                     Switch(
                         checked = isNotificationAccessGranted,
                         onCheckedChange = null,
@@ -252,7 +255,7 @@ fun SettingsScreen(viewModel: SettingsViewModel, highlight: String? = null, onNa
                 
                 if (!isNotificationAccessGranted && android.os.Build.VERSION.SDK_INT >= 33) {
                     Text(
-                        "Note: If the option is greyed out, go to Android Settings -> Apps -> MailSync. Tap the 3 dots in the top right and select 'Allow restricted settings'.",
+                        com.mailsync.app.data.AppStrings.get("notification_access_hint", currentLang),
                         style = MaterialTheme.typography.bodySmall,
                         color = Color(0xFFFFB020),
                         modifier = Modifier.padding(bottom = 8.dp)
@@ -271,7 +274,7 @@ fun SettingsScreen(viewModel: SettingsViewModel, highlight: String? = null, onNa
                     }.padding(vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("SMS OTP Extraction (Reliable)", color = TextPrimary, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                    Text(com.mailsync.app.data.AppStrings.get("sms_extraction_title", currentLang), color = TextPrimary, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
                     Switch(
                         checked = isSmsPermissionGranted,
                         onCheckedChange = null,
@@ -298,7 +301,7 @@ fun SettingsScreen(viewModel: SettingsViewModel, highlight: String? = null, onNa
                     }.padding(vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Appear on Top (Clipboard Copy)", color = TextPrimary, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                    Text(com.mailsync.app.data.AppStrings.get("appear_on_top_title", currentLang), color = TextPrimary, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
                     Switch(
                         checked = canDrawOverlays,
                         onCheckedChange = null,
@@ -357,7 +360,7 @@ fun SettingsScreen(viewModel: SettingsViewModel, highlight: String? = null, onNa
 
 
             // Security Settings
-            Text("Security & Privacy", style = MaterialTheme.typography.titleMedium, color = TextPrimary, fontWeight = FontWeight.Bold)
+            Text(com.mailsync.app.data.AppStrings.get("security_privacy_section", currentLang), style = MaterialTheme.typography.titleMedium, color = TextPrimary, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(16.dp))
             
             val isBiometricEnabled by viewModel.isBiometricEnabled.collectAsState()
@@ -367,8 +370,8 @@ fun SettingsScreen(viewModel: SettingsViewModel, highlight: String? = null, onNa
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Column(modifier = Modifier.weight(1f)) {
-                    Text("Biometric App Lock", fontWeight = FontWeight.Bold, color = TextPrimary)
-                    Text("Require fingerprint or face scan to open the app", style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+                    Text(com.mailsync.app.data.AppStrings.get("biometric_lock_title", currentLang), fontWeight = FontWeight.Bold, color = TextPrimary)
+                    Text(com.mailsync.app.data.AppStrings.get("biometric_lock_sub", currentLang), style = MaterialTheme.typography.bodySmall, color = TextSecondary)
                 }
                 Switch(
                     checked = isBiometricEnabled,
@@ -403,11 +406,88 @@ fun SettingsScreen(viewModel: SettingsViewModel, highlight: String? = null, onNa
                 )
             }
             
+            Spacer(modifier = Modifier.height(24.dp))
+
+            // App Language Section
+            Text(com.mailsync.app.data.AppStrings.get("language_section", currentLang), style = MaterialTheme.typography.titleMedium, color = TextPrimary, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(16.dp))
+
+            Box(modifier = Modifier.fillMaxWidth()) {
+                Surface(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(12.dp))
+                        .clickable { expandedLanguageDropdown = true },
+                    color = DarkSurface,
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column {
+                            Text(
+                                text = "${currentLang.displayName} (${currentLang.nativeName})",
+                                color = TextPrimary,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                            Text(
+                                text = com.mailsync.app.data.AppStrings.get("language_selector_sub", currentLang),
+                                color = TextSecondary,
+                                fontSize = 12.sp
+                            )
+                        }
+                        Icon(
+                            imageVector = Icons.Default.ArrowDropDown,
+                            contentDescription = "Select Language",
+                            tint = TextSecondary
+                        )
+                    }
+                }
+
+                DropdownMenu(
+                    expanded = expandedLanguageDropdown,
+                    onDismissRequest = { expandedLanguageDropdown = false },
+                    modifier = Modifier
+                        .fillMaxWidth(0.85f)
+                        .background(Color(0xFF161925))
+                ) {
+                    com.mailsync.app.data.AppLanguage.entries.forEach { lang ->
+                        DropdownMenuItem(
+                            text = {
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween
+                                ) {
+                                    Text(
+                                        text = lang.displayName,
+                                        color = if (lang == currentLang) PurpleAccent else TextPrimary,
+                                        fontWeight = if (lang == currentLang) FontWeight.Bold else FontWeight.Normal
+                                    )
+                                    Text(
+                                        text = lang.nativeName,
+                                        color = TextSecondary,
+                                        fontSize = 13.sp
+                                    )
+                                }
+                            },
+                            onClick = {
+                                viewModel.setAppLanguage(lang)
+                                expandedLanguageDropdown = false
+                            }
+                        )
+                    }
+                }
+            }
             
             Spacer(modifier = Modifier.height(24.dp))
             
             // Help & Support Section
-            Text("Help & Support", style = MaterialTheme.typography.titleMedium, color = TextPrimary, fontWeight = FontWeight.Bold)
+            Text(com.mailsync.app.data.AppStrings.get("help_support_section", currentLang), style = MaterialTheme.typography.titleMedium, color = TextPrimary, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(8.dp))
             
             val highlightContactUs by viewModel.highlightContactUs.collectAsState()
@@ -433,8 +513,8 @@ fun SettingsScreen(viewModel: SettingsViewModel, highlight: String? = null, onNa
             )
 
             SettingsItem(
-                title = "Contact Us",
-                subtitle = "Get in touch with our support team",
+                title = com.mailsync.app.data.AppStrings.get("contact_us_title", currentLang),
+                subtitle = com.mailsync.app.data.AppStrings.get("contact_us_sub", currentLang),
                 icon = Icons.Default.Email,
                 modifier = Modifier
                     .graphicsLayer(scaleX = contactUsPulseScale, scaleY = contactUsPulseScale)
@@ -470,8 +550,8 @@ fun SettingsScreen(viewModel: SettingsViewModel, highlight: String? = null, onNa
             )
             
             SettingsItem(
-                title = "Report a Bug",
-                subtitle = "Help us improve OTP Sync",
+                title = com.mailsync.app.data.AppStrings.get("report_bug_title", currentLang),
+                subtitle = com.mailsync.app.data.AppStrings.get("report_bug_sub", currentLang),
                 icon = Icons.Default.BugReport,
                 modifier = Modifier
                     .graphicsLayer(scaleX = pulseScale, scaleY = pulseScale)

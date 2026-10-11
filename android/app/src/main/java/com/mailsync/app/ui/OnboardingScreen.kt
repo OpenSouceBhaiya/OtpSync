@@ -87,7 +87,33 @@ fun OnboardingScreen(
     onFinishOnboarding: () -> Unit,
     settingsViewModel: com.mailsync.app.ui.SettingsViewModel
 ) {
-    val pagerState = androidx.compose.foundation.pager.rememberPagerState(pageCount = { onboardingPages.size })
+    val currentLang by settingsViewModel.appLanguage.collectAsState()
+
+    val localizedPages = listOf(
+        OnboardingPage(
+            title = com.mailsync.app.data.AppStrings.get("onboarding_1_title", currentLang),
+            description = com.mailsync.app.data.AppStrings.get("onboarding_1_desc", currentLang),
+            icon = Icons.Default.Sync
+        ),
+        OnboardingPage(
+            title = com.mailsync.app.data.AppStrings.get("onboarding_2_title", currentLang),
+            description = com.mailsync.app.data.AppStrings.get("onboarding_2_desc", currentLang),
+            icon = Icons.Default.Lock
+        ),
+        OnboardingPage(
+            title = com.mailsync.app.data.AppStrings.get("onboarding_3_title", currentLang),
+            description = com.mailsync.app.data.AppStrings.get("onboarding_3_desc", currentLang),
+            icon = Icons.Default.Computer
+        ),
+        OnboardingPage(
+            title = com.mailsync.app.data.AppStrings.get("onboarding_4_title", currentLang),
+            description = com.mailsync.app.data.AppStrings.get("onboarding_4_desc", currentLang),
+            icon = Icons.Default.Sync, 
+            isSetupPage = true
+        )
+    )
+
+    val pagerState = androidx.compose.foundation.pager.rememberPagerState(pageCount = { localizedPages.size })
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     var showError by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
@@ -116,7 +142,6 @@ fun OnboardingScreen(
         }
     )
     
-    var showNameInputDialog by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf(false) }
     
     Box(
         modifier = Modifier
@@ -139,7 +164,7 @@ fun OnboardingScreen(
                 state = pagerState,
                 modifier = Modifier.weight(1f)
             ) { position ->
-                val page = onboardingPages[position]
+                val page = localizedPages[position]
                 
                 // Remove outer calculation to avoid recomposition lag
                 
@@ -342,8 +367,8 @@ fun OnboardingScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column(modifier = Modifier.weight(1f, fill = false)) {
-                                Text("Instant Sync Engine", fontWeight = FontWeight.Bold, color = TextPrimary, fontSize = 16.sp)
-                                Text("Automatically fetch OTPs in the background", color = TextSecondary, fontSize = 12.sp)
+                                Text(com.mailsync.app.data.AppStrings.get("instant_sync", currentLang), fontWeight = FontWeight.Bold, color = TextPrimary, fontSize = 16.sp)
+                                Text(com.mailsync.app.data.AppStrings.get("engine_running_sub", currentLang), color = TextSecondary, fontSize = 12.sp)
                             }
                             Spacer(modifier = Modifier.width(4.dp))
                             CustomToggle(
@@ -387,8 +412,8 @@ fun OnboardingScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column(modifier = Modifier.weight(1f, fill = false)) {
-                                Text("Background Clipboard", fontWeight = FontWeight.Bold, color = TextPrimary, fontSize = 16.sp)
-                                Text("Copy OTPs while using other apps", color = TextSecondary, fontSize = 12.sp)
+                                Text(com.mailsync.app.data.AppStrings.get("clipboard_auto_copy", currentLang), fontWeight = FontWeight.Bold, color = TextPrimary, fontSize = 16.sp)
+                                Text(com.mailsync.app.data.AppStrings.get("appear_on_top_title", currentLang), color = TextSecondary, fontSize = 12.sp)
                             }
                             Spacer(modifier = Modifier.width(4.dp))
                             CustomToggle(
@@ -432,8 +457,8 @@ fun OnboardingScreen(
                             verticalAlignment = Alignment.CenterVertically
                         ) {
                             Column(modifier = Modifier.weight(1f, fill = false)) {
-                                Text("Advanced SMS Extraction", fontWeight = FontWeight.Bold, color = TextPrimary, fontSize = 16.sp)
-                                Text("Crucial for intercepting banking and service OTPs. We never read personal texts.", color = TextSecondary, fontSize = 12.sp)
+                                Text(com.mailsync.app.data.AppStrings.get("sms_extraction_title", currentLang), fontWeight = FontWeight.Bold, color = TextPrimary, fontSize = 16.sp)
+                                Text(com.mailsync.app.data.AppStrings.get("engine_running_sub", currentLang), color = TextSecondary, fontSize = 12.sp)
                             }
                             Spacer(modifier = Modifier.width(4.dp))
                             CustomToggle(
@@ -460,7 +485,7 @@ fun OnboardingScreen(
                             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth().padding(top = 16.dp)) {
                                 Icon(Icons.Default.CheckCircle, contentDescription = "Ready", tint = Color(0xFF10B981), modifier = Modifier.size(48.dp))
                                 Spacer(modifier = Modifier.height(8.dp))
-                                Text("All set and ready to go!", color = Color(0xFF10B981), fontWeight = FontWeight.Bold)
+                                Text(com.mailsync.app.data.AppStrings.get("all_set_ready", currentLang), color = Color(0xFF10B981), fontWeight = FontWeight.Bold)
                             }
                         }
                     }
@@ -478,7 +503,7 @@ fun OnboardingScreen(
                 Row(
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
-                    repeat(onboardingPages.size) { index ->
+                    repeat(localizedPages.size) { index ->
                         val isSelected = pagerState.currentPage == index
                         val width by animateDpAsState(targetValue = if (isSelected) 24.dp else 8.dp)
                         Box(
@@ -493,19 +518,19 @@ fun OnboardingScreen(
                 
                 Spacer(modifier = Modifier.height(32.dp))
 
-                if (pagerState.currentPage == onboardingPages.size - 1) {
+                if (pagerState.currentPage == localizedPages.size - 1) {
                     Button(
                         onClick = {
                             settingsViewModel.setBackendSyncEnabled(false)
                             settingsViewModel.setNotificationOnlyMode(true)
-                            showNameInputDialog = true
+                            onFinishOnboarding()
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                         shape = RoundedCornerShape(12.dp),
                         contentPadding = PaddingValues(horizontal = 32.dp, vertical = 16.dp),
                         modifier = Modifier.fillMaxWidth(0.9f)
                     ) {
-                        Text("Finish Setup", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                        Text(com.mailsync.app.data.AppStrings.get("finish_setup", currentLang), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
                     }
                 } else {
                     Button(
@@ -536,7 +561,7 @@ fun OnboardingScreen(
                 contentAlignment = Alignment.Center
             ) {
                 Text(
-                    "Please allow all required permissions for features to work flawlessly.",
+                    com.mailsync.app.data.AppStrings.get("permission_warning", currentLang),
                     color = Color.White,
                     fontWeight = FontWeight.Bold,
                     textAlign = TextAlign.Center,
@@ -544,51 +569,5 @@ fun OnboardingScreen(
                 )
             }
         }
-    }
-    
-
-    if (showNameInputDialog) {
-        var nameInput by androidx.compose.runtime.remember { androidx.compose.runtime.mutableStateOf("") }
-        androidx.compose.material3.AlertDialog(
-            onDismissRequest = { /* don't dismiss on back — force a choice */ },
-            title = { 
-                Text("One last thing! 👋", fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
-            },
-            text = {
-                androidx.compose.foundation.layout.Column {
-                    Text(
-                        "What should we call you?",
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = TextPrimary
-                    )
-                    androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(16.dp))
-                    OutlinedTextField(
-                        value = nameInput,
-                        onValueChange = { if (it.length <= 30) nameInput = it },
-                        placeholder = { Text("Your name") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth()
-                    )
-                    androidx.compose.foundation.layout.Spacer(modifier = Modifier.height(8.dp))
-                    Text(
-                        "We'll use this to greet you in the app 🙂",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = TextSecondary
-                    )
-                }
-            },
-            confirmButton = {
-                androidx.compose.material3.TextButton(onClick = {
-                    val trimmed = nameInput.trim()
-                    if (trimmed.isNotEmpty()) {
-                        settingsViewModel.setManualUserName(trimmed)
-                    }
-                    showNameInputDialog = false
-                    onFinishOnboarding()
-                }) {
-                    Text(if (nameInput.trim().isNotEmpty()) "Let's Go!" else "Skip")
-                }
-            }
-        )
     }
 }

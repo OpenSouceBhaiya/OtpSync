@@ -51,19 +51,28 @@ class FirebaseManager {
     /**
      * Link a new PC (metadata only to Firebase, key goes to EncryptedSharedPreferences)
      */
-    suspend fun linkDeviceMetadata(uuid: String, name: String, browser: String, accountName: String? = null) {
+    suspend fun linkDeviceMetadata(uuid: String, name: String, browser: String, accountName: String? = null, language: String? = "en") {
         val dateLinked = SimpleDateFormat("MMM dd 'at' h:mm a", Locale.getDefault()).format(Date())
         val publicDeviceData = mutableMapOf<String, Any>(
             "name" to name,
             "browser" to browser,
             "dateLinked" to dateLinked,
             "status" to "active",
-            "syncEnabled" to true
+            "syncEnabled" to true,
+            "language" to (language ?: "en")
         )
         if (accountName != null) {
             publicDeviceData["accountName"] = accountName
         }
         devicesRef.child(uuid).setValue(publicDeviceData).await()
+    }
+
+    suspend fun updateDeviceLanguage(uuid: String, language: String) {
+        try {
+            devicesRef.child(uuid).child("language").setValue(language).await()
+        } catch (e: Exception) {
+            Log.e("FirebaseManager", "Failed to update device language for $uuid", e)
+        }
     }
 
     suspend fun updateSyncState(uuids: List<String>, isEnabled: Boolean, status: String = "active") {

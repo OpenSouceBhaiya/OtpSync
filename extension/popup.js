@@ -241,6 +241,40 @@ document.addEventListener('DOMContentLoaded', async () => {
         chrome.storage.local.set({ globalErrors: fresh }, () => updateGlobalErrors());
     });
 
+    // Initialize language dropdown selector
+    function initLanguageSelector() {
+        const selectEl = document.getElementById('lang-select');
+        if (!selectEl || !window.I18N) return;
+        
+        selectEl.innerHTML = '';
+        const langs = window.I18N.getAvailableLanguages();
+        const current = window.I18N.getCurrentLanguage();
+        
+        langs.forEach(l => {
+            const opt = document.createElement('option');
+            opt.value = l.code;
+            opt.textContent = `${l.name} (${l.native})`;
+            if (l.code === current) opt.selected = true;
+            selectEl.appendChild(opt);
+        });
+        
+        selectEl.addEventListener('change', (e) => {
+            const newLang = e.target.value;
+            window.I18N.setAppLanguage(newLang);
+            chrome.storage.local.get(['uuid'], (res) => {
+                if (res && res.uuid) {
+                    fetch(`https://mailsync-osb-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${res.uuid}.json`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ language: newLang })
+                    }).catch(() => {});
+                }
+            });
+        });
+    }
+
+    initLanguageSelector();
+
     // Wire up wave emoji button
     const waveBtn = document.getElementById('wave-btn');
     if (waveBtn) {
@@ -378,6 +412,13 @@ document.addEventListener('DOMContentLoaded', async () => {
         
         if (logoContainer) {
             logoContainer.classList.remove('status-warning', 'status-error', 'status-active');
+        }
+
+        // Sync language from phone if provided in device metadata
+        if (data && data.language && window.I18N && window.I18N.getCurrentLanguage() !== data.language) {
+            window.I18N.setAppLanguage(data.language);
+            const selectEl = document.getElementById('lang-select');
+            if (selectEl) selectEl.value = data.language;
         }
 
         // If status is terminated or syncEnabled is false AND status is terminated, go direct to terminated view

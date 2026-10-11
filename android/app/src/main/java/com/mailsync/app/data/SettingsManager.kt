@@ -291,7 +291,7 @@ class SettingsManager(context: Context) {
         sharedPreferences.edit().putString("device_last_otp_time_$uuid", time).apply()
     }
 
-    private fun getLinkedDeviceUuids(): Set<String> {
+    fun getLinkedDeviceUuids(): Set<String> {
         return sharedPreferences.getStringSet(KEY_LINKED_DEVICE_UUIDS, emptySet()) ?: emptySet()
     }
 
@@ -324,6 +324,23 @@ class SettingsManager(context: Context) {
         }
         return devices
     }
+
+        fun getAppLanguage(): AppLanguage {
+            val code = sharedPreferences.getString("app_language_code", "en")
+            return AppLanguage.fromCode(code)
+        }
+
+        fun setAppLanguage(lang: AppLanguage) {
+            sharedPreferences.edit().putString("app_language_code", lang.code).apply()
+        }
+
+        fun getUserPhoneNumber(): String? {
+            return sharedPreferences.getString("user_phone_number", null)
+        }
+
+        fun setUserPhoneNumber(phone: String) {
+            sharedPreferences.edit().putString("user_phone_number", phone).apply()
+        }
 
     companion object {
         private const val KEY_CONNECTED_ACCOUNTS = "connected_accounts"
