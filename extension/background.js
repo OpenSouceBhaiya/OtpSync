@@ -268,8 +268,8 @@ async function startListening(uuid, aesKeyBase64, force = false) {
             }
             await chrome.offscreen.createDocument({
                 url: 'offscreen.html',
-                reasons: ['CLIPBOARD'],
-                justification: 'SSE Connection and Clipboard'
+                reasons: ['CLIPBOARD', 'AUDIO_PLAYBACK'],
+                justification: 'SSE Connection, Clipboard and Audio chime'
             });
             // Wait for offscreen doc to initialize its message listener
             await new Promise(resolve => setTimeout(resolve, 400));
@@ -308,10 +308,11 @@ async function startListening(uuid, aesKeyBase64, force = false) {
             const isWarning = statusData.syncEnabled === false || statusData.status === 'paused';
             setToolbarIcon(isError ? 'error' : (isWarning ? 'warning' : 'active'));
 
-            // Log status transitions for debugging
+            // Log status transitions safely without polluting global errors
             chrome.storage.local.get(['lastLoggedStatus'], (data) => {
+                if (chrome.runtime.lastError || !data) return;
                 if (data.lastLoggedStatus !== statusData.status) {
-                    reportGlobalError(`Firebase reported status: '${statusData.status}'`);
+                    console.log(`[MailSync] Status transition: ${data.lastLoggedStatus} -> ${statusData.status}`);
                     chrome.storage.local.set({ lastLoggedStatus: statusData.status });
                 }
             });
@@ -384,8 +385,8 @@ async function copyToClipboard(text) {
         if (!hasDoc) {
             await chrome.offscreen.createDocument({
                 url: 'offscreen.html',
-                reasons: ['CLIPBOARD'],
-                justification: 'Copy OTP to clipboard'
+                reasons: ['CLIPBOARD', 'AUDIO_PLAYBACK'],
+                justification: 'Copy OTP to clipboard and play chime'
             }).catch(e => { 
                 if(!e.message.includes("single offscreen document")) throw e; 
             });
@@ -396,12 +397,16 @@ async function copyToClipboard(text) {
 }
 
 function reportGlobalError(msg) {
+    if (!msg) return;
     chrome.storage.local.get(['globalErrors'], (data) => {
-        const errors = data.globalErrors || [];
+        if (chrome.runtime.lastError) return;
+        const errors = (data && Array.isArray(data.globalErrors)) ? data.globalErrors : [];
         errors.unshift({ msg, time: Date.now() });
         if (errors.length > 20) errors.pop();
-        chrome.storage.local.set({ globalErrors: errors });
-        chrome.runtime.sendMessage({ action: "global_error_updated" }).catch(() => {});
+        chrome.storage.local.set({ globalErrors: errors }, () => {
+            if (chrome.runtime.lastError) return;
+            chrome.runtime.sendMessage({ action: "global_error_updated" }).catch(() => {});
+        });
     });
 }
 

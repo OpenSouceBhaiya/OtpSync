@@ -245,11 +245,21 @@ function showToast(otp, sender, isCarryForward = false, timeRemaining = 6000) {
     function safeSendMessage(msg) {
         try {
             chrome.runtime.sendMessage(msg).catch((e) => {
-                if (e.message && e.message.includes("Extension context invalidated")) return;
+                if (e && e.message && (
+                    e.message.includes("Extension context invalidated") ||
+                    e.message.includes("No SW") ||
+                    e.message.includes("Receiving end does not exist") ||
+                    e.message.includes("Could not establish connection")
+                )) return;
                 console.warn("MailSync sendMessage failed:", e);
             });
         } catch (e) {
-            if (e.message && e.message.includes("Extension context invalidated")) return;
+            if (e && e.message && (
+                e.message.includes("Extension context invalidated") ||
+                e.message.includes("No SW") ||
+                e.message.includes("Receiving end does not exist") ||
+                e.message.includes("Could not establish connection")
+            )) return;
             console.warn("MailSync sendMessage failed:", e);
         }
     }

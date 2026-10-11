@@ -74,6 +74,7 @@ function renderGreeting(nameOverride) {
         return;
     }
     chrome.storage.local.get(['userName'], (data) => {
+        if (chrome.runtime.lastError || !data) return;
         setName(data.userName || null);
     });
 }
@@ -101,7 +102,8 @@ function formatCountdown(msRemaining) {
 function renderOtpHistory() {
     clearOtpHistoryTimers();
     chrome.storage.local.get(['otpHistory'], (data) => {
-        const history = (data.otpHistory || []).filter(item => {
+        if (chrome.runtime.lastError || !data) return;
+        const history = ((data && Array.isArray(data.otpHistory)) ? data.otpHistory : []).filter(item => {
             const exp = item.expiresAt || (item.time + 10 * 60 * 1000);
             return Date.now() < exp;
         });
@@ -168,9 +170,9 @@ function renderOtpHistory() {
 
 // ─── Connectivity Event Logger (writes to existing globalErrors system) ───────
 function logDebug(msg) {
-    // Write to globalErrors so it appears in the existing Errors panel
     chrome.storage.local.get(['globalErrors'], (data) => {
-        const errors = data.globalErrors || [];
+        if (chrome.runtime.lastError || !data) return;
+        const errors = (data && Array.isArray(data.globalErrors)) ? data.globalErrors : [];
         errors.unshift({ msg: `[Network] ${msg}`, time: Date.now() });
         if (errors.length > 20) errors.pop();
         chrome.storage.local.set({ globalErrors: errors });
@@ -233,8 +235,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // Clear stale errors (only keep last 10 minutes)
     chrome.storage.local.get(['globalErrors'], (data) => {
+        if (chrome.runtime.lastError || !data) return;
         const TEN_MIN = 10 * 60 * 1000;
-        const fresh = (data.globalErrors || []).filter(e => Date.now() - e.time < TEN_MIN);
+        const fresh = ((data && Array.isArray(data.globalErrors)) ? data.globalErrors : []).filter(e => Date.now() - e.time < TEN_MIN);
         chrome.storage.local.set({ globalErrors: fresh }, () => updateGlobalErrors());
     });
 
@@ -266,6 +269,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     // ─── Initial State Check ──────────────────────────────────────────────────
     chrome.storage.local.get(['uuid', 'aesKey', 'linked', 'qrExpiresAt', 'userName', 'terminated'], async (data) => {
+        if (!data) return;
         if (data.terminated) {
             // User explicitly unlinked — show terminated view, not QR
             showTerminatedView();

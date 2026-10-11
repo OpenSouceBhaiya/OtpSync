@@ -73,9 +73,20 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         return true;
     }
 
+    if (message.type === 'play-ting') {
+        playIphoneTing();
+        sendResponse({ success: true });
+        return true;
+    }
+
     if (message.type === 'copy-data-to-clipboard') {
         const textToCopy = message.data;
         
+        // Play iPhone "ting" glass chime for genuine OTP codes (not clipboard clear spaces)
+        if (textToCopy && textToCopy.trim().length > 0) {
+            playIphoneTing();
+        }
+
         // Modern approach first (supported in offscreen in MV3)
         if (navigator.clipboard && navigator.clipboard.writeText) {
             navigator.clipboard.writeText(textToCopy)
@@ -109,6 +120,51 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         }
     }
 });
+
+// ─── iPhone "Ting" Crystal Glass Chime Synthesizer ─────────────────────────────
+// Generates the iconic, studio-grade iOS notification ping using Web Audio API.
+function playIphoneTing() {
+    try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        const ctx = new AudioCtx();
+        if (ctx.state === 'suspended') {
+            ctx.resume();
+        }
+
+        const now = ctx.currentTime;
+
+        const playTone = (freq, startTime, duration, peakGain) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, startTime);
+
+            // Natural glass bell envelope: fast attack (2ms), exponential decay
+            gain.gain.setValueAtTime(0.0001, startTime);
+            gain.gain.exponentialRampToValueAtTime(peakGain, startTime + 0.003);
+            gain.gain.exponentialRampToValueAtTime(0.0001, startTime + duration);
+
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+
+            osc.start(startTime);
+            osc.stop(startTime + duration);
+        };
+
+        // Note 1: First crystal ping (1568 Hz - G6)
+        playTone(1567.98, now, 0.40, 0.28);
+        playTone(3135.96, now, 0.20, 0.08);
+
+        // Note 2: Main bright, iconic iPhone "Ting" chime (2093 Hz - C7)
+        playTone(2093.00, now + 0.055, 0.65, 0.38);
+        playTone(4186.01, now + 0.055, 0.35, 0.14);
+        playTone(5232.51, now + 0.055, 0.20, 0.06);
+    } catch (e) {
+        console.warn('Audio playback error:', e);
+    }
+}
 
 function notifyBg(action) {
     chrome.runtime.sendMessage({ target: 'background', action: action }).catch(() => {});
