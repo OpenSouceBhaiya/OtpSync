@@ -169,6 +169,24 @@ object OtpExtractor {
     }
 
     private fun isValidCandidate(candidate: String, text: String, startPos: Int): Boolean {
+        val letterCount = candidate.count { it.isLetter() }
+        val digitCount = candidate.count { it.isDigit() }
+
+        // Pure letters: MUST be uppercase, >= 4 chars, and NOT a common English dictionary word
+        if (digitCount == 0) {
+            if (!candidate.all { it.isUpperCase() } || candidate.length < 4) return false
+            val commonWords = setOf(
+                "WITH", "FROM", "YOUR", "THIS", "THAT", "HAVE", "WILL", "CALL", "CODE",
+                "USER", "HERE", "ONCE", "SIGN", "TRUE", "FREE", "MORE", "DATE", "TIME",
+                "NAME", "TEAM", "HELP", "SEND", "DEAR", "STOP", "VALID", "SHARE", "ENTER",
+                "ACCESS", "PLEASE", "VERIFY", "LOGIN", "ACCOUNT", "NUMBER", "SECRET"
+            )
+            if (commonWords.contains(candidate.uppercase())) return false
+        }
+
+        // Mixed letters: Require at least 2 digits to prevent tracking strings
+        if (letterCount > 0 && digitCount < 2) return false
+
         if (isLikelyYear(candidate, text, startPos)) return false
         if (isMaskedCardOrAccount(text, startPos)) return false
         if (isAmountOrCurrency(text, startPos, candidate.length)) return false
@@ -195,8 +213,14 @@ object OtpExtractor {
         // ══════════════════════════════════════════════════════════════════════════════
         val anchorPatterns = listOf(
             // "Your OTP is 482913", "verification code: 482913", "auth code: A3F92K", "pin is 8492"
-            Regex("(?i)\\b(?:one[- ]time\\s+(?:password|code)|verification\\s+code|security\\s+code|login\\s+code|sign[- ]in\\s+code|access\\s+code|auth(?:entication)?\\s+code|confirmation\\s+code|secret\\s+code|passcode|a?otp|pin(?:\\s+code)?)\\s*(?:is|:|–|-|=|#|\\s)\\s*([0-9]{4,8}|[A-Z0-9]{4,8})\\b"),
-            
+            Regex("(?i)\\b(?:one[- ]time\\s+(?:password|code)|verification\\s+code|security\\s+code|login\\s+code|sign[- ]in\\s+code|access\\s+code|auth(?:entication)?\\s+code|confirmation\\s+code|secret\\s+code|passcode|a?otp|pin(?:\\s+code)?)\\s*(?:is|:|–|-|=|#)\\s*([0-9]{4,8}|[A-Z0-9]{4,8})\\b"),
+
+            // "OTP for transaction of ... is 839201", "OTP for login ... is 591823"
+            Regex("(?i)\\b(?:a?otp|code|pin|password)\\s+(?:for|to)\\s+[^.\n\r]{1,100}?\\b(?:is|:|=)\\s*([0-9]{4,8})\\b"),
+
+            // "OTP 482913", "Code 482913" (space separator strictly for pure digits)
+            Regex("(?i)\\b(?:one[- ]time\\s+(?:password|code)|verification\\s+code|security\\s+code|login\\s+code|sign[- ]in\\s+code|access\\s+code|auth(?:entication)?\\s+code|confirmation\\s+code|secret\\s+code|passcode|a?otp|pin(?:\\s+code)?)\\s+([0-9]{4,8})\\b"),
+
             // "Code: 482913", "Code is 482913"
             Regex("(?i)\\b(?:code|pin)\\s*(?:is|:|–|-|=|#)\\s*([0-9]{4,8}|[A-Z0-9]{4,8})\\b"),
             
