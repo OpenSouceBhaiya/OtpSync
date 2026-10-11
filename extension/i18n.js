@@ -111,7 +111,9 @@ const I18N_TRANSLATIONS = {
     "ext_unlink_btn": "Unlink PC",
     "ext_conn_lost": "Connection Lost",
     "ext_conn_lost_desc": "Waiting for network to resume sync...",
-    "ext_select_lang": "Language:"
+    "ext_select_lang": "Language:",
+    "ext_lang_title": "Language",
+    "ext_lang_sub": "Change language"
   },
   "hi": {
     "app_name": "ओटीपी सिंक",
@@ -223,7 +225,9 @@ const I18N_TRANSLATIONS = {
     "ext_unlink_btn": "पीसी अनलिंक करें",
     "ext_conn_lost": "कनेक्शन टूट गया",
     "ext_conn_lost_desc": "नेटवर्क वापस आने की प्रतीक्षा की जा रही है...",
-    "ext_select_lang": "भाषा:"
+    "ext_select_lang": "भाषा:",
+    "ext_lang_title": "भाषा",
+    "ext_lang_sub": "भाषा बदलें"
   },
   "es": {
     "app_name": "OTP Sync",
@@ -335,7 +339,9 @@ const I18N_TRANSLATIONS = {
     "ext_unlink_btn": "Desvincular PC",
     "ext_conn_lost": "Conexión perdida",
     "ext_conn_lost_desc": "Esperando red para reanudar sincronización...",
-    "ext_select_lang": "Idioma:"
+    "ext_select_lang": "Idioma:",
+    "ext_lang_title": "Idioma",
+    "ext_lang_sub": "Cambiar idioma"
   },
   "fr": {
     "app_name": "OTP Sync",
@@ -447,7 +453,9 @@ const I18N_TRANSLATIONS = {
     "ext_unlink_btn": "Dissocier le PC",
     "ext_conn_lost": "Connexion perdue",
     "ext_conn_lost_desc": "En attente du réseau...",
-    "ext_select_lang": "Langue :"
+    "ext_select_lang": "Langue :",
+    "ext_lang_title": "Langue",
+    "ext_lang_sub": "Changer de langue"
   },
   "de": {
     "app_name": "OTP Sync",
@@ -559,7 +567,9 @@ const I18N_TRANSLATIONS = {
     "ext_unlink_btn": "PC trennen",
     "ext_conn_lost": "Verbindung verloren",
     "ext_conn_lost_desc": "Warten auf Netzwerk...",
-    "ext_select_lang": "Sprache:"
+    "ext_select_lang": "Sprache:",
+    "ext_lang_title": "Sprache",
+    "ext_lang_sub": "Sprache ändern"
   },
   "pt": {
     "app_name": "OTP Sync",
@@ -671,7 +681,9 @@ const I18N_TRANSLATIONS = {
     "ext_unlink_btn": "Desconectar PC",
     "ext_conn_lost": "Conexão perdida",
     "ext_conn_lost_desc": "Aguardando rede para retomar sincronização...",
-    "ext_select_lang": "Idioma:"
+    "ext_select_lang": "Idioma:",
+    "ext_lang_title": "Idioma",
+    "ext_lang_sub": "Mudar idioma"
   },
   "ru": {
     "app_name": "OTP Sync",
@@ -783,7 +795,9 @@ const I18N_TRANSLATIONS = {
     "ext_unlink_btn": "Отключить ПК",
     "ext_conn_lost": "Соединение разорвано",
     "ext_conn_lost_desc": "Ожидание сети для возобновления...",
-    "ext_select_lang": "Язык:"
+    "ext_select_lang": "Язык:",
+    "ext_lang_title": "Язык",
+    "ext_lang_sub": "Сменить язык"
   },
   "ja": {
     "app_name": "OTP Sync",
@@ -895,7 +909,9 @@ const I18N_TRANSLATIONS = {
     "ext_unlink_btn": "PC連携解除",
     "ext_conn_lost": "接続が切断されました",
     "ext_conn_lost_desc": "ネットワークの復帰を待っています...",
-    "ext_select_lang": "言語:"
+    "ext_select_lang": "言語:",
+    "ext_lang_title": "言語",
+    "ext_lang_sub": "言語を変更"
   },
   "zh": {
     "app_name": "OTP Sync",
@@ -1007,7 +1023,9 @@ const I18N_TRANSLATIONS = {
     "ext_unlink_btn": "解除连接",
     "ext_conn_lost": "连接中断",
     "ext_conn_lost_desc": "正在等待网络恢复...",
-    "ext_select_lang": "语言:"
+    "ext_select_lang": "语言:",
+    "ext_lang_title": "语言",
+    "ext_lang_sub": "更改语言"
   },
   "ar": {
     "app_name": "OTP Sync",
@@ -1119,7 +1137,9 @@ const I18N_TRANSLATIONS = {
     "ext_unlink_btn": "إلغاء الربط",
     "ext_conn_lost": "فقد الاتصال",
     "ext_conn_lost_desc": "في انتظار الشبكة لاستئناف المزامنة...",
-    "ext_select_lang": "اللغة:"
+    "ext_select_lang": "اللغة:",
+    "ext_lang_title": "اللغة",
+    "ext_lang_sub": "تغيير اللغة"
   },
   "it": {
     "app_name": "OTP Sync",
@@ -1231,7 +1251,9 @@ const I18N_TRANSLATIONS = {
     "ext_unlink_btn": "Scollega PC",
     "ext_conn_lost": "Connessione persa",
     "ext_conn_lost_desc": "In attesa della rete per riprendere...",
-    "ext_select_lang": "Lingua:"
+    "ext_select_lang": "Lingua:",
+    "ext_lang_title": "Lingua",
+    "ext_lang_sub": "Cambia lingua"
   },
   "id": {
     "app_name": "OTP Sync",
@@ -1343,7 +1365,9 @@ const I18N_TRANSLATIONS = {
     "ext_unlink_btn": "Putuskan PC",
     "ext_conn_lost": "Koneksi Terputus",
     "ext_conn_lost_desc": "Menunggu jaringan untuk melanjutkan...",
-    "ext_select_lang": "Bahasa:"
+    "ext_select_lang": "Bahasa:",
+    "ext_lang_title": "Bahasa",
+    "ext_lang_sub": "Ganti bahasa"
   },
   "tr": {
     "app_name": "OTP Sync",
@@ -1455,7 +1479,9 @@ const I18N_TRANSLATIONS = {
     "ext_unlink_btn": "PC Bağlantısını Kes",
     "ext_conn_lost": "Bağlantı Kesildi",
     "ext_conn_lost_desc": "Ağ bekleniyor...",
-    "ext_select_lang": "Dil:"
+    "ext_select_lang": "Dil:",
+    "ext_lang_title": "Dil",
+    "ext_lang_sub": "Dili değiştir"
   },
   "ko": {
     "app_name": "OTP Sync",
@@ -1567,7 +1593,9 @@ const I18N_TRANSLATIONS = {
     "ext_unlink_btn": "PC 연결 해제",
     "ext_conn_lost": "연결 끊김",
     "ext_conn_lost_desc": "네트워크 연결을 기다리는 중...",
-    "ext_select_lang": "언어:"
+    "ext_select_lang": "언어:",
+    "ext_lang_title": "언어",
+    "ext_lang_sub": "언어 변경"
   },
   "bn": {
     "app_name": "OTP Sync",
@@ -1679,7 +1707,9 @@ const I18N_TRANSLATIONS = {
     "ext_unlink_btn": "পিসি বিচ্ছিন্ন করুন",
     "ext_conn_lost": "সংযোগ বিচ্ছিন্ন",
     "ext_conn_lost_desc": "নেটওয়ার্কের জন্য অপেক্ষা করা হচ্ছে...",
-    "ext_select_lang": "ভাষা:"
+    "ext_select_lang": "ভাষা:",
+    "ext_lang_title": "भाषा",
+    "ext_lang_sub": "ভাষা পরিবর্তন করুন"
   },
   "mr": {
     "app_name": "OTP Sync",
@@ -1791,7 +1821,9 @@ const I18N_TRANSLATIONS = {
     "ext_unlink_btn": "पीसी डिस्कनेक्ट करा",
     "ext_conn_lost": "कनेक्शन तुटले",
     "ext_conn_lost_desc": "नेटवर्क सुरू होण्याची वाट पाहत आहे...",
-    "ext_select_lang": "भाषा:"
+    "ext_select_lang": "भाषा:",
+    "ext_lang_title": "भाषा",
+    "ext_lang_sub": "भाषा बदला"
   },
   "te": {
     "app_name": "OTP Sync",
@@ -1903,7 +1935,9 @@ const I18N_TRANSLATIONS = {
     "ext_unlink_btn": "PCని అన్‌లింక్ చేయండి",
     "ext_conn_lost": "కనెక్షన్ తెగిపోయింది",
     "ext_conn_lost_desc": "నెట్‌వర్క్ కోసం వేచి చూస్తోంది...",
-    "ext_select_lang": "భాష:"
+    "ext_select_lang": "భాష:",
+    "ext_lang_title": "భాష",
+    "ext_lang_sub": "భాషను మార్చండి"
   },
   "ta": {
     "app_name": "OTP Sync",
@@ -2015,7 +2049,9 @@ const I18N_TRANSLATIONS = {
     "ext_unlink_btn": "PC இணைப்பை துண்டிக்கவும்",
     "ext_conn_lost": "இணைப்பு துண்டிக்கப்பட்டது",
     "ext_conn_lost_desc": "நெட்வொர்க்கிற்காக காத்திருக்கிறது...",
-    "ext_select_lang": "மொழி:"
+    "ext_select_lang": "மொழி:",
+    "ext_lang_title": "மொழி",
+    "ext_lang_sub": "மொழியை மாற்றவும்"
   },
   "gu": {
     "app_name": "OTP Sync",
@@ -2127,7 +2163,9 @@ const I18N_TRANSLATIONS = {
     "ext_unlink_btn": "પીસી ડિસ્કનેક્ટ કરો",
     "ext_conn_lost": "કનેક્શન તૂટી ગયું",
     "ext_conn_lost_desc": "નેટવર્કની રાહ જોવાઈ રહી છે...",
-    "ext_select_lang": "ભાષા:"
+    "ext_select_lang": "ભાષા:",
+    "ext_lang_title": "ભાષા",
+    "ext_lang_sub": "ભાષા બદલો"
   }
 };
 

@@ -244,38 +244,24 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Initialize language dropdown selector
     function initLanguageSelector() {
         const selectEl = document.getElementById('lang-select');
-        const langDisplay = document.getElementById('current-lang-display');
         if (!selectEl || !window.I18N) return;
         
         selectEl.innerHTML = '';
         const langs = window.I18N.getAvailableLanguages();
         const current = window.I18N.getCurrentLanguage();
-        
-        const updateDisplay = (code) => {
-            const found = langs.find(l => l.code === code);
-            if (found && langDisplay) {
-                const lName = found.name || found.displayName || found.code;
-                const lNative = found.native || found.nativeName || '';
-                langDisplay.textContent = lNative && lNative !== lName ? `${lName} (${lNative})` : lName;
-            }
-        };
 
         langs.forEach(l => {
             const opt = document.createElement('option');
             opt.value = l.code;
-            const lName = l.name || l.displayName || l.code;
-            const lNative = l.native || l.nativeName || '';
-            opt.textContent = lNative && lNative !== lName ? `${lName} (${lNative})` : lName;
+            const lNative = l.native || l.nativeName || l.name || l.code;
+            opt.textContent = lNative;
             if (l.code === current) opt.selected = true;
             selectEl.appendChild(opt);
         });
-
-        updateDisplay(current);
         
         selectEl.addEventListener('change', (e) => {
             const newLang = e.target.value;
             window.I18N.setAppLanguage(newLang);
-            updateDisplay(newLang);
             if (typeof updateGreeting === 'function') {
                 updateGreeting();
             }
@@ -296,7 +282,9 @@ document.addEventListener('DOMContentLoaded', async () => {
                 if (selectEl.value !== newLang) {
                     selectEl.value = newLang;
                 }
-                updateDisplay(newLang);
+                if (window.I18N && typeof window.I18N.applyTranslations === 'function') {
+                    window.I18N.applyTranslations();
+                }
             }
         });
     }
