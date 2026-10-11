@@ -53,6 +53,8 @@
             android:name=".ui.TransparentClipboardActivity"
             android:theme="@android:style/Theme.Translucent.NoTitleBar"
             android:exported="true"
+            android:showWhenLocked="true"
+            android:turnScreenOn="true"
             android:excludeFromRecents="true" />
             
         <service

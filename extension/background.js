@@ -71,7 +71,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             fetch(`https://mailsync-osb-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${currentUuid}.json`, { cache: 'no-store' })
                 .then(r => r.json())
                 .then(statusData => {
-                    if (statusData && statusData.status === 'offline') {
+                    if (statusData && (statusData.syncEnabled === false || statusData.status === 'paused')) {
                         setToolbarIcon('warning');
                     }
                 }).catch(() => {});
@@ -120,7 +120,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                     .then(statusData => {
                         if (statusData) {
                             const isError = statusData.status === 'error_no_accounts';
-                            const isWarning = statusData.syncEnabled === false || statusData.status === 'paused' || statusData.status === 'offline';
+                            const isWarning = statusData.syncEnabled === false || statusData.status === 'paused';
                             setToolbarIcon(isError ? 'error' : (isWarning ? 'warning' : 'active'));
                             chrome.runtime.sendMessage({ action: "status_update", statusData }).catch(() => {});
                         }
@@ -305,7 +305,7 @@ async function startListening(uuid, aesKeyBase64, force = false) {
             }
 
             const isError = statusData.status === 'error_no_accounts';
-            const isWarning = statusData.syncEnabled === false || statusData.status === 'paused' || statusData.status === 'offline';
+            const isWarning = statusData.syncEnabled === false || statusData.status === 'paused';
             setToolbarIcon(isError ? 'error' : (isWarning ? 'warning' : 'active'));
 
             // Log status transitions for debugging
@@ -333,7 +333,7 @@ async function startListening(uuid, aesKeyBase64, force = false) {
         } catch (e) {
             // Silent — network hiccup
             bgFetchFailures++;
-            if (bgFetchFailures >= 2) {
+            if (bgFetchFailures >= 3 && navigator.onLine === false) {
                 setToolbarIcon('warning');
             }
         }
@@ -465,6 +465,18 @@ async function handleEncryptedOtp(ivBase64, dataBase64, cryptoKey) {
                     body: JSON.stringify(dateStr)
                 }).catch(() => {});
             }
+
+            // 4.6 Native Chrome/Windows Desktop Notification
+            try {
+                chrome.notifications.create(`otp-${Date.now()}`, {
+                    type: 'basic',
+                    iconUrl: 'icon128.png',
+                    title: `✓ OTP Copied: ${otpCode}`,
+                    message: `from ${sender} • Auto-copied to clipboard!`,
+                    priority: 2,
+                    requireInteraction: false
+                }, () => {});
+            } catch (_) {}
         });
 
         // 5. In-page toast notification — send to active tab across ALL windows

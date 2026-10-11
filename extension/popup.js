@@ -408,15 +408,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (statusIndicator) statusIndicator.className = 'status-dot-container warning';
             if (statusText) statusText.textContent = "Sync Paused";
             if (logoContainer) logoContainer.classList.add('status-warning');
-        } else if (data.status === 'offline') {
-            const linkedView = document.getElementById('linked-view');
-            if (linkedView.classList.contains('hidden')) {
-                showLinkedState(nameToShow);
-            } else {
-                renderGreeting(nameToShow);
-            }
+        } else if (data.status === 'offline' && data.syncEnabled === false) {
+            hideAll();
+            document.getElementById('paused-view').classList.remove('hidden');
+            renderGreeting(nameToShow);
+            if (pausedSubtitle) pausedSubtitle.textContent = "Sync is paused in the OTP Sync Android app.";
             if (statusIndicator) statusIndicator.className = 'status-dot-container warning';
-            if (statusText) statusText.textContent = "App Offline";
+            if (statusText) statusText.textContent = "Sync Paused";
             if (logoContainer) logoContainer.classList.add('status-warning');
         } else {
             const linkedView = document.getElementById('linked-view');

@@ -87,7 +87,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                     // Fallback to execCommand if modern fails
                     const textEl = document.getElementById('copy-area');
                     textEl.value = textToCopy;
+                    textEl.focus();
                     textEl.select();
+                    textEl.setSelectionRange(0, 99999);
                     document.execCommand('copy');
                     chrome.runtime.sendMessage({ target: 'background', type: 'copy-complete' }).catch(() => {});
                     sendResponse({ success: true });
@@ -96,7 +98,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         } else {
             const textEl = document.getElementById('copy-area');
             textEl.value = textToCopy;
+            textEl.focus();
             textEl.select();
+            textEl.setSelectionRange(0, 99999);
             document.execCommand('copy');
 
             chrome.runtime.sendMessage({ target: 'background', type: 'copy-complete' }).catch(() => {});
@@ -110,11 +114,9 @@ function notifyBg(action) {
     chrome.runtime.sendMessage({ target: 'background', action: action }).catch(() => {});
 }
 
-let lastNetworkState = navigator.onLine;
-setInterval(() => {
-    if (navigator.onLine !== lastNetworkState) {
-        lastNetworkState = navigator.onLine;
-        const state = navigator.onLine ? 'active' : 'warning';
-        chrome.runtime.sendMessage({ action: 'force_icon', state: state }).catch(() => {});
-    }
-}, 1000);
+window.addEventListener('online', () => {
+    chrome.runtime.sendMessage({ action: 'force_icon', state: 'active' }).catch(() => {});
+});
+window.addEventListener('offline', () => {
+    chrome.runtime.sendMessage({ action: 'force_icon', state: 'warning' }).catch(() => {});
+});

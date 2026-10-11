@@ -51,7 +51,6 @@ class OtpExtractorTest {
     
     @Test
     fun testNetflixStyleUUIDFooter() {
-        // Netflix bug: extracted from footer UUID instead of body
         val email = """
             Enter this code to sign in
             
@@ -111,5 +110,66 @@ class OtpExtractorTest {
         """.trimIndent()
         val result = OtpExtractor.extractOtp(null, email, null, 0L)
         assertNull(result)
+    }
+
+    // ─── NEW CRITICAL TESTS PREVENTING USER ISSUES ──────────────────────────────
+
+    @Test
+    fun testRejectYear2026InMarketingNotification() {
+        // Amazon notification with copyright and verify link but no OTP
+        val text = """
+            ✨ Introducing Amazon Seller Assistant on WhatsApp
+            
+            You can now manage your catalog, track customer queries, and boost your sales.
+            To verify your seller profile, please click the link below:
+            https://sellercentral.amazon.in/verify
+            
+            © 2026 Amazon.com, Inc. or its affiliates. All rights reserved.
+        """.trimIndent()
+        val result = OtpExtractor.extractOtp(null, text, null, 0L)
+        assertNull(result)
+    }
+
+    @Test
+    fun testBankSmsWithMaskedCardAndAmount() {
+        // Real-world bank SMS with amount, card ending, and OTP
+        val text = "Dear Customer, OTP for transaction of INR 1,500.00 on your SBI Card ending 4821 is 839201. Do not share OTP with anyone."
+        val result = OtpExtractor.extractOtp(null, text, null, 0L)
+        assertEquals("839201", result?.code)
+    }
+
+    @Test
+    fun testBankSmsWithRsAndTxn() {
+        val text = "Your OTP for Rs 450.00 txn at Zomato is 918234. Ref No: 991823. Valid for 10 mins."
+        val result = OtpExtractor.extractOtp(null, text, null, 0L)
+        assertEquals("918234", result?.code)
+    }
+
+    @Test
+    fun testHdfcBankNetbankingOtp() {
+        val text = "591823 is the OTP for login to your HDFC Bank NetBanking. Valid for 10 mins. Do not share with anyone."
+        val result = OtpExtractor.extractOtp(null, text, null, 0L)
+        assertEquals("591823", result?.code)
+    }
+
+    @Test
+    fun testGoogleVerificationCodeWithPrefix() {
+        val text = "G-948210 is your Google verification code."
+        val result = OtpExtractor.extractOtp(null, text, null, 0L)
+        assertEquals("948210", result?.code)
+    }
+
+    @Test
+    fun testUberVerificationCode() {
+        val text = "4829 is your Uber code. Never share this code."
+        val result = OtpExtractor.extractOtp(null, text, null, 0L)
+        assertEquals("4829", result?.code)
+    }
+
+    @Test
+    fun testIndianPincodeIgnored() {
+        val text = "Your delivery is arriving at Pincode 560001. Your delivery OTP is 773821."
+        val result = OtpExtractor.extractOtp(null, text, null, 0L)
+        assertEquals("773821", result?.code)
     }
 }

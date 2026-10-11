@@ -17,10 +17,11 @@ object FileLogger {
     private const val TAG = "MailSync-FileLogger"
     private const val FILE_NAME = "otp_debug.log"
 
-    fun log(context: Context, message: String) {
+    fun log(context: Context?, message: String) {
         val timestamp = SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.US).format(Date())
         val logLine = "[$timestamp] [API ${Build.VERSION.SDK_INT}] $message\n"
         Log.d(TAG, logLine)
+        if (context == null) return
         try {
             val logFile = File(context.cacheDir, FILE_NAME)
             val writer = PrintWriter(FileWriter(logFile, true))

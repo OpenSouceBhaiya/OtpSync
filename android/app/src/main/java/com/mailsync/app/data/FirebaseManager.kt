@@ -64,9 +64,6 @@ class FirebaseManager {
             publicDeviceData["accountName"] = accountName
         }
         devicesRef.child(uuid).setValue(publicDeviceData).await()
-        
-        // Setup onDisconnect hook so extension knows if phone dies/uninstalls
-        devicesRef.child(uuid).child("status").onDisconnect().setValue("offline")
     }
 
     suspend fun updateSyncState(uuids: List<String>, isEnabled: Boolean, status: String = "active") {
@@ -74,9 +71,6 @@ class FirebaseManager {
             try {
                 devicesRef.child(uuid).child("syncEnabled").setValue(isEnabled).await()
                 devicesRef.child(uuid).child("status").setValue(status).await()
-                
-                // Refresh onDisconnect hook whenever sync state is updated
-                devicesRef.child(uuid).child("status").onDisconnect().setValue("offline")
             } catch (e: Exception) {
                 Log.e("FirebaseManager", "Failed to update sync state for $uuid", e)
             }
@@ -98,8 +92,8 @@ class FirebaseManager {
     }
 
     /**
-     * Encrypt and send an OTP to all linked PCs that are actively waiting.
-     * Returns true if the OTP was sent to at least one waiting PC.
+     * Encrypt and send an OTP to all linked PCs immediately without latency.
+     * Returns true if the OTP was sent to at least one linked PC.
      */
     suspend fun broadcastOtp(otpCode: String, sender: String, activeDeviceKeys: Map<String, String>, expiresAt: Long, isPhoneInteractive: Boolean = false): Boolean {
         if (activeDeviceKeys.isEmpty()) return false
@@ -108,47 +102,14 @@ class FirebaseManager {
         val timestamp = System.currentTimeMillis()
         var sentToAnyPc = false
         
-        // Phase 1: Query which active devices are currently on a login page
-        val activeWaitingUuids = mutableSetOf<String>()
-        for (uuid in activeDeviceKeys.keys) {
+        for ((uuid, keyBase64) in activeDeviceKeys) {
             try {
-                val deviceData = devicesRef.child(uuid).get().await()
-                if (deviceData.exists()) {
-                    val status = deviceData.child("status").getValue(String::class.java)
-                    if (status != "terminated") {
-                        val extVersion = deviceData.child("extVersion").getValue(Int::class.java) ?: 1
-                        val pcLoginActiveNode = deviceData.child("pcLoginActive")
-                        if (extVersion >= 2 && pcLoginActiveNode.exists()) {
-                            val isActive = pcLoginActiveNode.child("active").getValue(Boolean::class.java) == true
-                            val ts = pcLoginActiveNode.child("ts").getValue(Long::class.java) ?: 0L
-                            val isStale = (System.currentTimeMillis() - ts) > 15000
-                            if (isActive && !isStale) {
-                                activeWaitingUuids.add(uuid)
-                            }
-                        }
-                    }
-                }
-            } catch (e: Exception) {
-                Log.e("FirebaseManager", "Error checking pcLoginActive for $uuid", e)
-            }
-        }
-        
-        val targetUuids = if (activeWaitingUuids.isNotEmpty()) {
-            Log.d("FirebaseManager", "Smart routing: ${activeWaitingUuids.size} active PC(s) detected. Targeting only them.")
-            activeWaitingUuids
-        } else {
-            Log.d("FirebaseManager", "No active PC login pages detected. Broadcasting to ALL ${activeDeviceKeys.size} device(s) as fallback.")
-            activeDeviceKeys.keys
-        }
-        
-        // Phase 3: Write the OTP only to target device nodes
-        for (uuid in targetUuids) {
-            val keyBase64 = activeDeviceKeys[uuid] ?: continue
-            try {
-                sentToAnyPc = activeWaitingUuids.contains(uuid)
                 val encryptedData = encryptAesGcm(otpCode, sender, timestamp, expiresAt, keyBase64)
                 otpsRef.child(uuid).setValue(encryptedData).await()
-                Log.d("FirebaseManager", "OTP sent to device $uuid")
+                // Ensure device status is active so extension never falsely shows offline
+                devicesRef.child(uuid).child("status").setValue("active")
+                sentToAnyPc = true
+                Log.d("FirebaseManager", "OTP sent instantly to device $uuid")
                 
                 // Self-destruct the OTP from Firebase after 30 seconds.
                 managerScope.launch {

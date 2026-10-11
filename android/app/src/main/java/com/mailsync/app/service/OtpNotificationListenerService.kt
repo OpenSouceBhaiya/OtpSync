@@ -250,21 +250,20 @@ class OtpNotificationListenerService : NotificationListenerService() {
             }
 
             if (isNewInsertion) {
-                kotlinx.coroutines.coroutineScope {
-                    val firebaseManager = com.mailsync.app.data.FirebaseManager()
-                    val keys = settingsManager.getAllLinkedDeviceKeys()
-                    keys.forEach { (uuid, keyBase64) ->
-                        launch {
-                            val pm = getSystemService(android.content.Context.POWER_SERVICE) as android.os.PowerManager
-                            firebaseManager.broadcastOtp(
-                                extractedOtp.code, senderName,
-                                mapOf(uuid to keyBase64),
-                                extractedOtp.expiresAt ?: (System.currentTimeMillis() + 5 * 60 * 1000L),
-                                pm.isInteractive
-                            )
-                        }
-                    }
+                val firebaseManager = com.mailsync.app.data.FirebaseManager()
+                val keys = settingsManager.getAllLinkedDeviceKeys()
+                val currentTime = java.text.SimpleDateFormat("MMM dd, hh:mm a", java.util.Locale.getDefault()).format(java.util.Date())
+                for (deviceId in keys.keys) {
+                    settingsManager.updateLinkedDeviceLastOtpTime(deviceId, currentTime)
                 }
+
+                firebaseManager.broadcastOtp(
+                    otpCode = extractedOtp.code,
+                    sender = senderName,
+                    activeDeviceKeys = keys,
+                    expiresAt = extractedOtp.expiresAt ?: (System.currentTimeMillis() + 5 * 60 * 1000L)
+                )
+
                 if (settingsManager.isClipboardCopyEnabled() && com.mailsync.app.utils.OtpCache.shouldCopy(extractedOtp.code)) {
                     try {
                         val intent = android.content.Intent(this@OtpNotificationListenerService, com.mailsync.app.ui.TransparentClipboardActivity::class.java).apply {

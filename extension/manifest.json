@@ -9,7 +9,8 @@
     "offscreen",
     "alarms",
     "scripting",
-    "activeTab"
+    "activeTab",
+    "notifications"
   ],
   "host_permissions": [
     "https://mailsync-osb-default-rtdb.asia-southeast1.firebasedatabase.app/*",
