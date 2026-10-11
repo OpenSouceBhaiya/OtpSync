@@ -9,6 +9,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
+import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material3.*
@@ -23,11 +25,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.mailsync.app.data.AppLanguage
 import com.mailsync.app.data.AppStrings
-import com.mailsync.app.ui.theme.DarkBackground
-import com.mailsync.app.ui.theme.DarkSurface
-import com.mailsync.app.ui.theme.TextPrimary
-import com.mailsync.app.ui.theme.TextSecondary
-import com.mailsync.app.ui.theme.PurpleAccent
+import com.mailsync.app.ui.theme.*
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -58,21 +56,21 @@ fun CompleteProfileScreen(
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            Spacer(modifier = Modifier.height(20.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-            // Avatar circle matching screenshot
+            // Avatar circle matching the exact design language of Onboarding screen (120dp with primary alpha)
             Box(
                 modifier = Modifier
-                    .size(80.dp)
+                    .size(120.dp)
                     .clip(CircleShape)
-                    .background(Color(0xFF1E2130)),
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.1f)),
                 contentAlignment = Alignment.Center
             ) {
                 Icon(
-                    imageVector = Icons.Default.Person,
+                    imageVector = Icons.Default.AccountCircle,
                     contentDescription = null,
-                    tint = Color(0xFF38BDF8),
-                    modifier = Modifier.size(44.dp)
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.size(64.dp)
                 )
             }
 
@@ -92,16 +90,17 @@ fun CompleteProfileScreen(
                 text = AppStrings.get("profile_subtitle", currentLang),
                 style = MaterialTheme.typography.bodyMedium,
                 color = TextSecondary,
-                textAlign = TextAlign.Center
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 16.dp)
             )
 
-            Spacer(modifier = Modifier.height(32.dp))
+            Spacer(modifier = Modifier.height(28.dp))
 
-            // Card container for inputs
+            // Card container for inputs using app surface styling
             Card(
-                modifier = Modifier.fillMaxWidth(),
+                modifier = Modifier.fillMaxWidth(0.95f),
                 shape = RoundedCornerShape(16.dp),
-                colors = CardDefaults.cardColors(containerColor = DarkSurface)
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
             ) {
                 Column(
                     modifier = Modifier
@@ -115,18 +114,22 @@ fun CompleteProfileScreen(
                         label = { Text(AppStrings.get("full_name_label", currentLang)) },
                         placeholder = { Text(AppStrings.get("full_name_placeholder", currentLang)) },
                         leadingIcon = {
-                            Icon(Icons.Default.Person, contentDescription = null, tint = TextSecondary)
+                            Icon(
+                                Icons.Default.Person,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
                         },
                         singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = PurpleAccent,
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
                             unfocusedBorderColor = Color(0xFF2E344A),
-                            focusedLabelColor = PurpleAccent,
+                            focusedLabelColor = MaterialTheme.colorScheme.primary,
                             unfocusedLabelColor = TextSecondary,
                             focusedTextColor = TextPrimary,
                             unfocusedTextColor = TextPrimary,
-                            focusedContainerColor = Color(0xFF131520),
-                            unfocusedContainerColor = Color(0xFF131520)
+                            focusedContainerColor = DarkSurface,
+                            unfocusedContainerColor = DarkSurface
                         ),
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.fillMaxWidth()
@@ -141,18 +144,22 @@ fun CompleteProfileScreen(
                         label = { Text(AppStrings.get("phone_number_label", currentLang)) },
                         placeholder = { Text(AppStrings.get("phone_number_placeholder", currentLang)) },
                         leadingIcon = {
-                            Icon(Icons.Default.Phone, contentDescription = null, tint = TextSecondary)
+                            Icon(
+                                Icons.Default.Phone,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary
+                            )
                         },
                         singleLine = true,
                         colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = PurpleAccent,
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
                             unfocusedBorderColor = Color(0xFF2E344A),
-                            focusedLabelColor = PurpleAccent,
+                            focusedLabelColor = MaterialTheme.colorScheme.primary,
                             unfocusedLabelColor = TextSecondary,
                             focusedTextColor = TextPrimary,
                             unfocusedTextColor = TextPrimary,
-                            focusedContainerColor = Color(0xFF131520),
-                            unfocusedContainerColor = Color(0xFF131520)
+                            focusedContainerColor = DarkSurface,
+                            unfocusedContainerColor = DarkSurface
                         ),
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.fillMaxWidth()
@@ -160,7 +167,7 @@ fun CompleteProfileScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(28.dp))
+            Spacer(modifier = Modifier.height(24.dp))
 
             // Select App Language Dropdown Title
             Text(
@@ -169,18 +176,18 @@ fun CompleteProfileScreen(
                 color = TextSecondary,
                 fontWeight = FontWeight.Medium,
                 modifier = Modifier
-                    .fillMaxWidth()
+                    .fillMaxWidth(0.95f)
                     .padding(start = 4.dp, bottom = 8.dp)
             )
 
-            // Language Selector Dropdown
-            Box(modifier = Modifier.fillMaxWidth()) {
+            // Language Selector Dropdown with app surface styling
+            Box(modifier = Modifier.fillMaxWidth(0.95f)) {
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(12.dp))
                         .clickable { expandedLanguageDropdown = true },
-                    color = DarkSurface,
+                    color = MaterialTheme.colorScheme.surfaceVariant,
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     Row(
@@ -190,12 +197,21 @@ fun CompleteProfileScreen(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Text(
-                            text = "${currentLang.displayName} (${currentLang.nativeName})",
-                            color = TextPrimary,
-                            fontSize = 15.sp,
-                            fontWeight = FontWeight.Medium
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Icon(
+                                imageVector = Icons.Default.Language,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                            Spacer(modifier = Modifier.width(12.dp))
+                            Text(
+                                text = "${currentLang.displayName} (${currentLang.nativeName})",
+                                color = TextPrimary,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
                         Icon(
                             imageVector = Icons.Default.ArrowDropDown,
                             contentDescription = "Select Language",
@@ -209,7 +225,7 @@ fun CompleteProfileScreen(
                     onDismissRequest = { expandedLanguageDropdown = false },
                     modifier = Modifier
                         .fillMaxWidth(0.85f)
-                        .background(Color(0xFF161925))
+                        .background(DarkSurface)
                 ) {
                     AppLanguage.entries.forEach { lang ->
                         DropdownMenuItem(
@@ -220,7 +236,7 @@ fun CompleteProfileScreen(
                                 ) {
                                     Text(
                                         text = lang.displayName,
-                                        color = if (lang == currentLang) PurpleAccent else TextPrimary,
+                                        color = if (lang == currentLang) MaterialTheme.colorScheme.primary else TextPrimary,
                                         fontWeight = if (lang == currentLang) FontWeight.Bold else FontWeight.Normal
                                     )
                                     Text(
@@ -239,9 +255,9 @@ fun CompleteProfileScreen(
                 }
             }
 
-            Spacer(modifier = Modifier.height(36.dp))
+            Spacer(modifier = Modifier.height(32.dp))
 
-            // Continue Button matching screenshot
+            // Continue Button styled identically to the Onboarding action buttons (MaterialTheme primary button)
             Button(
                 onClick = {
                     val trimmedName = fullName.trim()
@@ -255,10 +271,10 @@ fun CompleteProfileScreen(
                     onContinue()
                 },
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .height(52.dp),
+                    .fillMaxWidth(0.95f)
+                    .height(54.dp),
                 colors = ButtonDefaults.buttonColors(
-                    containerColor = Color(0xFF2A2E3D)
+                    containerColor = MaterialTheme.colorScheme.primary
                 ),
                 shape = RoundedCornerShape(12.dp)
             ) {

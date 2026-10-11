@@ -116,6 +116,12 @@ fun AppNavigation(
                         }
                         settingsViewModel.triggerHighlightContactUs()
                     }
+                    "language" -> {
+                        navController.navigate("settings") {
+                            popUpTo(0)
+                        }
+                        settingsViewModel.triggerHighlightLanguage()
+                    }
                 }
                 // Clear the data to prevent re-triggering navigation on recomposition
                 currentIntent.data = null

@@ -6,4 +6,6 @@
     <string name="shortcut_contact_long">Contact Support</string>
     <string name="shortcut_bug_short">Report Bug</string>
     <string name="shortcut_bug_long">Report a Bug / Issue</string>
+    <string name="shortcut_language_short">Language</string>
+    <string name="shortcut_language_long">Change App Language</string>
 </resources>

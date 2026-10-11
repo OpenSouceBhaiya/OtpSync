@@ -330,6 +330,17 @@ class SettingsViewModel(
         _highlightSyncMode.value = false
     }
 
+    private val _highlightLanguage = MutableStateFlow(false)
+    val highlightLanguage: StateFlow<Boolean> = _highlightLanguage.asStateFlow()
+
+    fun triggerHighlightLanguage() {
+        _highlightLanguage.value = true
+    }
+
+    fun clearHighlightLanguage() {
+        _highlightLanguage.value = false
+    }
+
     fun addAccountEmail(email: String, displayName: String?, serverAuthCode: String?, context: android.content.Context) {
         viewModelScope.launch {
             if (serverAuthCode != null) {

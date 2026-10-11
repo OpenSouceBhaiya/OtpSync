@@ -412,13 +412,40 @@ fun SettingsScreen(viewModel: SettingsViewModel, highlight: String? = null, onNa
             Text(com.mailsync.app.data.AppStrings.get("language_section", currentLang), style = MaterialTheme.typography.titleMedium, color = TextPrimary, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(16.dp))
 
+            val highlightLanguage by viewModel.highlightLanguage.collectAsState()
+            val highlightLanguageColor: Color by animateColorAsState(
+                targetValue = if (highlightLanguage) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
+                animationSpec = tween(durationMillis = 1000)
+            )
+
+            var highlightLanguageTriggered by remember { mutableStateOf(false) }
+            LaunchedEffect(highlightLanguage) {
+                if (highlightLanguage) {
+                    scrollState.animateScrollTo(600)
+                    highlightLanguageTriggered = true
+                    expandedLanguageDropdown = true
+                    kotlinx.coroutines.delay(400)
+                    highlightLanguageTriggered = false
+                    kotlinx.coroutines.delay(1600)
+                    viewModel.clearHighlightLanguage()
+                }
+            }
+
+            val pulseLanguageScale by androidx.compose.animation.core.animateFloatAsState(
+                targetValue = if (highlightLanguageTriggered) 1.05f else 1f,
+                animationSpec = tween(400, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+                label = "pulse_language_scale"
+            )
+
             Box(modifier = Modifier.fillMaxWidth()) {
                 Surface(
                     modifier = Modifier
                         .fillMaxWidth()
+                        .graphicsLayer(scaleX = pulseLanguageScale, scaleY = pulseLanguageScale)
+                        .background(highlightLanguageColor, shape = RoundedCornerShape(12.dp))
                         .clip(RoundedCornerShape(12.dp))
                         .clickable { expandedLanguageDropdown = true },
-                    color = DarkSurface,
+                    color = if (highlightLanguage) MaterialTheme.colorScheme.primaryContainer else DarkSurface,
                     shape = RoundedCornerShape(12.dp)
                 ) {
                     Row(
