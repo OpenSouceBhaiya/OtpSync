@@ -131,7 +131,7 @@ function playIphoneTing() {
     lastSoundPlayTime = now;
 
     try {
-        const audio = new Audio(chrome.runtime.getURL('apple_ting.wav'));
+        const audio = new Audio(chrome.runtime.getURL('ting_iphone.mp3'));
         audio.volume = 0.95;
         audio.play().catch(e => {
             console.warn('[MailSync] Audio playback failed:', e);

@@ -37,7 +37,7 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["icon48.png", "apple_ting.wav"],
+      "resources": ["icon48.png", "ting_iphone.mp3"],
       "matches": ["<all_urls>"]
     }
   ]
