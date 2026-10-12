@@ -79,13 +79,12 @@ fun HomeScreen(
     
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
     var lifecycleTrigger by remember { mutableStateOf(0) }
-    var userDismissedInSession by remember { mutableStateOf(false) }
+    var remindLaterUntilMs by remember { mutableStateOf(0L) }
     
     DisposableEffect(lifecycleOwner) {
         val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
             if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
                 lifecycleTrigger++
-                userDismissedInSession = false
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -113,11 +112,24 @@ fun HomeScreen(
     
     LaunchedEffect(lifecycleTrigger, anyPermissionMissing) {
         if (anyPermissionMissing) {
-            if (!userDismissedInSession) {
+            if (System.currentTimeMillis() >= remindLaterUntilMs) {
                 showPermissionPrompt = true
             }
         } else {
             showPermissionPrompt = false
+        }
+    }
+
+    // 15-minute snooze reminder: if user tapped 'Remind Me Later', prompt again after 15 minutes while app is running
+    LaunchedEffect(remindLaterUntilMs, anyPermissionMissing) {
+        if (remindLaterUntilMs > 0L && anyPermissionMissing) {
+            val remaining = remindLaterUntilMs - System.currentTimeMillis()
+            if (remaining > 0L) {
+                kotlinx.coroutines.delay(remaining)
+            }
+            if (anyPermissionMissing) {
+                showPermissionPrompt = true
+            }
         }
     }
     
@@ -227,7 +239,7 @@ fun HomeScreen(
             AlertDialog(
                 onDismissRequest = { 
                     showPermissionPrompt = false 
-                    userDismissedInSession = true
+                    remindLaterUntilMs = System.currentTimeMillis() + (15 * 60 * 1000L)
                 },
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -324,7 +336,7 @@ fun HomeScreen(
                 dismissButton = {
                     TextButton(onClick = { 
                         showPermissionPrompt = false 
-                        userDismissedInSession = true
+                        remindLaterUntilMs = System.currentTimeMillis() + (15 * 60 * 1000L)
                     }) {
                         Text("Remind Me Later", color = Color(0xFF9E9E9E), fontSize = 13.sp)
                     }

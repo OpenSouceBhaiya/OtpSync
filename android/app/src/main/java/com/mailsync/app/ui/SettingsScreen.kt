@@ -203,7 +203,7 @@ fun SettingsScreen(viewModel: SettingsViewModel, highlight: String? = null, onNa
                 modifier = Modifier
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
-                    .background(if (allPermissionsGranted) MaterialTheme.colorScheme.primary.copy(alpha = 0.1f) else Color(0xFFE53935).copy(alpha = 0.15f + permissionsHighlight))
+                    .background(if (allPermissionsGranted) MaterialTheme.colorScheme.primary.copy(alpha = 0.1f) else Color(0xFFE53935).copy(alpha = (0.15f + permissionsHighlight).coerceIn(0f, 1f)))
                     .padding(16.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -232,8 +232,8 @@ fun SettingsScreen(viewModel: SettingsViewModel, highlight: String? = null, onNa
                 Spacer(modifier = Modifier.height(16.dp))
                 
                 // Notification Permission
-                val notifBg = if (isHighlightNotif) Color(0xFFE53935).copy(alpha = 0.35f + (highlightAlpha * 0.4f)) else Color.Transparent
-                val notifBorder = if (isHighlightNotif) BorderStroke(1.5.dp, Color(0xFFFF5252).copy(alpha = 0.8f + highlightAlpha)) else null
+                val notifBg = if (isHighlightNotif) Color(0xFFE53935).copy(alpha = (0.35f + (highlightAlpha * 0.4f)).coerceIn(0f, 1f)) else Color.Transparent
+                val notifBorder = if (isHighlightNotif) BorderStroke(1.5.dp, Color(0xFFFF5252).copy(alpha = (0.5f + highlightAlpha).coerceIn(0f, 1f))) else null
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -280,8 +280,8 @@ fun SettingsScreen(viewModel: SettingsViewModel, highlight: String? = null, onNa
                 }
                 
                 // SMS Permission
-                val smsBg = if (isHighlightSms) Color(0xFFE53935).copy(alpha = 0.35f + (highlightAlpha * 0.4f)) else Color.Transparent
-                val smsBorder = if (isHighlightSms) BorderStroke(1.5.dp, Color(0xFFFF5252).copy(alpha = 0.8f + highlightAlpha)) else null
+                val smsBg = if (isHighlightSms) Color(0xFFE53935).copy(alpha = (0.35f + (highlightAlpha * 0.4f)).coerceIn(0f, 1f)) else Color.Transparent
+                val smsBorder = if (isHighlightSms) BorderStroke(1.5.dp, Color(0xFFFF5252).copy(alpha = (0.5f + highlightAlpha).coerceIn(0f, 1f))) else null
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -314,8 +314,8 @@ fun SettingsScreen(viewModel: SettingsViewModel, highlight: String? = null, onNa
                 }
                 
                 // Overlay Permission
-                val overlayBg = if (isHighlightOverlay) Color(0xFFE53935).copy(alpha = 0.35f + (highlightAlpha * 0.4f)) else Color.Transparent
-                val overlayBorder = if (isHighlightOverlay) BorderStroke(1.5.dp, Color(0xFFFF5252).copy(alpha = 0.8f + highlightAlpha)) else null
+                val overlayBg = if (isHighlightOverlay) Color(0xFFE53935).copy(alpha = (0.35f + (highlightAlpha * 0.4f)).coerceIn(0f, 1f)) else Color.Transparent
+                val overlayBorder = if (isHighlightOverlay) BorderStroke(1.5.dp, Color(0xFFFF5252).copy(alpha = (0.5f + highlightAlpha).coerceIn(0f, 1f))) else null
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()

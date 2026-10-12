@@ -133,9 +133,8 @@ class MainActivity : FragmentActivity() {
                                 Text("The app unexpectedly crashed last time. Please help us fix it by reporting this bug!", color = Color.White)
                                 Spacer(modifier = Modifier.height(16.dp))
                                 Text("Steps to report:", fontWeight = FontWeight.Bold, color = Color.White)
-                                Text("1. Click 'Copy & Report' below", color = Color(0xFFA1A1AA))
-                                Text("2. Paste the log in our bug tracker", color = Color(0xFFA1A1AA))
-                                Text("3. You'll be redirected to: www.opensourcebhaiya.online/bug-report", color = Color(0xFFA1A1AA))
+                                Text("1. Click 'Report to Developer' below", color = Color(0xFFA1A1AA))
+                                Text("2. Hit 'Send' in your email app to notify us directly", color = Color(0xFFA1A1AA))
                                 Spacer(modifier = Modifier.height(16.dp))
                                 Box(modifier = Modifier.background(Color(0xFF2D2938), RoundedCornerShape(8.dp)).padding(8.dp).fillMaxHeight(0.3f)) {
                                     LazyColumn {
@@ -148,15 +147,36 @@ class MainActivity : FragmentActivity() {
                             Button(onClick = {
                                 val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                                 clipboard.setPrimaryClip(ClipData.newPlainText("Crash Log", lastCrash))
-                                com.mailsync.app.utils.ToastManager.show(context, "Crash log copied! Opening browser...", android.widget.Toast.LENGTH_SHORT)
                                 
-                                val browserIntent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://www.opensourcebhaiya.online/bug-report"))
-                                context.startActivity(browserIntent)
+                                val emailIntent = Intent(Intent.ACTION_SENDTO).apply {
+                                    data = android.net.Uri.parse("mailto:bug-report@opensourcebhaiya.online")
+                                    putExtra(Intent.EXTRA_EMAIL, arrayOf("bug-report@opensourcebhaiya.online"))
+                                    putExtra(Intent.EXTRA_SUBJECT, "Crash Report: OTP Sync Android")
+                                    putExtra(
+                                        Intent.EXTRA_TEXT,
+                                        "Device: ${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL} (Android ${android.os.Build.VERSION.RELEASE})\n\nCrash Log:\n$lastCrash"
+                                    )
+                                }
+                                try {
+                                    context.startActivity(Intent.createChooser(emailIntent, "Send crash report..."))
+                                } catch (e: Exception) {
+                                    try {
+                                        val genericIntent = Intent(Intent.ACTION_SEND).apply {
+                                            type = "message/rfc822"
+                                            putExtra(Intent.EXTRA_EMAIL, arrayOf("bug-report@opensourcebhaiya.online"))
+                                            putExtra(Intent.EXTRA_SUBJECT, "Crash Report: OTP Sync Android")
+                                            putExtra(Intent.EXTRA_TEXT, lastCrash)
+                                        }
+                                        context.startActivity(Intent.createChooser(genericIntent, "Send crash report..."))
+                                    } catch (_: Exception) {
+                                        com.mailsync.app.utils.ToastManager.show(context, "Log copied! Please email bug-report@opensourcebhaiya.online", android.widget.Toast.LENGTH_LONG)
+                                    }
+                                }
                                 
                                 crashPrefs.edit().remove("last_crash").apply()
                                 showCrashDialog = false
                             }, colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)) {
-                                Text("Copy & Report")
+                                Text("Report to Developer")
                             }
                         },
                         dismissButton = {
