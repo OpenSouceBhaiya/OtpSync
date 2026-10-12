@@ -235,7 +235,7 @@ fun DevicesScreen(
                                         Row(verticalAlignment = Alignment.CenterVertically) {
                                             Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(Color(0xFF00FFA3)))
                                             Spacer(modifier = Modifier.width(6.dp))
-                                            val timeText = if (device.lastOtpCapturedTime != null) "Last active • ${device.lastOtpCapturedTime}" else "Active • ${device.dateLinked}"
+                                            val timeText = if (device.lastOtpCapturedTime != null) "${com.mailsync.app.data.AppStrings.get("last_active_prefix", currentLang)} • ${device.lastOtpCapturedTime}" else "${com.mailsync.app.data.AppStrings.get("active_status", currentLang)} • ${device.dateLinked}"
                                             Text(timeText, color = Color.Gray, fontSize = 12.sp)
                                         }
                                     }
@@ -293,7 +293,7 @@ fun DevicesScreen(
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(selectedDevice!!.name, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold)
                 Spacer(modifier = Modifier.height(4.dp))
-                val timeText = if (selectedDevice!!.lastOtpCapturedTime != null) "Last captured OTP on ${selectedDevice!!.lastOtpCapturedTime}" else "Linked on ${selectedDevice!!.dateLinked}"
+                val timeText = if (selectedDevice!!.lastOtpCapturedTime != null) "${com.mailsync.app.data.AppStrings.get("last_captured_prefix", currentLang)} ${selectedDevice!!.lastOtpCapturedTime}" else "${com.mailsync.app.data.AppStrings.get("linked_on_prefix", currentLang)} ${selectedDevice!!.dateLinked}"
                 Text(timeText, color = Color.Gray, fontSize = 14.sp)
                 
                 Spacer(modifier = Modifier.height(32.dp))

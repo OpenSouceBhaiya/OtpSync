@@ -9,10 +9,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material.icons.filled.Person
-import androidx.compose.material.icons.filled.Phone
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -35,10 +33,8 @@ fun CompleteProfileScreen(
 ) {
     val currentLang by settingsViewModel.appLanguage.collectAsState()
     val initialName = remember { settingsViewModel.settingsManager.getManualUserName() ?: "" }
-    val initialPhone = remember { settingsViewModel.settingsManager.getUserPhoneNumber() ?: "" }
 
     var fullName by remember { mutableStateOf(initialName) }
-    var phoneNumber by remember { mutableStateOf(initialPhone) }
     var expandedLanguageDropdown by remember { mutableStateOf(false) }
 
     Box(
@@ -96,7 +92,7 @@ fun CompleteProfileScreen(
 
             Spacer(modifier = Modifier.height(28.dp))
 
-            // Card container for inputs using app surface styling
+            // Card container for Full Name input
             Card(
                 modifier = Modifier.fillMaxWidth(0.95f),
                 shape = RoundedCornerShape(16.dp),
@@ -107,7 +103,6 @@ fun CompleteProfileScreen(
                         .fillMaxWidth()
                         .padding(16.dp)
                 ) {
-                    // Full Name Input
                     OutlinedTextField(
                         value = fullName,
                         onValueChange = { fullName = it },
@@ -134,139 +129,122 @@ fun CompleteProfileScreen(
                         shape = RoundedCornerShape(12.dp),
                         modifier = Modifier.fillMaxWidth()
                     )
-
-                    Spacer(modifier = Modifier.height(16.dp))
-
-                    // Phone Number Input
-                    OutlinedTextField(
-                        value = phoneNumber,
-                        onValueChange = { phoneNumber = it },
-                        label = { Text(AppStrings.get("phone_number_label", currentLang)) },
-                        placeholder = { Text(AppStrings.get("phone_number_placeholder", currentLang)) },
-                        leadingIcon = {
-                            Icon(
-                                Icons.Default.Phone,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        },
-                        singleLine = true,
-                        colors = OutlinedTextFieldDefaults.colors(
-                            focusedBorderColor = MaterialTheme.colorScheme.primary,
-                            unfocusedBorderColor = Color(0xFF2E344A),
-                            focusedLabelColor = MaterialTheme.colorScheme.primary,
-                            unfocusedLabelColor = TextSecondary,
-                            focusedTextColor = TextPrimary,
-                            unfocusedTextColor = TextPrimary,
-                            focusedContainerColor = DarkSurface,
-                            unfocusedContainerColor = DarkSurface
-                        ),
-                        shape = RoundedCornerShape(12.dp),
-                        modifier = Modifier.fillMaxWidth()
-                    )
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-            // Select App Language Dropdown Title
-            Text(
-                text = AppStrings.get("select_app_language", currentLang),
-                style = MaterialTheme.typography.titleSmall,
-                color = TextSecondary,
-                fontWeight = FontWeight.Medium,
-                modifier = Modifier
-                    .fillMaxWidth(0.95f)
-                    .padding(start = 4.dp, bottom = 8.dp)
-            )
-
-            // Language Selector Dropdown with app surface styling
-            Box(modifier = Modifier.fillMaxWidth(0.95f)) {
-                Surface(
+            // Language Selector Card with exact same UI as Settings page
+            Surface(
+                modifier = Modifier.fillMaxWidth(0.95f),
+                color = DarkSurface,
+                shape = RoundedCornerShape(14.dp)
+            ) {
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .clip(RoundedCornerShape(12.dp))
-                        .clickable { expandedLanguageDropdown = true },
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                    shape = RoundedCornerShape(12.dp)
+                        .padding(horizontal = 16.dp, vertical = 14.dp)
                 ) {
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                            .padding(vertical = 4.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.Language,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(20.dp)
-                            )
-                            Spacer(modifier = Modifier.width(12.dp))
+                        Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
                             Text(
-                                text = "${currentLang.displayName} (${currentLang.nativeName})",
+                                text = AppStrings.get("change_app_language_title", currentLang),
                                 color = TextPrimary,
                                 fontSize = 15.sp,
-                                fontWeight = FontWeight.Medium
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text(
+                                text = AppStrings.get("change_app_language_sub", currentLang),
+                                color = TextSecondary,
+                                fontSize = 12.sp,
+                                modifier = Modifier.padding(top = 2.dp)
                             )
                         }
-                        Icon(
-                            imageVector = Icons.Default.ArrowDropDown,
-                            contentDescription = "Select Language",
-                            tint = TextSecondary
-                        )
-                    }
-                }
 
-                DropdownMenu(
-                    expanded = expandedLanguageDropdown,
-                    onDismissRequest = { expandedLanguageDropdown = false },
-                    modifier = Modifier
-                        .fillMaxWidth(0.85f)
-                        .background(DarkSurface)
-                ) {
-                    AppLanguage.entries.forEach { lang ->
-                        DropdownMenuItem(
-                            text = {
+                        Box {
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = Color(0xFF1E2333),
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .clickable { expandedLanguageDropdown = true }
+                            ) {
                                 Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
-                                        text = lang.displayName,
-                                        color = if (lang == currentLang) MaterialTheme.colorScheme.primary else TextPrimary,
-                                        fontWeight = if (lang == currentLang) FontWeight.Bold else FontWeight.Normal
+                                        text = currentLang.displayName,
+                                        color = TextPrimary,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Medium
                                     )
-                                    Text(
-                                        text = lang.nativeName,
-                                        color = TextSecondary,
-                                        fontSize = 13.sp
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Icon(
+                                        imageVector = Icons.Default.ArrowDropDown,
+                                        contentDescription = "Select Language",
+                                        tint = TextSecondary,
+                                        modifier = Modifier.size(18.dp)
                                     )
                                 }
-                            },
-                            onClick = {
-                                settingsViewModel.setAppLanguage(lang)
-                                expandedLanguageDropdown = false
                             }
-                        )
+
+                            DropdownMenu(
+                                expanded = expandedLanguageDropdown,
+                                onDismissRequest = { expandedLanguageDropdown = false },
+                                modifier = Modifier
+                                    .widthIn(min = 170.dp, max = 240.dp)
+                                    .heightIn(max = 280.dp)
+                                    .background(Color(0xFF161925))
+                            ) {
+                                AppLanguage.entries.forEach { lang ->
+                                    DropdownMenuItem(
+                                        text = {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text(
+                                                    text = lang.displayName,
+                                                    color = if (lang == currentLang) PurpleAccent else TextPrimary,
+                                                    fontWeight = if (lang == currentLang) FontWeight.Bold else FontWeight.Normal,
+                                                    fontSize = 13.sp
+                                                )
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Text(
+                                                    text = lang.nativeName,
+                                                    color = TextSecondary,
+                                                    fontSize = 12.sp
+                                                )
+                                            }
+                                        },
+                                        onClick = {
+                                            settingsViewModel.setAppLanguage(lang)
+                                            expandedLanguageDropdown = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
                     }
                 }
             }
 
             Spacer(modifier = Modifier.height(32.dp))
 
-            // Continue Button styled identically to the Onboarding action buttons (MaterialTheme primary button)
+            // Continue Button styled identically to Onboarding action buttons
             Button(
                 onClick = {
                     val trimmedName = fullName.trim()
                     if (trimmedName.isNotEmpty()) {
                         settingsViewModel.setManualUserName(trimmedName)
-                    }
-                    val trimmedPhone = phoneNumber.trim()
-                    if (trimmedPhone.isNotEmpty()) {
-                        settingsViewModel.setUserPhoneNumber(trimmedPhone)
                     }
                     onContinue()
                 },
