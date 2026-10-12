@@ -274,11 +274,11 @@ fun HomeScreen(
                                         modifier = Modifier
                                             .size(36.dp)
                                             .clip(RoundedCornerShape(10.dp))
-                                            .background(Color(0xFF00FFA3).copy(alpha = 0.12f)),
+                                            .background(Color(0xFFE2C4FF).copy(alpha = 0.15f)),
                                         contentAlignment = Alignment.Center
                                     ) {
                                         Icon(perm.icon, contentDescription = null,
-                                            tint = Color(0xFF00FFA3), modifier = Modifier.size(18.dp))
+                                            tint = Color(0xFFE2C4FF), modifier = Modifier.size(18.dp))
                                     }
                                     Spacer(modifier = Modifier.width(12.dp))
                                     Column(modifier = Modifier.weight(1f)) {
@@ -291,7 +291,7 @@ fun HomeScreen(
                                         Box(
                                             modifier = Modifier
                                                 .clip(RoundedCornerShape(8.dp))
-                                                .background(Color(0xFF00FFA3))
+                                                .background(Color(0xFFE2C4FF))
                                                 .clickable {
                                                     showPermissionPrompt = false
                                                     onNavigateToSettings(perm.highlightTarget)
@@ -308,15 +308,17 @@ fun HomeScreen(
                     }
                 },
                 confirmButton = {
-                    Button(
-                        onClick = {
-                            showPermissionPrompt = false
-                            onNavigateToSettings("both")
-                        },
-                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FFA3)),
-                        shape = RoundedCornerShape(10.dp)
-                    ) {
-                        Text("Fix All in Settings", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    if (missingPerms.size == 3) {
+                        Button(
+                            onClick = {
+                                showPermissionPrompt = false
+                                onNavigateToSettings("both")
+                            },
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE2C4FF)),
+                            shape = RoundedCornerShape(10.dp)
+                        ) {
+                            Text("Fix All in Settings", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                        }
                     }
                 },
                 dismissButton = {
