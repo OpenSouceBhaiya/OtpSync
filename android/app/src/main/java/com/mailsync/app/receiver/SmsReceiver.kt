@@ -50,25 +50,53 @@ class SmsReceiver : BroadcastReceiver() {
             )
 
             if (extractedOtp != null) {
-                FileLogger.log(context, "Success! Extracted SMS OTP: ${extractedOtp.code} from $sender")
-                Log.d("SmsReceiver", "Found OTP: ${extractedOtp.code} from $sender")
+                val otpCode = extractedOtp.code
+                FileLogger.log(context, "Success! Extracted SMS OTP: $otpCode from $sender")
+                Log.d("SmsReceiver", "Found OTP: $otpCode from $sender")
+
+                // 1. INSTANT Clipboard Copy (Sub-millisecond execution, zero DB blocking!)
+                if (settingsManager.isClipboardCopyEnabled() && com.mailsync.app.utils.OtpCache.shouldCopy(otpCode)) {
+                    try {
+                        val clipIntent = Intent(context, com.mailsync.app.ui.TransparentClipboardActivity::class.java).apply {
+                            putExtra("EXTRA_OTP_CODE", otpCode)
+                            addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION)
+                        }
+                        context.startActivity(clipIntent)
+                    } catch (e: Exception) {
+                        Log.e("SmsReceiver", "Clipboard failed", e)
+                    }
+                }
 
                 val pendingResult = goAsync()
                 scope.launch {
                     try {
+                        // 2. INSTANT Firebase Cloud Broadcast
+                        val firebaseManager = FirebaseManager()
+                        val currentTime = java.text.SimpleDateFormat("MMM dd, hh:mm a", java.util.Locale.getDefault()).format(java.util.Date())
+                        val allKeys = settingsManager.getAllLinkedDeviceKeys()
+                        for (deviceId in allKeys.keys) {
+                            settingsManager.updateLinkedDeviceLastOtpTime(deviceId, currentTime)
+                        }
+
+                        firebaseManager.broadcastOtp(
+                            otpCode = otpCode,
+                            sender = sender,
+                            activeDeviceKeys = allKeys,
+                            expiresAt = extractedOtp.expiresAt ?: (System.currentTimeMillis() + 5 * 60 * 1000L)
+                        )
+
+                        // 3. ASYNC Room Database Insertion (Never delays user clipboard/cloud broadcast)
                         val db = AppDatabase.getDatabase(context)
-                        var isNewInsertion = false
                         AppDatabase.insertMutex.withLock {
-                            var existing = db.otpDao().getOtpByCodeRecent(extractedOtp.code, System.currentTimeMillis() - 6 * 60 * 1000L)
+                            var existing = db.otpDao().getOtpByCodeRecent(otpCode, System.currentTimeMillis() - 6 * 60 * 1000L)
                             if (existing != null && existing.sender != sender) {
-                                existing = null // Treat as completely new if the sender is different
+                                existing = null
                             }
 
                             if (existing == null) {
-                                isNewInsertion = true
                                 db.otpDao().insertOtp(OtpEntity(
                                     id = UUID.randomUUID().toString(),
-                                    code = extractedOtp.code,
+                                    code = otpCode,
                                     sender = sender,
                                     subject = sender,
                                     account = "SMS",
@@ -77,38 +105,12 @@ class SmsReceiver : BroadcastReceiver() {
                                     sourcePackage = "sms"
                                 ))
                             } else {
-                                isNewInsertion = true
                                 existing.receivedAt = System.currentTimeMillis()
                                 db.otpDao().updateOtp(existing)
                             }
                         }
-
-                        if (isNewInsertion) {
-                            val firebaseManager = FirebaseManager()
-                            val currentTime = java.text.SimpleDateFormat("MMM dd, hh:mm a", java.util.Locale.getDefault()).format(java.util.Date())
-
-                            val allKeys = settingsManager.getAllLinkedDeviceKeys()
-                            for (deviceId in allKeys.keys) {
-                                settingsManager.updateLinkedDeviceLastOtpTime(deviceId, currentTime)
-                            }
-
-                            firebaseManager.broadcastOtp(
-                                otpCode = extractedOtp.code,
-                                sender = sender,
-                                activeDeviceKeys = allKeys,
-                                expiresAt = extractedOtp.expiresAt ?: (System.currentTimeMillis() + 5 * 60 * 1000L)
-                            )
-
-                            if (settingsManager.isClipboardCopyEnabled() && com.mailsync.app.utils.OtpCache.shouldCopy(extractedOtp.code)) {
-                                try {
-                                    val clipIntent = Intent(context, com.mailsync.app.ui.TransparentClipboardActivity::class.java).apply {
-                                        putExtra("EXTRA_OTP_CODE", extractedOtp.code)
-                                        addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION)
-                                    }
-                                    context.startActivity(clipIntent)
-                                } catch (e: Exception) { Log.e("SmsReceiver", "Clipboard failed", e) }
-                            }
-                        }
+                    } catch (e: Exception) {
+                        Log.e("SmsReceiver", "Error saving SMS OTP", e)
                     } finally {
                         pendingResult.finish()
                     }

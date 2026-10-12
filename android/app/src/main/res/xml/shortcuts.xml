@@ -1,19 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <shortcuts xmlns:android="http://schemas.android.com/apk/res/android">
     <shortcut
-        android:shortcutId="change_language"
-        android:enabled="true"
-        android:icon="@drawable/ic_shortcut_language"
-        android:shortcutShortLabel="@string/shortcut_language_short"
-        android:shortcutLongLabel="@string/shortcut_language_long">
-        <intent
-            android:action="android.intent.action.VIEW"
-            android:targetPackage="com.mailsync.app"
-            android:targetClass="com.mailsync.app.MainActivity"
-            android:data="gmailotpsyncer://language" />
-    </shortcut>
-
-    <shortcut
         android:shortcutId="contact_us"
         android:enabled="true"
         android:icon="@drawable/ic_shortcut_info"
@@ -37,5 +24,18 @@
             android:targetPackage="com.mailsync.app"
             android:targetClass="com.mailsync.app.MainActivity"
             android:data="gmailotpsyncer://bug_report" />
+    </shortcut>
+
+    <shortcut
+        android:shortcutId="change_language"
+        android:enabled="true"
+        android:icon="@drawable/ic_shortcut_language"
+        android:shortcutShortLabel="@string/shortcut_language_short"
+        android:shortcutLongLabel="@string/shortcut_language_long">
+        <intent
+            android:action="android.intent.action.VIEW"
+            android:targetPackage="com.mailsync.app"
+            android:targetClass="com.mailsync.app.MainActivity"
+            android:data="gmailotpsyncer://language" />
     </shortcut>
 </shortcuts>

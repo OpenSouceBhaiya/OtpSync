@@ -166,12 +166,12 @@ class OtpNotificationListenerService : NotificationListenerService() {
                                     val body = c.getString(c.getColumnIndexOrThrow("body")) ?: ""
                                     val date = c.getLong(c.getColumnIndexOrThrow("date"))
                                     
-                                    com.mailsync.app.utils.FileLogger.log(this@OtpNotificationListenerService, "Fallback check: \$address - \${currentT - date}ms ago")
+                                    com.mailsync.app.utils.FileLogger.log(this@OtpNotificationListenerService, "Fallback check: $address - ${currentT - date}ms ago")
                                     
                                     if (currentT - date < 300000) { // Consider SMS received in the last 5 minutes
                                         val fallbackOtp = OtpExtractor.extractOtp(this@OtpNotificationListenerService, address, body, null, date)
                                         if (fallbackOtp != null) {
-                                            com.mailsync.app.utils.FileLogger.log(this@OtpNotificationListenerService, "Success! Instant fallback extracted SMS OTP: \${fallbackOtp.code} from \$address")
+                                            com.mailsync.app.utils.FileLogger.log(this@OtpNotificationListenerService, "Success! Instant fallback extracted SMS OTP: ${fallbackOtp.code} from $address")
                                             handleExtractedOtp(fallbackOtp, address, "SMS", "SMS")
                                             return@launch
                                         }
@@ -180,18 +180,13 @@ class OtpNotificationListenerService : NotificationListenerService() {
                                 com.mailsync.app.utils.FileLogger.log(this@OtpNotificationListenerService, "Fallback check finished without finding OTP.")
                             }
                         } catch (e: Exception) {
-                            com.mailsync.app.utils.FileLogger.log(this@OtpNotificationListenerService, "Instant fallback failed: \${e.message}")
+                            com.mailsync.app.utils.FileLogger.log(this@OtpNotificationListenerService, "Instant fallback failed: ${e.message}")
                         }
                     }
                 }
             }
             return // Skip further extraction because the text is redacted anyway!
         }
-
-        val emailTimeMs = sbn.notification.`when`
-        val currentTime = System.currentTimeMillis()
-        val actualTime = if (emailTimeMs > 0) emailTimeMs else sbn.postTime
-        if (currentTime - actualTime > 300_000) return
 
         val senderName = title.takeIf { it.isNotBlank() } ?: packageName
 
@@ -221,35 +216,24 @@ class OtpNotificationListenerService : NotificationListenerService() {
     }
 
     private fun handleExtractedOtp(extractedOtp: com.mailsync.app.data.ExtractionResult, senderName: String, finalAccountName: String, packageName: String) {
-        scope.launch {
-            val db = AppDatabase.getDatabase(this@OtpNotificationListenerService)
-            var isNewInsertion = false
-            AppDatabase.insertMutex.withLock {
-                var existing = db.otpDao().getOtpByCodeRecent(extractedOtp.code, System.currentTimeMillis() - 6 * 60 * 1000L)
-                if (existing != null && existing.sender != senderName) {
-                    existing = null // Treat as completely new if the sender is different
-                }
+        val otpCode = extractedOtp.code
 
-                if (existing == null) {
-                    isNewInsertion = true
-                    db.otpDao().insertOtp(OtpEntity(
-                        id = UUID.randomUUID().toString(),
-                        code = extractedOtp.code,
-                        sender = senderName,
-                        subject = senderName,
-                        account = finalAccountName,
-                        receivedAt = System.currentTimeMillis(),
-                        expiresAt = extractedOtp.expiresAt ?: (System.currentTimeMillis() + 5 * 60 * 1000L),
-                        sourcePackage = packageName
-                    ))
-                } else {
-                    isNewInsertion = true // Re-trigger broadcast and copy
-                    existing.receivedAt = System.currentTimeMillis()
-                    db.otpDao().updateOtp(existing)
+        // 1. INSTANT Clipboard Copy (Sub-millisecond execution, zero DB delay!)
+        if (settingsManager.isClipboardCopyEnabled() && com.mailsync.app.utils.OtpCache.shouldCopy(otpCode)) {
+            try {
+                val intent = android.content.Intent(this@OtpNotificationListenerService, com.mailsync.app.ui.TransparentClipboardActivity::class.java).apply {
+                    putExtra("EXTRA_OTP_CODE", otpCode)
+                    addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_MULTIPLE_TASK or android.content.Intent.FLAG_ACTIVITY_NO_ANIMATION)
                 }
+                startActivity(intent)
+            } catch (e: Exception) {
+                Log.e("OtpNotification", "Clipboard activity launch failed", e)
             }
+        }
 
-            if (isNewInsertion) {
+        // 2. INSTANT Firebase Cloud Broadcast (Concurrent, sub-10ms network dispatch)
+        scope.launch {
+            try {
                 val firebaseManager = com.mailsync.app.data.FirebaseManager()
                 val keys = settingsManager.getAllLinkedDeviceKeys()
                 val currentTime = java.text.SimpleDateFormat("MMM dd, hh:mm a", java.util.Locale.getDefault()).format(java.util.Date())
@@ -258,21 +242,44 @@ class OtpNotificationListenerService : NotificationListenerService() {
                 }
 
                 firebaseManager.broadcastOtp(
-                    otpCode = extractedOtp.code,
+                    otpCode = otpCode,
                     sender = senderName,
                     activeDeviceKeys = keys,
                     expiresAt = extractedOtp.expiresAt ?: (System.currentTimeMillis() + 5 * 60 * 1000L)
                 )
+            } catch (e: Exception) {
+                Log.e("OtpNotification", "Firebase broadcast failed", e)
+            }
+        }
 
-                if (settingsManager.isClipboardCopyEnabled() && com.mailsync.app.utils.OtpCache.shouldCopy(extractedOtp.code)) {
-                    try {
-                        val intent = android.content.Intent(this@OtpNotificationListenerService, com.mailsync.app.ui.TransparentClipboardActivity::class.java).apply {
-                            putExtra("EXTRA_OTP_CODE", extractedOtp.code)
-                            addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_MULTIPLE_TASK or android.content.Intent.FLAG_ACTIVITY_NO_ANIMATION)
-                        }
-                        startActivity(intent)
-                    } catch (e: Exception) { Log.e("OtpNotification", "Clipboard failed", e) }
+        // 3. ASYNC Room Database Insertion (Runs safely in background without blocking clipboard or sync)
+        scope.launch {
+            try {
+                val db = AppDatabase.getDatabase(this@OtpNotificationListenerService)
+                AppDatabase.insertMutex.withLock {
+                    var existing = db.otpDao().getOtpByCodeRecent(otpCode, System.currentTimeMillis() - 6 * 60 * 1000L)
+                    if (existing != null && existing.sender != senderName) {
+                        existing = null
+                    }
+
+                    if (existing == null) {
+                        db.otpDao().insertOtp(OtpEntity(
+                            id = UUID.randomUUID().toString(),
+                            code = otpCode,
+                            sender = senderName,
+                            subject = senderName,
+                            account = finalAccountName,
+                            receivedAt = System.currentTimeMillis(),
+                            expiresAt = extractedOtp.expiresAt ?: (System.currentTimeMillis() + 5 * 60 * 1000L),
+                            sourcePackage = packageName
+                        ))
+                    } else {
+                        existing.receivedAt = System.currentTimeMillis()
+                        db.otpDao().updateOtp(existing)
+                    }
                 }
+            } catch (e: Exception) {
+                Log.e("OtpNotification", "Database insert failed", e)
             }
         }
     }

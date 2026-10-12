@@ -364,37 +364,45 @@ fun SettingsScreen(viewModel: SettingsViewModel, highlight: String? = null, onNa
             Spacer(modifier = Modifier.height(16.dp))
 
             val highlightLanguage by viewModel.highlightLanguage.collectAsState()
-            val highlightLanguageColor: Color by animateColorAsState(
-                targetValue = if (highlightLanguage) MaterialTheme.colorScheme.primaryContainer else Color.Transparent,
-                animationSpec = tween(durationMillis = 1000)
-            )
+            var languageHighlightActive by remember { mutableStateOf(false) }
 
-            var highlightLanguageTriggered by remember { mutableStateOf(false) }
             LaunchedEffect(highlightLanguage) {
                 if (highlightLanguage) {
-                    scrollState.animateScrollTo(600)
-                    highlightLanguageTriggered = true
-                    // Do not open dropdown automatically, only trigger the pulse/highlight animation
+                    kotlinx.coroutines.delay(200)
+                    scrollState.animateScrollTo(minOf(scrollState.maxValue, 650))
+                    languageHighlightActive = true
                     kotlinx.coroutines.delay(400)
-                    highlightLanguageTriggered = false
+                    languageHighlightActive = false
                     kotlinx.coroutines.delay(1600)
                     viewModel.clearHighlightLanguage()
                 }
             }
 
             val pulseLanguageScale by androidx.compose.animation.core.animateFloatAsState(
-                targetValue = if (highlightLanguageTriggered) 1.05f else 1f,
+                targetValue = if (languageHighlightActive) 1.05f else 1f,
                 animationSpec = tween(400, easing = androidx.compose.animation.core.FastOutSlowInEasing),
                 label = "pulse_language_scale"
+            )
+
+            val languageBorderColor by animateColorAsState(
+                targetValue = if (languageHighlightActive) PurpleAccent else Color.Transparent,
+                animationSpec = tween(durationMillis = 400),
+                label = "lang_border"
+            )
+
+            val languageSurfaceBg by animateColorAsState(
+                targetValue = if (languageHighlightActive) Color(0xFF252033) else DarkSurface,
+                animationSpec = tween(durationMillis = 400),
+                label = "lang_bg"
             )
 
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .graphicsLayer(scaleX = pulseLanguageScale, scaleY = pulseLanguageScale)
-                    .background(highlightLanguageColor, shape = RoundedCornerShape(14.dp)),
-                color = DarkSurface,
-                shape = RoundedCornerShape(14.dp)
+                    .graphicsLayer(scaleX = pulseLanguageScale, scaleY = pulseLanguageScale),
+                color = languageSurfaceBg,
+                shape = RoundedCornerShape(14.dp),
+                border = if (languageHighlightActive) androidx.compose.foundation.BorderStroke(2.dp, languageBorderColor) else null
             ) {
                 Column(
                     modifier = Modifier
