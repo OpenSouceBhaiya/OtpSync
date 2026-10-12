@@ -64,13 +64,18 @@ desktop.ini
 *.swo
 *~
 
-# ── Logs ──────────────────────────────────────────────────────────────────────
+# ── Logs & Temp ───────────────────────────────────────────────────────────────
 logs/
 *.log
+*.tmp
+*.bak
 
-# Public Launch exports
-Public Launch/
+# Public Launch exports (binaries, apks, zips for release)
+[Pp]ublic [Ll]aunch/
+[Pp]ublic [Ll]aunch/**
+**/[Pp]ublic [Ll]aunch/**
 
-# Internal agent progress tracker — DO NOT PUSH
-progress.md
-tree.txt
+# Internal trackers
+[Pp]rogress.md
+[Pp]rogress.txt
+[Tt]ree.txt
