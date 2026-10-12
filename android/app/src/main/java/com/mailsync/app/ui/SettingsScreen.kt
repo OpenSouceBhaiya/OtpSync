@@ -359,57 +359,8 @@ fun SettingsScreen(viewModel: SettingsViewModel, highlight: String? = null, onNa
             Spacer(modifier = Modifier.height(32.dp))
 
 
-            // Security Settings
-            Text(com.mailsync.app.data.AppStrings.get("security_privacy_section", currentLang), style = MaterialTheme.typography.titleMedium, color = TextPrimary, fontWeight = FontWeight.Bold)
-            Spacer(modifier = Modifier.height(16.dp))
-            
-            val isBiometricEnabled by viewModel.isBiometricEnabled.collectAsState()
-            
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(modifier = Modifier.weight(1f)) {
-                    Text(com.mailsync.app.data.AppStrings.get("biometric_lock_title", currentLang), fontWeight = FontWeight.Bold, color = TextPrimary)
-                    Text(com.mailsync.app.data.AppStrings.get("biometric_lock_sub", currentLang), style = MaterialTheme.typography.bodySmall, color = TextSecondary)
-                }
-                Switch(
-                    checked = isBiometricEnabled,
-                    onCheckedChange = { enable ->
-                        val activity = context as? androidx.fragment.app.FragmentActivity
-                        if (enable) {
-                            if (activity != null) {
-                                val helper = BiometricHelper(activity)
-                                helper.authenticate(
-                                    onSuccess = { viewModel.setBiometricEnabled(true) },
-                                    onError = { 
-                                        com.mailsync.app.utils.ToastManager.show(context, "Verification failed: $it", android.widget.Toast.LENGTH_SHORT)
-                                    }
-                                )
-                            } else {
-                                viewModel.setBiometricEnabled(true)
-                            }
-                        } else {
-                            if (activity != null) {
-                                val helper = BiometricHelper(activity)
-                                helper.authenticate(
-                                    onSuccess = { viewModel.setBiometricEnabled(false) },
-                                    onError = { 
-                                        com.mailsync.app.utils.ToastManager.show(context, "Verification failed to disable lock: $it", android.widget.Toast.LENGTH_SHORT)
-                                    }
-                                )
-                            } else {
-                                viewModel.setBiometricEnabled(false)
-                            }
-                        }
-                    }
-                )
-            }
-            
-            Spacer(modifier = Modifier.height(24.dp))
-
-            // App Language Section
-            Text(com.mailsync.app.data.AppStrings.get("language_section", currentLang), style = MaterialTheme.typography.titleMedium, color = TextPrimary, fontWeight = FontWeight.Bold)
+            // App Preferences Section
+            Text(com.mailsync.app.data.AppStrings.get("app_preferences_title", currentLang), style = MaterialTheme.typography.titleMedium, color = TextPrimary, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(16.dp))
 
             val highlightLanguage by viewModel.highlightLanguage.collectAsState()
@@ -423,7 +374,7 @@ fun SettingsScreen(viewModel: SettingsViewModel, highlight: String? = null, onNa
                 if (highlightLanguage) {
                     scrollState.animateScrollTo(600)
                     highlightLanguageTriggered = true
-                    expandedLanguageDropdown = true
+                    // Do not open dropdown automatically, only trigger the pulse/highlight animation
                     kotlinx.coroutines.delay(400)
                     highlightLanguageTriggered = false
                     kotlinx.coroutines.delay(1600)
@@ -437,74 +388,167 @@ fun SettingsScreen(viewModel: SettingsViewModel, highlight: String? = null, onNa
                 label = "pulse_language_scale"
             )
 
-            Box(modifier = Modifier.fillMaxWidth()) {
-                Surface(
+            Surface(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .graphicsLayer(scaleX = pulseLanguageScale, scaleY = pulseLanguageScale)
+                    .background(highlightLanguageColor, shape = RoundedCornerShape(14.dp)),
+                color = DarkSurface,
+                shape = RoundedCornerShape(14.dp)
+            ) {
+                Column(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .graphicsLayer(scaleX = pulseLanguageScale, scaleY = pulseLanguageScale)
-                        .background(highlightLanguageColor, shape = RoundedCornerShape(12.dp))
-                        .clip(RoundedCornerShape(12.dp))
-                        .clickable { expandedLanguageDropdown = true },
-                    color = if (highlightLanguage) MaterialTheme.colorScheme.primaryContainer else DarkSurface,
-                    shape = RoundedCornerShape(12.dp)
+                        .padding(horizontal = 16.dp, vertical = 12.dp)
                 ) {
+                    // Row 1: Language
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(horizontal = 16.dp, vertical = 14.dp),
+                            .padding(vertical = 6.dp),
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.SpaceBetween
                     ) {
-                        Column {
+                        Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
                             Text(
-                                text = "${currentLang.displayName} (${currentLang.nativeName})",
+                                text = com.mailsync.app.data.AppStrings.get("change_app_language_title", currentLang),
                                 color = TextPrimary,
                                 fontSize = 15.sp,
-                                fontWeight = FontWeight.Medium
+                                fontWeight = FontWeight.SemiBold
                             )
                             Text(
-                                text = com.mailsync.app.data.AppStrings.get("language_selector_sub", currentLang),
+                                text = com.mailsync.app.data.AppStrings.get("change_app_language_sub", currentLang),
                                 color = TextSecondary,
-                                fontSize = 12.sp
+                                fontSize = 12.sp,
+                                modifier = Modifier.padding(top = 2.dp)
                             )
                         }
-                        Icon(
-                            imageVector = Icons.Default.ArrowDropDown,
-                            contentDescription = "Select Language",
-                            tint = TextSecondary
-                        )
-                    }
-                }
 
-                DropdownMenu(
-                    expanded = expandedLanguageDropdown,
-                    onDismissRequest = { expandedLanguageDropdown = false },
-                    modifier = Modifier
-                        .fillMaxWidth(0.85f)
-                        .background(Color(0xFF161925))
-                ) {
-                    com.mailsync.app.data.AppLanguage.entries.forEach { lang ->
-                        DropdownMenuItem(
-                            text = {
+                        Box {
+                            Surface(
+                                shape = RoundedCornerShape(8.dp),
+                                color = Color(0xFF1E2333),
+                                modifier = Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .clickable { expandedLanguageDropdown = true }
+                            ) {
                                 Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.SpaceBetween
+                                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
+                                    verticalAlignment = Alignment.CenterVertically
                                 ) {
                                     Text(
-                                        text = lang.displayName,
-                                        color = if (lang == currentLang) PurpleAccent else TextPrimary,
-                                        fontWeight = if (lang == currentLang) FontWeight.Bold else FontWeight.Normal
+                                        text = currentLang.displayName,
+                                        color = TextPrimary,
+                                        fontSize = 13.sp,
+                                        fontWeight = FontWeight.Medium
                                     )
-                                    Text(
-                                        text = lang.nativeName,
-                                        color = TextSecondary,
-                                        fontSize = 13.sp
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Icon(
+                                        imageVector = Icons.Default.ArrowDropDown,
+                                        contentDescription = "Select Language",
+                                        tint = TextSecondary,
+                                        modifier = Modifier.size(18.dp)
                                     )
                                 }
-                            },
-                            onClick = {
-                                viewModel.setAppLanguage(lang)
-                                expandedLanguageDropdown = false
+                            }
+
+                            DropdownMenu(
+                                expanded = expandedLanguageDropdown,
+                                onDismissRequest = { expandedLanguageDropdown = false },
+                                modifier = Modifier
+                                    .widthIn(min = 170.dp, max = 240.dp)
+                                    .heightIn(max = 280.dp)
+                                    .background(Color(0xFF161925))
+                            ) {
+                                com.mailsync.app.data.AppLanguage.entries.forEach { lang ->
+                                    DropdownMenuItem(
+                                        text = {
+                                            Row(
+                                                modifier = Modifier.fillMaxWidth(),
+                                                horizontalArrangement = Arrangement.SpaceBetween,
+                                                verticalAlignment = Alignment.CenterVertically
+                                            ) {
+                                                Text(
+                                                    text = lang.displayName,
+                                                    color = if (lang == currentLang) PurpleAccent else TextPrimary,
+                                                    fontWeight = if (lang == currentLang) FontWeight.Bold else FontWeight.Normal,
+                                                    fontSize = 13.sp
+                                                )
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                                Text(
+                                                    text = lang.nativeName,
+                                                    color = TextSecondary,
+                                                    fontSize = 12.sp
+                                                )
+                                            }
+                                        },
+                                        onClick = {
+                                            viewModel.setAppLanguage(lang)
+                                            expandedLanguageDropdown = false
+                                        }
+                                    )
+                                }
+                            }
+                        }
+                    }
+
+                    Spacer(modifier = Modifier.height(6.dp))
+                    Divider(color = Color.White.copy(alpha = 0.07f), thickness = 1.dp)
+                    Spacer(modifier = Modifier.height(6.dp))
+
+                    // Row 2: App Lock
+                    val isBiometricEnabled by viewModel.isBiometricEnabled.collectAsState()
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.SpaceBetween
+                    ) {
+                        Column(modifier = Modifier.weight(1f).padding(end = 12.dp)) {
+                            Text(
+                                text = com.mailsync.app.data.AppStrings.get("app_lock_title", currentLang),
+                                color = TextPrimary,
+                                fontSize = 15.sp,
+                                fontWeight = FontWeight.SemiBold
+                            )
+                            Text(
+                                text = com.mailsync.app.data.AppStrings.get("app_lock_sub", currentLang),
+                                color = TextSecondary,
+                                fontSize = 12.sp,
+                                modifier = Modifier.padding(top = 2.dp)
+                            )
+                        }
+
+                        Switch(
+                            checked = isBiometricEnabled,
+                            onCheckedChange = { enable ->
+                                val activity = context as? androidx.fragment.app.FragmentActivity
+                                if (enable) {
+                                    if (activity != null) {
+                                        val helper = BiometricHelper(activity)
+                                        helper.authenticate(
+                                            onSuccess = { viewModel.setBiometricEnabled(true) },
+                                            onError = { 
+                                                com.mailsync.app.utils.ToastManager.show(context, "Verification failed: $it", android.widget.Toast.LENGTH_SHORT)
+                                            }
+                                        )
+                                    } else {
+                                        viewModel.setBiometricEnabled(true)
+                                    }
+                                } else {
+                                    if (activity != null) {
+                                        val helper = BiometricHelper(activity)
+                                        helper.authenticate(
+                                            onSuccess = { viewModel.setBiometricEnabled(false) },
+                                            onError = { 
+                                                com.mailsync.app.utils.ToastManager.show(context, "Verification failed to disable lock: $it", android.widget.Toast.LENGTH_SHORT)
+                                            }
+                                        )
+                                    } else {
+                                        viewModel.setBiometricEnabled(false)
+                                    }
+                                }
                             }
                         )
                     }

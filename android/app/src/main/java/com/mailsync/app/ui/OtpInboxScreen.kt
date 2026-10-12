@@ -33,19 +33,25 @@ import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun OtpInboxScreen(viewModel: OtpHistoryViewModel) {
+fun OtpInboxScreen(viewModel: OtpHistoryViewModel, settingsViewModel: SettingsViewModel? = null) {
+    val currentLang by settingsViewModel?.appLanguage?.collectAsState() ?: remember { mutableStateOf(com.mailsync.app.data.AppLanguage.EN) }
     val uiState by viewModel.uiState.collectAsState()
     var searchQuery by remember { mutableStateOf("") }
     var selectedTab by remember { mutableStateOf(0) }
     var groupBySender by remember { mutableStateOf(false) }
     
-    val tabs = listOf("All", "Unread", "Used", "Expired")
+    val tabs = listOf(
+        com.mailsync.app.data.AppStrings.get("tab_all", currentLang),
+        com.mailsync.app.data.AppStrings.get("tab_unread", currentLang),
+        com.mailsync.app.data.AppStrings.get("tab_used", currentLang),
+        com.mailsync.app.data.AppStrings.get("tab_expired", currentLang)
+    )
 
     Scaffold(
         topBar = {
             Column(modifier = Modifier.fillMaxWidth()) {
                 TopAppBar(
-                    title = { Text("OTP Inbox") },
+                    title = { Text(com.mailsync.app.data.AppStrings.get("inbox_title", currentLang)) },
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = MaterialTheme.colorScheme.background
                     )
@@ -57,7 +63,7 @@ fun OtpInboxScreen(viewModel: OtpHistoryViewModel) {
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(horizontal = 16.dp, vertical = 8.dp),
-                    placeholder = { Text("Search OTPs...", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)) },
+                    placeholder = { Text(com.mailsync.app.data.AppStrings.get("search_otps", currentLang), color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f)) },
                     leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search", tint = MaterialTheme.colorScheme.onSurfaceVariant) },
                     shape = RoundedCornerShape(24.dp), // Pill shaped
                     singleLine = true,
@@ -105,7 +111,7 @@ fun OtpInboxScreen(viewModel: OtpHistoryViewModel) {
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.End
                 ) {
-                    Text("Group by Sender", fontSize = 14.sp)
+                    Text(com.mailsync.app.data.AppStrings.get("group_by_sender", currentLang), fontSize = 14.sp)
                     Spacer(modifier = Modifier.width(8.dp))
                     Switch(checked = groupBySender, onCheckedChange = { groupBySender = it })
                 }
@@ -120,7 +126,7 @@ fun OtpInboxScreen(viewModel: OtpHistoryViewModel) {
             }
             is HistoryUiState.Empty -> {
                 Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                    Text("No OTPs found", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(com.mailsync.app.data.AppStrings.get("no_otps_found", currentLang), color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
             is HistoryUiState.Success -> {
@@ -144,7 +150,7 @@ fun OtpInboxScreen(viewModel: OtpHistoryViewModel) {
 
                 if (filteredOtps.isEmpty()) {
                     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text("No matching OTPs", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(com.mailsync.app.data.AppStrings.get("no_matching_otps", currentLang), color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
                 } else {
                     var expandedSenders by remember { mutableStateOf(setOf<String>()) }
@@ -192,14 +198,14 @@ fun OtpInboxScreen(viewModel: OtpHistoryViewModel) {
                                 }
                                 if (isExpanded) {
                                     items(otps) { otp ->
-                                        InboxOtpCard(otp, viewModel)
+                                        InboxOtpCard(otp, viewModel, currentLang)
                                     }
                                 }
                             }
                         } else {
                             item { Spacer(modifier = Modifier.height(8.dp)) }
                             items(filteredOtps) { otp ->
-                                InboxOtpCard(otp, viewModel)
+                                InboxOtpCard(otp, viewModel, currentLang)
                             }
                         }
                     }
@@ -211,7 +217,7 @@ fun OtpInboxScreen(viewModel: OtpHistoryViewModel) {
 }
 
 @Composable
-fun InboxOtpCard(otp: OtpEntity, viewModel: OtpHistoryViewModel) {
+fun InboxOtpCard(otp: OtpEntity, viewModel: OtpHistoryViewModel, currentLang: com.mailsync.app.data.AppLanguage) {
     val context = LocalContext.current
     val timeFormat = SimpleDateFormat("h:mm a MMMM dd", Locale.getDefault())
     val timeString = timeFormat.format(Date(otp.receivedAt))
@@ -228,7 +234,7 @@ fun InboxOtpCard(otp: OtpEntity, viewModel: OtpHistoryViewModel) {
     }
     
     val timerText = if (isExpired) {
-        "Expired"
+        com.mailsync.app.data.AppStrings.get("expired_tag", currentLang)
     } else {
         val totalSecs = (remainingMs / 1000).coerceAtLeast(0)
         val mins = totalSecs / 60
@@ -302,14 +308,14 @@ fun InboxOtpCard(otp: OtpEntity, viewModel: OtpHistoryViewModel) {
                         ) {
                             Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(16.dp))
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Mark Used")
+                            Text(com.mailsync.app.data.AppStrings.get("mark_used", currentLang))
                         }
                     }
                 } else {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Icon(Icons.Default.CheckCircle, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.size(16.dp))
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Used", color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.SemiBold)
+                        Text(com.mailsync.app.data.AppStrings.get("tab_used", currentLang), color = MaterialTheme.colorScheme.onSurfaceVariant, fontWeight = FontWeight.SemiBold)
                     }
                 }
 
@@ -324,7 +330,7 @@ fun InboxOtpCard(otp: OtpEntity, viewModel: OtpHistoryViewModel) {
                     }
                         haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
                     }) {
-                        Text("COPY", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                        Text(com.mailsync.app.data.AppStrings.get("copy_action", currentLang), color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                     }
                     IconButton(onClick = {
                         val sendIntent = Intent().apply {

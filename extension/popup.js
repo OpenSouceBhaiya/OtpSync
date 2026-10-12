@@ -241,49 +241,112 @@ document.addEventListener('DOMContentLoaded', async () => {
         chrome.storage.local.set({ globalErrors: fresh }, () => updateGlobalErrors());
     });
 
-    // Initialize language dropdown selector
+    // Initialize custom sleek language dropdown selector
     function initLanguageSelector() {
-        const selectEl = document.getElementById('lang-select');
-        if (!selectEl || !window.I18N) return;
-        
-        selectEl.innerHTML = '';
-        const langs = window.I18N.getAvailableLanguages();
-        const current = window.I18N.getCurrentLanguage();
+        const btnEl = document.getElementById('lang-dropdown-btn');
+        const menuEl = document.getElementById('lang-menu');
+        const labelEl = document.getElementById('lang-current-label');
+        if (!btnEl || !menuEl || !window.I18N) return;
 
-        langs.forEach(l => {
-            const opt = document.createElement('option');
-            opt.value = l.code;
-            const lNative = l.native || l.nativeName || l.name || l.code;
-            opt.textContent = lNative;
-            if (l.code === current) opt.selected = true;
-            selectEl.appendChild(opt);
-        });
-        
-        selectEl.addEventListener('change', (e) => {
-            const newLang = e.target.value;
-            window.I18N.setAppLanguage(newLang);
-            if (typeof updateGreeting === 'function') {
-                updateGreeting();
-            }
-            chrome.storage.local.get(['uuid'], (res) => {
-                if (res && res.uuid) {
-                    fetch(`https://mailsync-osb-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${res.uuid}.json`, {
-                        method: 'PATCH',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ language: newLang })
-                    }).catch(() => {});
+        function renderLanguageMenu() {
+            menuEl.innerHTML = '';
+            const langs = window.I18N.getAvailableLanguages();
+            const current = window.I18N.getCurrentLanguage();
+
+            langs.forEach(l => {
+                const item = document.createElement('div');
+                item.className = 'lang-option' + (l.code === current ? ' selected' : '');
+                item.dataset.langCode = l.code;
+
+                const nameSpan = document.createElement('span');
+                nameSpan.className = 'lang-option-name';
+                nameSpan.textContent = l.name || l.code;
+
+                const nativeSpan = document.createElement('span');
+                nativeSpan.className = 'lang-option-native';
+                nativeSpan.textContent = l.native || l.nativeName || '';
+
+                item.appendChild(nameSpan);
+                if (l.native && l.native !== l.name) {
+                    item.appendChild(nativeSpan);
                 }
+
+                if (l.code === current && labelEl) {
+                    labelEl.textContent = l.name || l.code;
+                }
+
+                item.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    const newLang = l.code;
+                    window.I18N.setAppLanguage(newLang);
+                    if (labelEl) labelEl.textContent = l.name || l.code;
+                    closeMenu();
+                    renderLanguageMenu();
+
+                    if (typeof updateGreeting === 'function') {
+                        updateGreeting();
+                    }
+                    chrome.storage.local.get(['uuid'], (res) => {
+                        if (res && res.uuid) {
+                            fetch(`https://mailsync-osb-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${res.uuid}.json`, {
+                                method: 'PATCH',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ language: newLang })
+                            }).catch(() => {});
+                        }
+                    });
+                });
+
+                menuEl.appendChild(item);
             });
+        }
+
+        function toggleMenu(e) {
+            e.stopPropagation();
+            const isClosed = menuEl.classList.contains('hidden');
+            if (isClosed) {
+                openMenu();
+            } else {
+                closeMenu();
+            }
+        }
+
+        function openMenu() {
+            menuEl.classList.remove('hidden');
+            btnEl.classList.add('active');
+            btnEl.setAttribute('aria-expanded', 'true');
+        }
+
+        function closeMenu() {
+            menuEl.classList.add('hidden');
+            btnEl.classList.remove('active');
+            btnEl.setAttribute('aria-expanded', 'false');
+        }
+
+        btnEl.addEventListener('click', toggleMenu);
+
+        document.addEventListener('click', (e) => {
+            if (!menuEl.contains(e.target) && !btnEl.contains(e.target)) {
+                closeMenu();
+            }
         });
+
+        renderLanguageMenu();
 
         chrome.storage.onChanged.addListener((changes, area) => {
             if (area === 'local' && changes.appLanguage && changes.appLanguage.newValue) {
                 const newLang = changes.appLanguage.newValue;
-                if (selectEl.value !== newLang) {
-                    selectEl.value = newLang;
+                const langs = window.I18N.getAvailableLanguages();
+                const matched = langs.find(l => l.code === newLang);
+                if (labelEl && matched) {
+                    labelEl.textContent = matched.name || matched.code;
                 }
+                renderLanguageMenu();
                 if (window.I18N && typeof window.I18N.applyTranslations === 'function') {
                     window.I18N.applyTranslations();
+                }
+                if (typeof updateGreeting === 'function') {
+                    updateGreeting();
                 }
             }
         });
@@ -433,8 +496,10 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Sync language from phone if provided in device metadata
         if (data && data.language && window.I18N && window.I18N.getCurrentLanguage() !== data.language) {
             window.I18N.setAppLanguage(data.language);
-            const selectEl = document.getElementById('lang-select');
-            if (selectEl) selectEl.value = data.language;
+            const labelEl = document.getElementById('lang-current-label');
+            const langs = window.I18N.getAvailableLanguages();
+            const matched = langs.find(l => l.code === data.language);
+            if (labelEl && matched) labelEl.textContent = matched.name || matched.code;
         }
 
         // If status is terminated or syncEnabled is false AND status is terminated, go direct to terminated view

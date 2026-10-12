@@ -199,7 +199,7 @@ fun HomeScreen(
             },
             title = { 
                 Text(
-                    "Setup Incomplete", 
+                    com.mailsync.app.data.AppStrings.get("setup_incomplete_title", currentLang), 
                     color = Color.White,
                     fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
                     fontSize = 20.sp,
@@ -208,7 +208,7 @@ fun HomeScreen(
             },
             text = { 
                 Text(
-                    "For a flawless and magical experience, please enable Instant Sync (Notifications), Background Clipboard, and Advanced SMS Extraction in Settings!", 
+                    com.mailsync.app.data.AppStrings.get("setup_incomplete_msg", currentLang), 
                     color = Color(0xFFB0BEC5),
                     fontSize = 14.sp,
                     textAlign = androidx.compose.ui.text.style.TextAlign.Center,
@@ -223,7 +223,7 @@ fun HomeScreen(
                     contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Got it", color = Color.Black, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+                    Text(com.mailsync.app.data.AppStrings.get("got_it_btn", currentLang), color = Color.Black, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
                 }
             },
             containerColor = Color(0xFF231E2C),
@@ -251,7 +251,7 @@ fun HomeScreen(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    WavingHandGreeting(fullName = fullName)
+                    WavingHandGreeting(fullName = fullName, currentLang = currentLang)
                     
                     IconButton(
                         onClick = { showAddMenu = true },
@@ -288,8 +288,8 @@ fun HomeScreen(
                                 Icon(Icons.Default.Warning, contentDescription = "Permissions Required", tint = Color(0xFFE53935))
                                 Spacer(modifier = Modifier.width(12.dp))
                                 Column(modifier = Modifier.weight(1f)) {
-                                    Text("Permissions Required", color = Color(0xFFE53935), fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                                    Text("Background clipboard and Instant Sync must be turned on so the app can function flawlessly.", color = Color.White.copy(alpha = 0.8f), fontSize = 14.sp)
+                                    Text(com.mailsync.app.data.AppStrings.get("permissions_required_title", currentLang), color = Color(0xFFE53935), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                                    Text(com.mailsync.app.data.AppStrings.get("permissions_required_sub", currentLang), color = Color.White.copy(alpha = 0.8f), fontSize = 14.sp)
                                 }
                             }
                             Spacer(modifier = Modifier.height(12.dp))
@@ -298,7 +298,7 @@ fun HomeScreen(
                                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935)),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                Text("Fix It Now", color = Color.White, fontWeight = FontWeight.Bold)
+                                Text(com.mailsync.app.data.AppStrings.get("fix_it_now_btn", currentLang), color = Color.White, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
@@ -317,8 +317,8 @@ fun HomeScreen(
                                 Icon(Icons.Default.Warning, contentDescription = "Permissions Required", tint = Color(0xFFE53935))
                                 Spacer(modifier = Modifier.width(12.dp))
                                 Column(modifier = Modifier.weight(1f)) {
-                                    Text("Permissions Required", color = Color(0xFFE53935), fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                                    Text("Background clipboard copy must be turned on so the app can function flawlessly.", color = Color.White.copy(alpha = 0.8f), fontSize = 14.sp)
+                                    Text(com.mailsync.app.data.AppStrings.get("permissions_required_title", currentLang), color = Color(0xFFE53935), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                                    Text(com.mailsync.app.data.AppStrings.get("permissions_clipboard_sub", currentLang), color = Color.White.copy(alpha = 0.8f), fontSize = 14.sp)
                                 }
                             }
                             Spacer(modifier = Modifier.height(12.dp))
@@ -327,7 +327,7 @@ fun HomeScreen(
                                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935)),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                Text("Fix It Now", color = Color.White, fontWeight = FontWeight.Bold)
+                                Text(com.mailsync.app.data.AppStrings.get("fix_it_now_btn", currentLang), color = Color.White, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
@@ -346,8 +346,8 @@ fun HomeScreen(
                                 Icon(Icons.Default.Info, contentDescription = "Info", tint = Color(0xFF4CAF50))
                                 Spacer(modifier = Modifier.width(12.dp))
                                 Column(modifier = Modifier.weight(1f)) {
-                                    Text("Notification Access Disabled", color = Color(0xFF4CAF50), fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                                    Text("Enable notification access so MailSync can intercept OTPs before they hit the notification panel.", color = Color.White.copy(alpha = 0.8f), fontSize = 14.sp)
+                                    Text(com.mailsync.app.data.AppStrings.get("permissions_notification_title", currentLang), color = Color(0xFF4CAF50), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                                    Text(com.mailsync.app.data.AppStrings.get("permissions_notification_sub", currentLang), color = Color.White.copy(alpha = 0.8f), fontSize = 14.sp)
                                 }
                             }
                             Spacer(modifier = Modifier.height(12.dp))
@@ -356,7 +356,7 @@ fun HomeScreen(
                                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50)),
                                 modifier = Modifier.fillMaxWidth()
                             ) {
-                                Text("Fix It Now", color = Color.White, fontWeight = FontWeight.Bold)
+                                Text(com.mailsync.app.data.AppStrings.get("fix_it_now_btn", currentLang), color = Color.White, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
@@ -378,14 +378,14 @@ fun HomeScreen(
                             Icon(Icons.Default.Warning, contentDescription = "Sync Disabled", tint = Color(0xFFFFB020))
                             Spacer(modifier = Modifier.width(12.dp))
                             Column(modifier = Modifier.weight(1f)) {
-                                Text("Notification Engine Paused", color = Color(0xFFFFB020), fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                                Text("Tap Fix to resume OTP capture from all apps.", color = Color.White.copy(alpha = 0.8f), fontSize = 14.sp)
+                                Text(com.mailsync.app.data.AppStrings.get("notification_engine_paused_title", currentLang), color = Color(0xFFFFB020), fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                                Text(com.mailsync.app.data.AppStrings.get("notification_engine_paused_sub", currentLang), color = Color.White.copy(alpha = 0.8f), fontSize = 14.sp)
                             }
                             Button(
                                 onClick = { settingsViewModel.setSyncEnabled(true) },
                                 colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFFB020))
                             ) {
-                                Text("Fix", color = Color.Black, fontWeight = FontWeight.Bold)
+                                Text(com.mailsync.app.data.AppStrings.get("fix_btn", currentLang), color = Color.Black, fontWeight = FontWeight.Bold)
                             }
                         }
                     }
@@ -467,14 +467,16 @@ fun HomeScreen(
                             val diff = System.currentTimeMillis() - allOtps.first().receivedAt
                             val seconds = diff / 1000
                             val minutes = seconds / 60
-                            if (minutes > 60) "Last OTP: ${minutes/60} hr ago"
-                            else if (minutes > 0) "Last OTP: $minutes min ago"
-                            else "Last OTP: $seconds sec ago"
-                        } else "Last OTP: Never"
+                            val hours = minutes / 60
+                            val agoText = if (hours > 0) "$hours ${com.mailsync.app.data.AppStrings.get("ago_hr", currentLang)}"
+                            else if (minutes > 0) "$minutes ${com.mailsync.app.data.AppStrings.get("ago_min", currentLang)}"
+                            else "$seconds ${com.mailsync.app.data.AppStrings.get("ago_sec", currentLang)}"
+                            String.format(com.mailsync.app.data.AppStrings.get("last_otp_prefix", currentLang), agoText)
+                        } else com.mailsync.app.data.AppStrings.get("last_otp_never", currentLang)
                         
                         Text(lastOtpText, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.ExtraBold)
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text("Notification Engine Active", color = Color(0xFFA1A1AA), fontSize = 14.sp)
+                        Text(com.mailsync.app.data.AppStrings.get("notification_engine_active", currentLang), color = Color(0xFFA1A1AA), fontSize = 14.sp)
                     }
                 }
             }
@@ -487,16 +489,16 @@ fun HomeScreen(
                 ) {
                     StatCard(
                         modifier = Modifier.weight(1f),
-                        title = "Total OTPs",
+                        title = com.mailsync.app.data.AppStrings.get("stat_total_otps", currentLang),
                         value = allOtps.size.toString(),
-                        subtext = "Extracted",
+                        subtext = com.mailsync.app.data.AppStrings.get("stat_extracted", currentLang),
                         icon = Icons.Default.Lock
                     )
                     StatCard(
                         modifier = Modifier.weight(1f),
-                        title = "Success Rate",
+                        title = com.mailsync.app.data.AppStrings.get("stat_success_rate", currentLang),
                         value = "99.9%",
-                        subtext = "Extraction",
+                        subtext = com.mailsync.app.data.AppStrings.get("stat_extraction", currentLang),
                         icon = Icons.Default.CheckCircle
                     )
                 }
@@ -531,7 +533,7 @@ fun HomeScreen(
             
             // Render up to 4 recent OTPs
             items(allOtps.take(4)) { otp ->
-                OtpListItemFeed(otp = otp, context = context)
+                OtpListItemFeed(otp = otp, context = context, currentLang = currentLang)
             }
             
             item { Spacer(modifier = Modifier.height(80.dp)) } // Bottom padding for navbar
@@ -552,7 +554,7 @@ fun HomeScreen(
                     .padding(bottom = 32.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                Text("Select Action", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 20.sp)
+                Text(com.mailsync.app.data.AppStrings.get("select_action_title", currentLang), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 20.sp)
                 Spacer(modifier = Modifier.height(8.dp))
 
                 
@@ -586,8 +588,8 @@ fun HomeScreen(
                         Icon(Icons.Default.Settings, contentDescription = "Manage Linked PCs", tint = Color(0xFF00FFA3), modifier = Modifier.size(32.dp))
                         Spacer(modifier = Modifier.width(16.dp))
                         Column {
-                            Text("Manage Linked PCs", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                            Text("View and manage connected devices", color = Color.Gray, fontSize = 14.sp)
+                            Text(com.mailsync.app.data.AppStrings.get("manage_linked_pcs_title", currentLang), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                            Text(com.mailsync.app.data.AppStrings.get("manage_linked_pcs_sub", currentLang), color = Color.Gray, fontSize = 14.sp)
                         }
                     }
                 }
@@ -625,7 +627,7 @@ fun StatCard(modifier: Modifier = Modifier, title: String, value: String, subtex
 }
 
 @Composable
-fun OtpListItemFeed(otp: OtpEntity, context: Context) {
+fun OtpListItemFeed(otp: OtpEntity, context: Context, currentLang: com.mailsync.app.data.AppLanguage) {
     val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
     
     // Use actual expiresAt from DB (parsed from email), fallback to 10 min default
@@ -641,7 +643,7 @@ fun OtpListItemFeed(otp: OtpEntity, context: Context) {
     }
     
     val timerText = if (isExpired) {
-        "Expired"
+        com.mailsync.app.data.AppStrings.get("expired_tag", currentLang)
     } else {
         val totalSecs = (remainingMs / 1000).coerceAtLeast(0)
         val mins = totalSecs / 60
@@ -725,7 +727,7 @@ fun OtpListItemFeed(otp: OtpEntity, context: Context) {
                     .clip(RoundedCornerShape(12.dp))
                     .background(MaterialTheme.colorScheme.surface)
             ) {
-                Text("COPY", color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                Text(com.mailsync.app.data.AppStrings.get("copy_action", currentLang), color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, fontSize = 12.sp)
             }
         }
     }
@@ -734,7 +736,7 @@ fun OtpListItemFeed(otp: OtpEntity, context: Context) {
 var globalHasPlayedStartup = false
 
 @Composable
-fun WavingHandGreeting(fullName: String?) {
+fun WavingHandGreeting(fullName: String?, currentLang: com.mailsync.app.data.AppLanguage) {
     var isWaving by remember { mutableStateOf(!globalHasPlayedStartup) } // Auto-wave only once per session
     val rotation = remember { androidx.compose.animation.core.Animatable(0f) }
     
@@ -799,9 +801,9 @@ fun WavingHandGreeting(fullName: String?) {
             // Build the text with annotated string or just two texts
             val hour = java.util.Calendar.getInstance().get(java.util.Calendar.HOUR_OF_DAY)
             val greetingTime = when {
-                hour < 12 -> "Good Morning"
-                hour < 17 -> "Good Afternoon"
-                else -> "Good Evening"
+                hour < 12 -> com.mailsync.app.data.AppStrings.get("good_morning", currentLang)
+                hour < 17 -> com.mailsync.app.data.AppStrings.get("good_afternoon", currentLang)
+                else -> com.mailsync.app.data.AppStrings.get("good_evening", currentLang)
             }
             val displayFullName = fullName?.split(" ")?.joinToString(" ") { it.replaceFirstChar { char -> if (char.isLowerCase()) char.titlecase(java.util.Locale.getDefault()) else char.toString() } }
             

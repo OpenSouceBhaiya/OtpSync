@@ -229,12 +229,14 @@
                         <div class="help-link-sub" data-i18n="ext_lang_sub">Change language</div>
                     </div>
                 </div>
-                <div class="lang-select-wrapper">
-                    <select id="lang-select" class="lang-dropdown-select" title="Change Language">
-                    </select>
-                    <svg class="lang-select-chevron" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#8E8A9F" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                        <polyline points="6 9 12 15 18 9"></polyline>
-                    </svg>
+                <div class="lang-custom-dropdown" id="lang-custom-dropdown">
+                    <button type="button" class="lang-dropdown-btn" id="lang-dropdown-btn" title="Change Language" aria-expanded="false">
+                        <span id="lang-current-label">English</span>
+                        <svg class="lang-chevron-icon" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#8E8A9F" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                            <polyline points="6 9 12 15 18 9"></polyline>
+                        </svg>
+                    </button>
+                    <div class="lang-menu hidden" id="lang-menu"></div>
                 </div>
             </div>
 

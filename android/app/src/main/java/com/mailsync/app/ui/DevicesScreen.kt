@@ -117,7 +117,7 @@ fun DevicesScreen(
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
             item {
-                Text("Active Sessions", color = Color(0xFF00FFA3), fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                Text(com.mailsync.app.data.AppStrings.get("active_sessions", currentLang), color = Color(0xFF00FFA3), fontWeight = FontWeight.Bold, fontSize = 18.sp)
                 Spacer(modifier = Modifier.height(8.dp))
             }
 
@@ -164,7 +164,7 @@ fun DevicesScreen(
                         ) {
                             Icon(Icons.Default.Download, contentDescription = "Download")
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Download PC Extension", fontWeight = FontWeight.Bold, fontSize = 16.sp)
+                            Text(com.mailsync.app.data.AppStrings.get("download_pc_extension", currentLang), fontWeight = FontWeight.Bold, fontSize = 16.sp)
                         }
                     }
                 }
@@ -223,13 +223,13 @@ fun DevicesScreen(
                                         Row(verticalAlignment = Alignment.CenterVertically) {
                                             Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(Color(0xFFFF4A4A)))
                                             Spacer(modifier = Modifier.width(6.dp))
-                                            Text("Terminated", color = Color(0xFFFF4A4A), fontSize = 12.sp)
+                                            Text(com.mailsync.app.data.AppStrings.get("session_terminated", currentLang), color = Color(0xFFFF4A4A), fontSize = 12.sp)
                                         }
                                     } else if (device.status == "inactive") {
                                         Row(verticalAlignment = Alignment.CenterVertically) {
                                             Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(Color(0xFFFFB020)))
                                             Spacer(modifier = Modifier.width(6.dp))
-                                            Text("Inactive (Offline)", color = Color(0xFFFFB020), fontSize = 12.sp)
+                                            Text(com.mailsync.app.data.AppStrings.get("session_offline", currentLang), color = Color(0xFFFFB020), fontSize = 12.sp)
                                         }
                                     } else {
                                         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -247,7 +247,7 @@ fun DevicesScreen(
                                         contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
                                         modifier = Modifier.height(32.dp)
                                     ) {
-                                        Text("Link", color = Color.Black, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                        Text(com.mailsync.app.data.AppStrings.get("link_btn", currentLang), color = Color.Black, fontSize = 12.sp, fontWeight = FontWeight.Bold)
                                     }
                                 } else {
                                     Icon(Icons.Default.ChevronRight, contentDescription = null, tint = Color.Gray)
@@ -308,7 +308,7 @@ fun DevicesScreen(
                     colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFFF4A4A)),
                     shape = RoundedCornerShape(16.dp)
                 ) {
-                    Text("Terminate Session", color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                    Text(com.mailsync.app.data.AppStrings.get("terminate_session", currentLang), color = Color.White, fontSize = 16.sp, fontWeight = FontWeight.Bold)
                 }
                 Spacer(modifier = Modifier.height(16.dp))
             }
