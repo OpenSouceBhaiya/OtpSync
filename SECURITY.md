@@ -20,7 +20,7 @@ We take all security vulnerabilities seriously.
 If you discover a security vulnerability within MailSync, please **DO NOT** open a public issue on GitHub. Instead, report it privately so we can issue a patch before malicious actors can exploit it.
 
 Please send an email to our security team or use our secure contact form:
-- **Contact Form:** [http://opensourcebhaiya.online/contact](http://opensourcebhaiya.online/contact)
+- **Contact Form:** [https://opensourcebhaiya.com/contact](https://opensourcebhaiya.com/contact)
 
 We will endeavor to respond to your report within 48 hours and work with you to understand and resolve the issue swiftly.
 

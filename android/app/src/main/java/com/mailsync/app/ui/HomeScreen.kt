@@ -79,7 +79,7 @@ fun HomeScreen(
     
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
     var lifecycleTrigger by remember { mutableStateOf(0) }
-    var remindLaterUntilMs by remember { mutableStateOf(0L) }
+    var snoozeTrigger by remember { mutableStateOf(0) }
     
     DisposableEffect(lifecycleOwner) {
         val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
@@ -112,7 +112,7 @@ fun HomeScreen(
     
     LaunchedEffect(lifecycleTrigger, anyPermissionMissing) {
         if (anyPermissionMissing) {
-            if (System.currentTimeMillis() >= remindLaterUntilMs) {
+            if (System.currentTimeMillis() >= com.mailsync.app.AppState.permissionPromptSnoozeUntilMs) {
                 showPermissionPrompt = true
             }
         } else {
@@ -121,12 +121,11 @@ fun HomeScreen(
     }
 
     // 15-minute snooze reminder: if user tapped 'Remind Me Later', prompt again after 15 minutes while app is running
-    LaunchedEffect(remindLaterUntilMs, anyPermissionMissing) {
-        if (remindLaterUntilMs > 0L && anyPermissionMissing) {
-            val remaining = remindLaterUntilMs - System.currentTimeMillis()
-            if (remaining > 0L) {
-                kotlinx.coroutines.delay(remaining)
-            }
+    LaunchedEffect(snoozeTrigger, anyPermissionMissing) {
+        val snoozeUntil = com.mailsync.app.AppState.permissionPromptSnoozeUntilMs
+        val remaining = snoozeUntil - System.currentTimeMillis()
+        if (remaining > 0L && anyPermissionMissing) {
+            kotlinx.coroutines.delay(remaining)
             if (anyPermissionMissing) {
                 showPermissionPrompt = true
             }
@@ -239,7 +238,8 @@ fun HomeScreen(
             AlertDialog(
                 onDismissRequest = { 
                     showPermissionPrompt = false 
-                    remindLaterUntilMs = System.currentTimeMillis() + (15 * 60 * 1000L)
+                    com.mailsync.app.AppState.permissionPromptSnoozeUntilMs = System.currentTimeMillis() + (15 * 60 * 1000L)
+                    snoozeTrigger++
                 },
                 title = {
                     Row(verticalAlignment = Alignment.CenterVertically) {
@@ -336,7 +336,8 @@ fun HomeScreen(
                 dismissButton = {
                     TextButton(onClick = { 
                         showPermissionPrompt = false 
-                        remindLaterUntilMs = System.currentTimeMillis() + (15 * 60 * 1000L)
+                        com.mailsync.app.AppState.permissionPromptSnoozeUntilMs = System.currentTimeMillis() + (15 * 60 * 1000L)
+                        snoozeTrigger++
                     }) {
                         Text("Remind Me Later", color = Color(0xFF9E9E9E), fontSize = 13.sp)
                     }

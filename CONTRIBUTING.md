@@ -11,7 +11,7 @@ If you find a bug, please help us fix it by reporting it!
 - Check if the bug has already been reported in the GitHub Issues.
 - If not, open a new issue.
 - Please provide as much detail as possible, including your device model, OS version, and exact steps to reproduce the issue.
-- You can also report critical bugs securely via our website: [http://opensourcebhaiya.online/bug-report](http://opensourcebhaiya.online/bug-report)
+- You can also report critical bugs securely via our website: [https://opensourcebhaiya.com/bug-report](https://opensourcebhaiya.com/bug-report)
 
 ### 2. Suggesting Enhancements
 Have an idea to make MailSync even better? We'd love to hear it!
@@ -36,6 +36,6 @@ Ready to write some code?
 ## 🤝 Community
 Be respectful, constructive, and kind. We are all here to build something great together.
 
-If you have any questions, feel free to reach out to us at [http://opensourcebhaiya.online/contact](http://opensourcebhaiya.online/contact).
+If you have any questions, feel free to reach out to us at [https://opensourcebhaiya.com/contact](https://opensourcebhaiya.com/contact).
 
 Thank you for helping make MailSync better!

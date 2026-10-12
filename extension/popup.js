@@ -608,7 +608,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                 pcName = await getDeviceName();
             }
 
-            const qrData = `https://www.opensourcebhaiya.online/apps/otpsync/connect?uuid=${encodeURIComponent(u)}&name=${encodeURIComponent(pcName)}&browser=Chrome&key=${encodeURIComponent(k)}`;
+            const qrData = `https://www.opensourcebhaiya.com/apps/otpsync/connect?uuid=${encodeURIComponent(u)}&name=${encodeURIComponent(pcName)}&browser=Chrome&key=${encodeURIComponent(k)}`;
 
             const canvas = document.getElementById('qr-code');
             new QRious({

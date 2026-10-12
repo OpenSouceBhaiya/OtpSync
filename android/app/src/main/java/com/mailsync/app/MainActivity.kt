@@ -149,8 +149,8 @@ class MainActivity : FragmentActivity() {
                                 clipboard.setPrimaryClip(ClipData.newPlainText("Crash Log", lastCrash))
                                 
                                 val emailIntent = Intent(Intent.ACTION_SENDTO).apply {
-                                    data = android.net.Uri.parse("mailto:bug-report@opensourcebhaiya.online")
-                                    putExtra(Intent.EXTRA_EMAIL, arrayOf("bug-report@opensourcebhaiya.online"))
+                                    data = android.net.Uri.parse("mailto:bug-report@opensourcebhaiya.com")
+                                    putExtra(Intent.EXTRA_EMAIL, arrayOf("bug-report@opensourcebhaiya.com"))
                                     putExtra(Intent.EXTRA_SUBJECT, "Crash Report: OTP Sync Android")
                                     putExtra(
                                         Intent.EXTRA_TEXT,
@@ -163,13 +163,13 @@ class MainActivity : FragmentActivity() {
                                     try {
                                         val genericIntent = Intent(Intent.ACTION_SEND).apply {
                                             type = "message/rfc822"
-                                            putExtra(Intent.EXTRA_EMAIL, arrayOf("bug-report@opensourcebhaiya.online"))
+                                            putExtra(Intent.EXTRA_EMAIL, arrayOf("bug-report@opensourcebhaiya.com"))
                                             putExtra(Intent.EXTRA_SUBJECT, "Crash Report: OTP Sync Android")
                                             putExtra(Intent.EXTRA_TEXT, lastCrash)
                                         }
                                         context.startActivity(Intent.createChooser(genericIntent, "Send crash report..."))
                                     } catch (_: Exception) {
-                                        com.mailsync.app.utils.ToastManager.show(context, "Log copied! Please email bug-report@opensourcebhaiya.online", android.widget.Toast.LENGTH_LONG)
+                                        com.mailsync.app.utils.ToastManager.show(context, "Log copied! Please email bug-report@opensourcebhaiya.com", android.widget.Toast.LENGTH_LONG)
                                     }
                                 }
                                 

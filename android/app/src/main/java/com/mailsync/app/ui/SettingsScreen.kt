@@ -54,6 +54,13 @@ import kotlinx.coroutines.delay
 fun SettingsScreen(viewModel: SettingsViewModel, highlight: String? = null, onNavigateToDevices: () -> Unit) {
     val currentLang by viewModel.appLanguage.collectAsState()
     var expandedLanguageDropdown by remember { mutableStateOf(false) }
+    val languageMenuScrollState = rememberScrollState()
+
+    LaunchedEffect(expandedLanguageDropdown) {
+        if (expandedLanguageDropdown) {
+            languageMenuScrollState.scrollTo(0)
+        }
+    }
 
     val context = LocalContext.current
     val scrollState = rememberScrollState()
@@ -166,9 +173,21 @@ fun SettingsScreen(viewModel: SettingsViewModel, highlight: String? = null, onNa
             Spacer(modifier = Modifier.height(16.dp))
             
             var activeHighlight by remember { mutableStateOf(highlight) }
-            LaunchedEffect(highlight) {
-                activeHighlight = highlight
-                if (highlight != null) {
+            val isFixAll = activeHighlight == "both"
+            val allPermissionsGranted = isNotificationAccessGranted && canDrawOverlays && isSmsPermissionGranted
+
+            LaunchedEffect(highlight, isNotificationAccessGranted, canDrawOverlays, isSmsPermissionGranted) {
+                val targetIsAlreadyGranted = when (highlight) {
+                    "notifications", "notification", "instant_sync" -> isNotificationAccessGranted
+                    "overlay", "clipboard" -> canDrawOverlays
+                    "sms" -> isSmsPermissionGranted
+                    "both" -> allPermissionsGranted
+                    else -> false
+                }
+                if (targetIsAlreadyGranted) {
+                    activeHighlight = null
+                } else if (highlight != null) {
+                    activeHighlight = highlight
                     scrollState.animateScrollTo(0)
                     kotlinx.coroutines.delay(3500)
                     activeHighlight = null
@@ -187,16 +206,14 @@ fun SettingsScreen(viewModel: SettingsViewModel, highlight: String? = null, onNa
             
             val isInstantSyncEnabled by viewModel.isInstantSyncEnabled.collectAsState()
             val isClipboardCopyEnabled by viewModel.isClipboardCopyEnabled.collectAsState()
-            var canDrawOverlays = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) Settings.canDrawOverlays(context) else true
             
-            val isFixAll = activeHighlight == "both"
-            val permissionsHighlight = if (isFixAll) highlightAlpha else 0f
-            val allPermissionsGranted = isNotificationAccessGranted && canDrawOverlays && isSmsPermissionGranted
+            val permissionsHighlight = if (isFixAll && !allPermissionsGranted) highlightAlpha else 0f
 
             // When Fix All is clicked, animate the whole card only. When an individual permission is clicked, highlight only that row with red/coral accent (no green).
-            val isHighlightNotif = !isFixAll && activeHighlight in listOf("notifications", "notification", "instant_sync")
-            val isHighlightOverlay = !isFixAll && activeHighlight in listOf("overlay", "clipboard")
-            val isHighlightSms = !isFixAll && activeHighlight == "sms"
+            // Do NOT highlight any permission that is already granted!
+            val isHighlightNotif = !isFixAll && !isNotificationAccessGranted && activeHighlight in listOf("notifications", "notification", "instant_sync")
+            val isHighlightOverlay = !isFixAll && !canDrawOverlays && activeHighlight in listOf("overlay", "clipboard")
+            val isHighlightSms = !isFixAll && !isSmsPermissionGranted && activeHighlight == "sms"
             
             // Permissions Card (Merged Instant Sync & Clipboard)
             Column(
@@ -501,31 +518,48 @@ fun SettingsScreen(viewModel: SettingsViewModel, highlight: String? = null, onNa
                             DropdownMenu(
                                 expanded = expandedLanguageDropdown,
                                 onDismissRequest = { expandedLanguageDropdown = false },
+                                scrollState = languageMenuScrollState,
                                 modifier = Modifier
-                                    .widthIn(min = 170.dp, max = 240.dp)
-                                    .heightIn(max = 280.dp)
-                                    .background(Color(0xFF161925))
+                                    .widthIn(min = 200.dp, max = 260.dp)
+                                    .heightIn(max = 300.dp)
+                                    .clip(RoundedCornerShape(16.dp))
+                                    .background(Color(0xFF1E1829))
+                                    .border(1.dp, Color(0xFF433959), RoundedCornerShape(16.dp))
                             ) {
                                 com.mailsync.app.data.AppLanguage.entries.forEach { lang ->
+                                    val isSelected = lang == currentLang
                                     DropdownMenuItem(
+                                        modifier = Modifier
+                                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                                            .clip(RoundedCornerShape(10.dp))
+                                            .background(if (isSelected) Color(0xFFE2C4FF).copy(alpha = 0.12f) else Color.Transparent),
                                         text = {
                                             Row(
                                                 modifier = Modifier.fillMaxWidth(),
                                                 horizontalArrangement = Arrangement.SpaceBetween,
                                                 verticalAlignment = Alignment.CenterVertically
                                             ) {
-                                                Text(
-                                                    text = lang.displayName,
-                                                    color = if (lang == currentLang) PurpleAccent else TextPrimary,
-                                                    fontWeight = if (lang == currentLang) FontWeight.Bold else FontWeight.Normal,
-                                                    fontSize = 13.sp
-                                                )
-                                                Spacer(modifier = Modifier.width(8.dp))
-                                                Text(
-                                                    text = lang.nativeName,
-                                                    color = TextSecondary,
-                                                    fontSize = 12.sp
-                                                )
+                                                Column(modifier = Modifier.weight(1f)) {
+                                                    Text(
+                                                        text = lang.displayName,
+                                                        color = if (isSelected) Color(0xFFE2C4FF) else TextPrimary,
+                                                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                                        fontSize = 13.sp
+                                                    )
+                                                    Text(
+                                                        text = lang.nativeName,
+                                                        color = if (isSelected) Color(0xFFE2C4FF).copy(alpha = 0.7f) else TextSecondary,
+                                                        fontSize = 11.sp
+                                                    )
+                                                }
+                                                if (isSelected) {
+                                                    Icon(
+                                                        imageVector = Icons.Default.Check,
+                                                        contentDescription = null,
+                                                        tint = Color(0xFFE2C4FF),
+                                                        modifier = Modifier.size(16.dp)
+                                                    )
+                                                }
                                             }
                                         },
                                         onClick = {
@@ -637,7 +671,7 @@ fun SettingsScreen(viewModel: SettingsViewModel, highlight: String? = null, onNa
                     .graphicsLayer(scaleX = contactUsPulseScale, scaleY = contactUsPulseScale)
                     .background(highlightContactUsColor, shape = RoundedCornerShape(8.dp)),
                 onClick = {
-                    val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://www.opensourcebhaiya.online/contact"))
+                    val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://www.opensourcebhaiya.com/contact"))
                     context.startActivity(intent)
                 }
             )
@@ -674,7 +708,7 @@ fun SettingsScreen(viewModel: SettingsViewModel, highlight: String? = null, onNa
                     .graphicsLayer(scaleX = pulseScale, scaleY = pulseScale)
                     .background(highlightColor, shape = RoundedCornerShape(8.dp)),
                 onClick = {
-                    val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://www.opensourcebhaiya.online/bug-report"))
+                    val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://www.opensourcebhaiya.com/bug-report"))
                     context.startActivity(intent)
                 }
             )
@@ -688,7 +722,7 @@ fun SettingsScreen(viewModel: SettingsViewModel, highlight: String? = null, onNa
                   Row(
                       verticalAlignment = Alignment.CenterVertically,
                       modifier = Modifier.clickable {
-                          val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://www.opensourcebhaiya.online"))
+                          val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://www.opensourcebhaiya.com"))
                           context.startActivity(intent)
                       }.padding(8.dp)
                   ) {
@@ -700,7 +734,7 @@ fun SettingsScreen(viewModel: SettingsViewModel, highlight: String? = null, onNa
                       )
                       Spacer(modifier = Modifier.width(6.dp))
                       Text(
-                          text = "www.opensourcebhaiya.online",
+                          text = "www.opensourcebhaiya.com",
                           style = MaterialTheme.typography.labelLarge,
                           color = MaterialTheme.colorScheme.primary,
                           fontWeight = FontWeight.Bold

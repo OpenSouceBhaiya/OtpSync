@@ -6,7 +6,7 @@
   [![License: GPL v3](https://img.shields.io/badge/License-GPLv3-blue.svg)](https://www.gnu.org/licenses/gpl-3.0)
   [![Platform: Android](https://img.shields.io/badge/Platform-Android-green.svg)]()
   [![Browser: Chrome](https://img.shields.io/badge/Browser-Chrome/Edge-yellow.svg)]()
-  [![Website](https://img.shields.io/badge/Website-OpenSourceBhaiya-orange)](http://opensourcebhaiya.online/)
+  [![Website](https://img.shields.io/badge/Website-OpenSourceBhaiya-orange)](https://opensourcebhaiya.com/)
 
 </div>
 
@@ -91,5 +91,5 @@ See the [LICENSE](LICENSE) file for the full legal text.
 
 <div align="center">
   <p>Maintained with ❤️ by <strong>OpenSourceBhaiya</strong></p>
-  <a href="http://opensourcebhaiya.online/">Visit our Website</a> | <a href="http://opensourcebhaiya.online/contact">Contact Us</a> | <a href="http://opensourcebhaiya.online/bug-report">Report a Bug</a>
+  <a href="https://opensourcebhaiya.com/">Visit our Website</a> | <a href="https://opensourcebhaiya.com/contact">Contact Us</a> | <a href="https://opensourcebhaiya.com/bug-report">Report a Bug</a>
 </div>
