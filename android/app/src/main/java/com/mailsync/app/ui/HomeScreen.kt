@@ -79,11 +79,13 @@ fun HomeScreen(
     
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
     var lifecycleTrigger by remember { mutableStateOf(0) }
+    var userDismissedInSession by remember { mutableStateOf(false) }
     
     DisposableEffect(lifecycleOwner) {
         val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
             if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
                 lifecycleTrigger++
+                userDismissedInSession = false
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
@@ -97,6 +99,10 @@ fun HomeScreen(
     
     val needsClipboardPermission = !isClipboardCopyEnabled || !canDrawOverlays
     val needsNotificationPermission = !isInstantSyncEnabled || !isNotificationAccessGranted
+    val isSmsGranted = androidx.core.content.ContextCompat.checkSelfPermission(
+        context, android.Manifest.permission.READ_SMS
+    ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+    val anyPermissionMissing = needsNotificationPermission || needsClipboardPermission || !isSmsGranted
     
     var showPermissionPrompt by remember { mutableStateOf(false) }
     var hasPromptedBatteryOpt by remember { mutableStateOf(false) }
@@ -105,10 +111,13 @@ fun HomeScreen(
     @OptIn(ExperimentalMaterial3Api::class)
     val sheetState = rememberModalBottomSheetState()
     
-    LaunchedEffect(Unit) {
-        val count = settingsViewModel.appOpenCount
-        if ((needsClipboardPermission || needsNotificationPermission) && count > 0 && (count - 1) % 3 == 0) {
-            showPermissionPrompt = true
+    LaunchedEffect(lifecycleTrigger, anyPermissionMissing) {
+        if (anyPermissionMissing) {
+            if (!userDismissedInSession) {
+                showPermissionPrompt = true
+            }
+        } else {
+            showPermissionPrompt = false
         }
     }
     
@@ -192,122 +201,136 @@ fun HomeScreen(
         ) == android.content.pm.PackageManager.PERMISSION_GRANTED
 
         // Build list of missing permissions
-        data class PermInfo(val icon: ImageVector, val title: String, val desc: String, val action: () -> Unit)
+        data class PermInfo(val icon: ImageVector, val title: String, val desc: String, val highlightTarget: String)
         val missingPerms = buildList {
             if (!isNotificationAccessGranted) add(PermInfo(
                 icon = Icons.Default.Notifications,
                 title = "Notification Access",
                 desc = "Required to capture OTPs from all apps. Without this, no OTPs can be extracted.",
-                action = {
-                    val intent = Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS")
-                    context.startActivity(intent)
-                }
+                highlightTarget = "notifications"
             ))
             if (!canDrawOverlays) add(PermInfo(
                 icon = Icons.Default.Layers,
                 title = "Display Over Other Apps",
                 desc = "Required to auto-copy OTPs to clipboard when your phone is locked or in another app.",
-                action = {
-                    val intent = Intent(
-                        android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
-                        android.net.Uri.parse("package:${context.packageName}")
-                    )
-                    context.startActivity(intent)
-                }
+                highlightTarget = "overlay"
             ))
             if (!isSmsGranted) add(PermInfo(
                 icon = Icons.Default.Sms,
                 title = "SMS Permission",
                 desc = "Required to extract OTPs from SMS messages (bank OTPs, carrier messages).",
-                action = {
-                    val intent = Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
-                        android.net.Uri.parse("package:${context.packageName}"))
-                    context.startActivity(intent)
-                }
+                highlightTarget = "sms"
             ))
         }
 
-        AlertDialog(
-            onDismissRequest = { showPermissionPrompt = false },
-            title = {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Box(
-                        modifier = Modifier
-                            .size(40.dp)
-                            .clip(CircleShape)
-                            .background(Color(0xFFFF6B35).copy(alpha = 0.15f)),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Icon(Icons.Default.Warning, contentDescription = null,
-                            tint = Color(0xFFFF6B35), modifier = Modifier.size(22.dp))
-                    }
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Column {
-                        Text("Permissions Required",
-                            color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                        Text("${missingPerms.size} permission${if (missingPerms.size != 1) "s" else ""} missing",
-                            color = Color(0xFFFF6B35), fontSize = 12.sp)
-                    }
-                }
-            },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Text(
-                        "OTP Sync needs these permissions to extract and copy OTPs automatically:",
-                        color = Color(0xFF9E9E9E), fontSize = 13.sp, lineHeight = 18.sp
-                    )
-                    Spacer(modifier = Modifier.height(2.dp))
-                    missingPerms.forEach { perm ->
+        if (missingPerms.isNotEmpty()) {
+            AlertDialog(
+                onDismissRequest = { 
+                    showPermissionPrompt = false 
+                    userDismissedInSession = true
+                },
+                title = {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
                         Box(
                             modifier = Modifier
-                                .fillMaxWidth()
-                                .clip(RoundedCornerShape(14.dp))
-                                .background(Color(0xFF2A2438))
-                                .clickable { perm.action(); showPermissionPrompt = false }
-                                .padding(14.dp)
+                                .size(40.dp)
+                                .clip(CircleShape)
+                                .background(Color(0xFFFF6B35).copy(alpha = 0.15f)),
+                            contentAlignment = Alignment.Center
                         ) {
-                            Row(verticalAlignment = Alignment.Top) {
-                                Box(
-                                    modifier = Modifier
-                                        .size(36.dp)
-                                        .clip(RoundedCornerShape(10.dp))
-                                        .background(Color(0xFF00FFA3).copy(alpha = 0.12f)),
-                                    contentAlignment = Alignment.Center
-                                ) {
-                                    Icon(perm.icon, contentDescription = null,
-                                        tint = Color(0xFF00FFA3), modifier = Modifier.size(18.dp))
-                                }
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(perm.title, color = Color.White,
-                                        fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-                                    Spacer(modifier = Modifier.height(2.dp))
-                                    Text(perm.desc, color = Color(0xFF9E9E9E),
-                                        fontSize = 12.sp, lineHeight = 16.sp)
-                                    Spacer(modifier = Modifier.height(8.dp))
+                            Icon(Icons.Default.Warning, contentDescription = null,
+                                tint = Color(0xFFFF6B35), modifier = Modifier.size(22.dp))
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Column {
+                            Text("Action Required",
+                                color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                            Text("${missingPerms.size} permission${if (missingPerms.size != 1) "s" else ""} missing",
+                                color = Color(0xFFFF6B35), fontSize = 12.sp)
+                        }
+                    }
+                },
+                text = {
+                    Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                        Text(
+                            "OTP Sync needs these permissions to extract and copy OTPs automatically:",
+                            color = Color(0xFF9E9E9E), fontSize = 13.sp, lineHeight = 18.sp
+                        )
+                        Spacer(modifier = Modifier.height(2.dp))
+                        missingPerms.forEach { perm ->
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .background(Color(0xFF2A2438))
+                                    .clickable {
+                                        showPermissionPrompt = false
+                                        onNavigateToSettings(perm.highlightTarget)
+                                    }
+                                    .padding(14.dp)
+                            ) {
+                                Row(verticalAlignment = Alignment.Top) {
                                     Box(
                                         modifier = Modifier
-                                            .clip(RoundedCornerShape(8.dp))
-                                            .background(Color(0xFF00FFA3))
-                                            .padding(horizontal = 12.dp, vertical = 5.dp)
+                                            .size(36.dp)
+                                            .clip(RoundedCornerShape(10.dp))
+                                            .background(Color(0xFF00FFA3).copy(alpha = 0.12f)),
+                                        contentAlignment = Alignment.Center
                                     ) {
-                                        Text("Fix Now →", color = Color.Black,
-                                            fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                        Icon(perm.icon, contentDescription = null,
+                                            tint = Color(0xFF00FFA3), modifier = Modifier.size(18.dp))
+                                    }
+                                    Spacer(modifier = Modifier.width(12.dp))
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(perm.title, color = Color.White,
+                                            fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                                        Spacer(modifier = Modifier.height(2.dp))
+                                        Text(perm.desc, color = Color(0xFF9E9E9E),
+                                            fontSize = 12.sp, lineHeight = 16.sp)
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Box(
+                                            modifier = Modifier
+                                                .clip(RoundedCornerShape(8.dp))
+                                                .background(Color(0xFF00FFA3))
+                                                .clickable {
+                                                    showPermissionPrompt = false
+                                                    onNavigateToSettings(perm.highlightTarget)
+                                                }
+                                                .padding(horizontal = 12.dp, vertical = 5.dp)
+                                        ) {
+                                            Text("Fix Now →", color = Color.Black,
+                                                fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                        }
                                     }
                                 }
                             }
                         }
                     }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showPermissionPrompt = false }) {
-                    Text("Remind Me Later", color = Color(0xFF9E9E9E), fontSize = 13.sp)
-                }
-            },
-            containerColor = Color(0xFF1E1828),
-            shape = RoundedCornerShape(24.dp)
-        )
+                },
+                confirmButton = {
+                    Button(
+                        onClick = {
+                            showPermissionPrompt = false
+                            onNavigateToSettings("both")
+                        },
+                        colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FFA3)),
+                        shape = RoundedCornerShape(10.dp)
+                    ) {
+                        Text("Fix All in Settings", color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { 
+                        showPermissionPrompt = false 
+                        userDismissedInSession = true
+                    }) {
+                        Text("Remind Me Later", color = Color(0xFF9E9E9E), fontSize = 13.sp)
+                    }
+                },
+                containerColor = Color(0xFF1E1828),
+                shape = RoundedCornerShape(24.dp)
+            )
+        }
     }
 
     Scaffold { innerPadding ->
@@ -353,94 +376,7 @@ fun HomeScreen(
             // Removed old revoked accounts banner (no accounts mode)
 
 
-            if (needsClipboardPermission && needsNotificationPermission) {
-                item {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(Color(0xFFE53935).copy(alpha = 0.15f))
-                            .padding(16.dp)
-                    ) {
-                        Column {
-                            Row(verticalAlignment = Alignment.Top) {
-                                Icon(Icons.Default.Warning, contentDescription = "Permissions Required", tint = Color(0xFFE53935))
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(com.mailsync.app.data.AppStrings.get("permissions_required_title", currentLang), color = Color(0xFFE53935), fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                                    Text(com.mailsync.app.data.AppStrings.get("permissions_required_sub", currentLang), color = Color.White.copy(alpha = 0.8f), fontSize = 14.sp)
-                                }
-                            }
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Button(
-                                onClick = { onNavigateToSettings("both") },
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935)),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text(com.mailsync.app.data.AppStrings.get("fix_it_now_btn", currentLang), color = Color.White, fontWeight = FontWeight.Bold)
-                            }
-                        }
-                    }
-                }
-            } else if (needsClipboardPermission) {
-                item {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(Color(0xFFE53935).copy(alpha = 0.15f))
-                            .padding(16.dp)
-                    ) {
-                        Column {
-                            Row(verticalAlignment = Alignment.Top) {
-                                Icon(Icons.Default.Warning, contentDescription = "Permissions Required", tint = Color(0xFFE53935))
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(com.mailsync.app.data.AppStrings.get("permissions_required_title", currentLang), color = Color(0xFFE53935), fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                                    Text(com.mailsync.app.data.AppStrings.get("permissions_clipboard_sub", currentLang), color = Color.White.copy(alpha = 0.8f), fontSize = 14.sp)
-                                }
-                            }
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Button(
-                                onClick = { onNavigateToSettings("clipboard") },
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE53935)),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text(com.mailsync.app.data.AppStrings.get("fix_it_now_btn", currentLang), color = Color.White, fontWeight = FontWeight.Bold)
-                            }
-                        }
-                    }
-                }
-            } else if (needsNotificationPermission) {
-                item {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clip(RoundedCornerShape(16.dp))
-                            .background(Color(0xFF4CAF50).copy(alpha = 0.15f))
-                            .padding(16.dp)
-                    ) {
-                        Column {
-                            Row(verticalAlignment = Alignment.Top) {
-                                Icon(Icons.Default.Info, contentDescription = "Info", tint = Color(0xFF4CAF50))
-                                Spacer(modifier = Modifier.width(12.dp))
-                                Column(modifier = Modifier.weight(1f)) {
-                                    Text(com.mailsync.app.data.AppStrings.get("permissions_notification_title", currentLang), color = Color(0xFF4CAF50), fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                                    Text(com.mailsync.app.data.AppStrings.get("permissions_notification_sub", currentLang), color = Color.White.copy(alpha = 0.8f), fontSize = 14.sp)
-                                }
-                            }
-                            Spacer(modifier = Modifier.height(12.dp))
-                            Button(
-                                onClick = { onNavigateToSettings("instant_sync") },
-                                colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF4CAF50)),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                Text(com.mailsync.app.data.AppStrings.get("fix_it_now_btn", currentLang), color = Color.White, fontWeight = FontWeight.Bold)
-                            }
-                        }
-                    }
-                }
-            }
+
 
 
             // Show a compact notification engine status if sync is disabled
@@ -531,7 +467,7 @@ fun HomeScreen(
                                 CustomToggle(
                                     checked = isTrulyActive,
                                     onCheckedChange = { isChecked ->
-                                        if (isChecked && (needsNotificationPermission || needsClipboardPermission)) {
+                                        if (isChecked && anyPermissionMissing) {
                                             showPermissionPrompt = true
                                         } else {
                                             settingsViewModel.setSyncEnabled(isChecked)

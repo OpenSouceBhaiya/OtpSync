@@ -4,6 +4,8 @@ import android.app.Activity
 import android.content.Intent
 import android.provider.Settings
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -167,7 +169,8 @@ fun SettingsScreen(viewModel: SettingsViewModel, highlight: String? = null, onNa
             LaunchedEffect(highlight) {
                 activeHighlight = highlight
                 if (highlight != null) {
-                    kotlinx.coroutines.delay(2000)
+                    scrollState.animateScrollTo(0)
+                    kotlinx.coroutines.delay(3500)
                     activeHighlight = null
                 }
             }
@@ -188,6 +191,10 @@ fun SettingsScreen(viewModel: SettingsViewModel, highlight: String? = null, onNa
             
             val permissionsHighlight = if (activeHighlight != null) highlightAlpha else 0f
             val allPermissionsGranted = isNotificationAccessGranted && canDrawOverlays && isSmsPermissionGranted
+
+            val isHighlightNotif = activeHighlight in listOf("notifications", "notification", "instant_sync", "both")
+            val isHighlightOverlay = activeHighlight in listOf("overlay", "clipboard", "both")
+            val isHighlightSms = activeHighlight in listOf("sms", "both")
             
             // Permissions Card (Merged Instant Sync & Clipboard)
             Column(
@@ -195,6 +202,15 @@ fun SettingsScreen(viewModel: SettingsViewModel, highlight: String? = null, onNa
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(12.dp))
                     .background(if (allPermissionsGranted) MaterialTheme.colorScheme.primary.copy(alpha = 0.1f) else Color(0xFFE53935).copy(alpha = 0.15f + permissionsHighlight))
+                    .then(
+                        if (activeHighlight != null) {
+                            Modifier.border(
+                                width = 2.dp,
+                                color = Color(0xFF00FFA3).copy(alpha = 0.6f + highlightAlpha),
+                                shape = RoundedCornerShape(12.dp)
+                            )
+                        } else Modifier
+                    )
                     .padding(16.dp)
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -223,20 +239,28 @@ fun SettingsScreen(viewModel: SettingsViewModel, highlight: String? = null, onNa
                 Spacer(modifier = Modifier.height(16.dp))
                 
                 // Notification Permission
+                val notifBg = if (isHighlightNotif) Color(0xFF00FFA3).copy(alpha = 0.15f + (highlightAlpha * 0.4f)) else Color.Transparent
+                val notifBorder = if (isHighlightNotif) BorderStroke(1.5.dp, Color(0xFF00FFA3)) else null
                 Row(
-                    modifier = Modifier.fillMaxWidth().clickable {
-                        if (!isNotificationAccessGranted) {
-                            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
-                                notificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(notifBg)
+                        .then(if (notifBorder != null) Modifier.border(notifBorder, RoundedCornerShape(8.dp)) else Modifier)
+                        .clickable {
+                            if (!isNotificationAccessGranted) {
+                                if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+                                    notificationPermissionLauncher.launch(android.Manifest.permission.POST_NOTIFICATIONS)
+                                } else {
+                                    val intent = Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS")
+                                    context.startActivity(intent)
+                                }
                             } else {
                                 val intent = Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS")
                                 context.startActivity(intent)
                             }
-                        } else {
-                            val intent = Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS")
-                            context.startActivity(intent)
                         }
-                    }.padding(vertical = 8.dp),
+                        .padding(horizontal = 8.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(com.mailsync.app.data.AppStrings.get("notification_access_title", currentLang), color = TextPrimary, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
@@ -263,15 +287,23 @@ fun SettingsScreen(viewModel: SettingsViewModel, highlight: String? = null, onNa
                 }
                 
                 // SMS Permission
+                val smsBg = if (isHighlightSms) Color(0xFF00FFA3).copy(alpha = 0.15f + (highlightAlpha * 0.4f)) else Color.Transparent
+                val smsBorder = if (isHighlightSms) BorderStroke(1.5.dp, Color(0xFF00FFA3)) else null
                 Row(
-                    modifier = Modifier.fillMaxWidth().clickable {
-                        if (!isSmsPermissionGranted) {
-                            smsPermissionLauncher.launch(arrayOf(android.Manifest.permission.RECEIVE_SMS, android.Manifest.permission.READ_SMS))
-                        } else {
-                            val intent = Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:${context.packageName}"))
-                            context.startActivity(intent)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(smsBg)
+                        .then(if (smsBorder != null) Modifier.border(smsBorder, RoundedCornerShape(8.dp)) else Modifier)
+                        .clickable {
+                            if (!isSmsPermissionGranted) {
+                                smsPermissionLauncher.launch(arrayOf(android.Manifest.permission.RECEIVE_SMS, android.Manifest.permission.READ_SMS))
+                            } else {
+                                val intent = Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:${context.packageName}"))
+                                context.startActivity(intent)
+                            }
                         }
-                    }.padding(vertical = 8.dp),
+                        .padding(horizontal = 8.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(com.mailsync.app.data.AppStrings.get("sms_extraction_title", currentLang), color = TextPrimary, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
@@ -289,16 +321,29 @@ fun SettingsScreen(viewModel: SettingsViewModel, highlight: String? = null, onNa
                 }
                 
                 // Overlay Permission
+                val overlayBg = if (isHighlightOverlay) Color(0xFF00FFA3).copy(alpha = 0.15f + (highlightAlpha * 0.4f)) else Color.Transparent
+                val overlayBorder = if (isHighlightOverlay) BorderStroke(1.5.dp, Color(0xFF00FFA3)) else null
                 Row(
-                    modifier = Modifier.fillMaxWidth().clickable {
-                        if (!canDrawOverlays) {
-                            val intent = Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION, android.net.Uri.parse("package:${context.packageName}"))
-                            context.startActivity(intent)
-                        } else {
-                            val intent = Intent(android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION, android.net.Uri.parse("package:${context.packageName}"))
-                            context.startActivity(intent)
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(overlayBg)
+                        .then(if (overlayBorder != null) Modifier.border(overlayBorder, RoundedCornerShape(8.dp)) else Modifier)
+                        .clickable {
+                            try {
+                                val intent = Intent(
+                                    Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                                    android.net.Uri.parse("package:${context.packageName}")
+                                )
+                                context.startActivity(intent)
+                            } catch (e: Exception) {
+                                try {
+                                    val intent = Intent(Settings.ACTION_MANAGE_OVERLAY_PERMISSION)
+                                    context.startActivity(intent)
+                                } catch (_: Exception) {}
+                            }
                         }
-                    }.padding(vertical = 8.dp),
+                        .padding(horizontal = 8.dp, vertical = 8.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(com.mailsync.app.data.AppStrings.get("appear_on_top_title", currentLang), color = TextPrimary, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
