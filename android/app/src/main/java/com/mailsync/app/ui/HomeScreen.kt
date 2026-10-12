@@ -187,46 +187,125 @@ fun HomeScreen(
 
     
     if (showPermissionPrompt) {
+        val isSmsGranted = androidx.core.content.ContextCompat.checkSelfPermission(
+            context, android.Manifest.permission.READ_SMS
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+
+        // Build list of missing permissions
+        data class PermInfo(val icon: ImageVector, val title: String, val desc: String, val action: () -> Unit)
+        val missingPerms = buildList {
+            if (!isNotificationAccessGranted) add(PermInfo(
+                icon = Icons.Default.Notifications,
+                title = "Notification Access",
+                desc = "Required to capture OTPs from all apps. Without this, no OTPs can be extracted.",
+                action = {
+                    val intent = Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS")
+                    context.startActivity(intent)
+                }
+            ))
+            if (!canDrawOverlays) add(PermInfo(
+                icon = Icons.Default.Layers,
+                title = "Display Over Other Apps",
+                desc = "Required to auto-copy OTPs to clipboard when your phone is locked or in another app.",
+                action = {
+                    val intent = Intent(
+                        android.provider.Settings.ACTION_MANAGE_OVERLAY_PERMISSION,
+                        android.net.Uri.parse("package:${context.packageName}")
+                    )
+                    context.startActivity(intent)
+                }
+            ))
+            if (!isSmsGranted) add(PermInfo(
+                icon = Icons.Default.Sms,
+                title = "SMS Permission",
+                desc = "Required to extract OTPs from SMS messages (bank OTPs, carrier messages).",
+                action = {
+                    val intent = Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                        android.net.Uri.parse("package:${context.packageName}"))
+                    context.startActivity(intent)
+                }
+            ))
+        }
+
         AlertDialog(
             onDismissRequest = { showPermissionPrompt = false },
-            icon = { 
-                Icon(
-                    androidx.compose.material.icons.Icons.Default.SettingsSuggest, 
-                    contentDescription = null,
-                    tint = Color(0xFF00FFA3),
-                    modifier = Modifier.size(36.dp)
-                )
-            },
-            title = { 
-                Text(
-                    com.mailsync.app.data.AppStrings.get("setup_incomplete_title", currentLang), 
-                    color = Color.White,
-                    fontWeight = androidx.compose.ui.text.font.FontWeight.Bold,
-                    fontSize = 20.sp,
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center
-                ) 
-            },
-            text = { 
-                Text(
-                    com.mailsync.app.data.AppStrings.get("setup_incomplete_msg", currentLang), 
-                    color = Color(0xFFB0BEC5),
-                    fontSize = 14.sp,
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                    lineHeight = 20.sp
-                ) 
-            },
-            confirmButton = {
-                Button(
-                    onClick = { showPermissionPrompt = false },
-                    colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF00FFA3)),
-                    shape = RoundedCornerShape(12.dp),
-                    contentPadding = PaddingValues(horizontal = 24.dp, vertical = 12.dp),
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text(com.mailsync.app.data.AppStrings.get("got_it_btn", currentLang), color = Color.Black, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+            title = {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Box(
+                        modifier = Modifier
+                            .size(40.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFFFF6B35).copy(alpha = 0.15f)),
+                        contentAlignment = Alignment.Center
+                    ) {
+                        Icon(Icons.Default.Warning, contentDescription = null,
+                            tint = Color(0xFFFF6B35), modifier = Modifier.size(22.dp))
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Column {
+                        Text("Permissions Required",
+                            color = Color.White, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                        Text("${missingPerms.size} permission${if (missingPerms.size != 1) "s" else ""} missing",
+                            color = Color(0xFFFF6B35), fontSize = 12.sp)
+                    }
                 }
             },
-            containerColor = Color(0xFF231E2C),
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    Text(
+                        "OTP Sync needs these permissions to extract and copy OTPs automatically:",
+                        color = Color(0xFF9E9E9E), fontSize = 13.sp, lineHeight = 18.sp
+                    )
+                    Spacer(modifier = Modifier.height(2.dp))
+                    missingPerms.forEach { perm ->
+                        Box(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(14.dp))
+                                .background(Color(0xFF2A2438))
+                                .clickable { perm.action(); showPermissionPrompt = false }
+                                .padding(14.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.Top) {
+                                Box(
+                                    modifier = Modifier
+                                        .size(36.dp)
+                                        .clip(RoundedCornerShape(10.dp))
+                                        .background(Color(0xFF00FFA3).copy(alpha = 0.12f)),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Icon(perm.icon, contentDescription = null,
+                                        tint = Color(0xFF00FFA3), modifier = Modifier.size(18.dp))
+                                }
+                                Spacer(modifier = Modifier.width(12.dp))
+                                Column(modifier = Modifier.weight(1f)) {
+                                    Text(perm.title, color = Color.White,
+                                        fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+                                    Spacer(modifier = Modifier.height(2.dp))
+                                    Text(perm.desc, color = Color(0xFF9E9E9E),
+                                        fontSize = 12.sp, lineHeight = 16.sp)
+                                    Spacer(modifier = Modifier.height(8.dp))
+                                    Box(
+                                        modifier = Modifier
+                                            .clip(RoundedCornerShape(8.dp))
+                                            .background(Color(0xFF00FFA3))
+                                            .padding(horizontal = 12.dp, vertical = 5.dp)
+                                    ) {
+                                        Text("Fix Now →", color = Color.Black,
+                                            fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showPermissionPrompt = false }) {
+                    Text("Remind Me Later", color = Color(0xFF9E9E9E), fontSize = 13.sp)
+                }
+            },
+            containerColor = Color(0xFF1E1828),
             shape = RoundedCornerShape(24.dp)
         )
     }

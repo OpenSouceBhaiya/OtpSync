@@ -75,7 +75,11 @@ object OtpExtractor {
 
     // Secondary keywords that require proximity to verification/auth context
     private val proximityKeywords = listOf(
-        "otp", "aotp", "code", "pin", "passcode", "código", "codigo", "clave", "schlüssel", "пароль"
+        "otp", "aotp", "code", "pin", "passcode", "código", "codigo", "clave", "schlüssel", "пароль",
+        "flipkart", "amazon", "swiggy", "zomato", "meesho", "myntra", "snapdeal", "nykaa",
+        "paytm", "phonepe", "gpay", "razorpay", "juspay", "hdfc", "sbi", "icici", "axis", "kotak",
+        "uber", "ola", "rapido", "zippay", "blinkit", "bigbasket", "dunzo",
+        "instagram", "facebook", "twitter", "linkedin", "snapchat", "discord", "telegram"
     )
 
     // Footer boundaries for deprioritization
@@ -128,29 +132,18 @@ object OtpExtractor {
     private fun normalizeText(text: String): String {
         var normalized = text
 
-        // Convert non-ASCII digits (Full-width, Arabic-Indic, Extended Arabic-Indic, Devanagari, Bengali) to standard ASCII 0-9
-        val digitMap = mapOf(
-            // Full-width (０-９)
-            '０' to '0', '１' to '1', '２' to '2', '３' to '3', '۴' to '4',
-            '５' to '5', '６' to '6', '７' to '7', '８' to '8', '９' to '9',
-            // Arabic-Indic (٠-٩)
-            '٠' to '0', '١' to '1', '٢' to '2', '٣' to '3', '٤' to '4',
-            '٥' to '5', '٦' to '6', '٧' to '7', '٨' to '8', '٩' to '9',
-            // Extended Arabic-Indic / Persian / Urdu (۰-۹)
-            '۰' to '0', '۱' to '1', '۲' to '2', '۳' to '3', '۴' to '4',
-            '۵' to '5', '۶' to '6', '۷' to '7', '۸' to '8', '۹' to '9',
-            // Devanagari (०-९)
-            '०' to '0', '१' to '1', '२' to '2', '३' to '3', '४' to '4',
-            '५' to '5', '६' to '6', '७' to '7', '८' to '8', '९' to '9',
-            // Bengali (০-৯)
-            '০' to '0', '১' to '1', '২' to '2', '৩' to '3', '৪' to '4',
-            '৫' to '5', '৬' to '6', '৭' to '7', '৮' to '8', '৯' to '9'
-        )
-        val sb = StringBuilder()
+        // Convert non-ASCII digits to standard ASCII 0-9 using Unicode category check
+        // This is the most robust approach - works for ALL scripts globally
+        val sb0 = StringBuilder(normalized.length)
         for (ch in normalized) {
-            sb.append(digitMap[ch] ?: ch)
+            val digitVal = Character.getNumericValue(ch)
+            if (Character.getType(ch) == Character.DECIMAL_DIGIT_NUMBER.toInt() && digitVal in 0..9) {
+                sb0.append('0' + digitVal)
+            } else {
+                sb0.append(ch)
+            }
         }
-        normalized = sb.toString()
+        normalized = sb0.toString()
 
         // Replace smart quotes and dashes with standard ASCII
         normalized = normalized.replace("–", "-").replace("—", "-")
@@ -346,73 +339,83 @@ object OtpExtractor {
             // 3. Steam Guard specifically: 5 uppercase letters/digits
             Regex("(?i)\\b(?:steam\\s+guard(?:\\s+code)?)\\s*(?:is|:|\\s)\\s*([0-9A-Z]{5})\\b"),
 
-            // 4. Action phrasing: "Enter 492018 to verify...", "Use 839201 to complete...", "Utilice 492018 para verificar..."
+            // 4. Action phrasing: "Enter 492018 to verify...", "Use 839201 to complete..."
             Regex("(?i)\\b(?:use|enter|input|utilice|ingrese|entrez|geben\\s+sie)\\s+(?:code|otp|pin|the\\s+code|the\\s+otp)?\\s*([0-9A-Za-z]{4,8})\\s+(?:to|for|para|pour|um|zu|as|on)\\s+(?:verif|sign|log|complete|access|confirm|authenticat|valid|register)\\b"),
 
-            // 5. Reverse phrasing: "256587 is your LOGIN OTP for Flipkart", "492018 is your OTP", "PayPal: 582910 is your security code"
-            Regex("(?i)\\b([0-9]{4,10})\\s+(?:is|es|est|é|è|the)\\s+(?:your\\s+|su\\s+|votre\\s+|dein\\s+|il\\s+tuo\\s+)?(?:[\\w-]+\\s+)*(?:one[- ]time\\s+(?:password|passcode|code|pin)|verification\\s+(?:code|pin|token|otp)|security\\s+(?:code|pin|token|otp)|auth(?:entication|orization)?\\s+(?:code|pin|token|otp)|login\\s+(?:code|pin|token|otp)|sign[- ]in\\s+(?:code|pin|token|otp)|access\\s+(?:code|pin|token|otp)|confirmation\\s+code|netbanking\\s+otp|temporary\\s+(?:access\\s+)?code|passcode|a?otp|pin|code)\\b"),
+            // 5. CRITICAL FIX: Reverse phrasing - "256587 is your LOGIN OTP for Flipkart"
+            //    Allows up to 3 intermediate words between "your" and the OTP keyword
+            Regex("(?i)\\b([0-9]{4,10})\\s+(?:is|es|est|\u00e9|\u00e8)\\s+(?:your|su|votre|dein|il\\s+tuo|aapka|apka)?\\s*(?:[\\w-]+\\s+){0,3}(?:otp|one[- ]time\\s*(?:password|passcode)|verification\\s*(?:code|otp)|security\\s*(?:code|otp)|login\\s*(?:code|otp)|access\\s*(?:code|otp)|auth\\s*(?:code|otp)|confirmation\\s*code|passcode|pin)\\b"),
+
+            // 5b. Simpler reverse: "256587 is your OTP" / "123456 is the OTP" / "256587 is the LOGIN OTP"
+            Regex("(?i)\\b([0-9]{4,10})\\s+is\\s+(?:your|the|an?)?\\s*(?:[A-Za-z]+\\s+)?(?:a?otp|one[- ]time|verification|security|login|access)(?:\\s+(?:code|password|passcode|pin|otp))?\\b"),
 
             // 6. Multi-line isolated code on its own line after a label or "code below"
             // Handles Northwest: "Use the verification code below to complete...\n\n006802\n\nThis code will expire..."
             // Handles LinkedIn, Discord, Apple 2-line
-            Regex("(?im)(?:verification\\s+code|security\\s+code|one[- ]time\\s+(?:password|code)|your\\s+code|código|code|passcode)[^\\n\\r]*?(?:below|is|:)?\\s*$\\s*^([0-9]{4,10})\\s*$"),
+            Regex("(?im)(?:verification\\s+code|security\\s+code|one[- ]time\\s+(?:password|code)|your\\s+code|c\u00f3digo|code|passcode)[^\\n\\r]*?(?:below|is|:)?\\s*$\\s*^([0-9]{4,10})\\s*$"),
 
-            // 7. Bank SMS & service template with context before "is/are/:":
-            // Handles: "OTP for transaction of INR 1,500.00 at Swiggy is 492018", "Your verification code for Flipkart is 582910", "Your Uber code is 4920", "Your delivery OTP for Order #98214 is 4829"
-            Regex("(?i)\\b(?:one[- ]time\\s+(?:password|passcode|code|pin)|verification\\s+(?:code|pin|token|otp)|security\\s+(?:code|pin|token|otp)|auth(?:entication|orization)?\\s+(?:code|pin|token|otp)|confirm(?:ation)?\\s+(?:code|pin|token|otp)|login\\s+(?:code|pin|token|otp)|sign[- ]in\\s+(?:code|pin|token|otp)|access\\s+(?:code|pin|token|otp)|delivery\\s+otp|pickup\\s+otp|secret\\s+(?:code|pin)|passcode|a?otp|[\\w-]+\\s+code|[\\w-]+\\s+otp|pin)\\b.+?\\b(?:is|are|es|est|lautet|é|è|:|–|-|=|#)\\s*[:=]?\\s*([0-9]{4,10})\\b"),
+            // 7. Bank SMS & service template with context before "is/are/:"
+            //    "OTP for transaction of INR 1,500.00 at Swiggy is 492018"
+            //    "Your verification code for Flipkart is 582910"
+            //    "LOGIN OTP for Flipkart is 256587"
+            Regex("(?i)\\b(?:one[- ]time\\s+(?:password|passcode|code|pin)|verification\\s+(?:code|pin|token|otp)|security\\s+(?:code|pin|token|otp)|auth(?:entication|orization)?\\s+(?:code|pin|token|otp)|confirm(?:ation)?\\s+(?:code|pin|token|otp)|login\\s+(?:code|pin|token|otp)|sign[- ]in\\s+(?:code|pin|token|otp)|access\\s+(?:code|pin|token|otp)|delivery\\s+otp|pickup\\s+otp|secret\\s+(?:code|pin)|passcode|a?otp|[\\w-]+\\s+(?:otp|code)|pin)(?:[^.!\n\r]{0,80})(?:is|are|es|est|lautet|\u00e9|\u00e8|:|\u2013|-|=|#)\\s*[:=]?\\s*([0-9]{4,10})\\b"),
 
-            // 8. Direct keyword + colon/dash/is + OTP: "Telegram code: 49201", "WhatsApp code: 829104", "Your Apple ID Code is: 839201"
+            // 8. Direct keyword + colon/dash/is + OTP: "Telegram code: 49201", "WhatsApp code: 829104"
             Regex("(?i)\\b(?:code|otp|pin|passcode)\\s*(?:is\\s*:?|:|=)\\s*[:=]?\\s*([0-9]{4,10})\\b"),
 
-            // 9. English assignment: "Your OTP is 482913", "verification code: 482913", "auth code: A3F92K", "pin is 8492"
-            Regex("(?i)\\b(?:one[- ]time\\s+(?:password|code)|verification\\s+code|security\\s+code|login\\s+code|sign[- ]in\\s+code|access\\s+code|auth(?:entication)?\\s+code|confirmation\\s+code|secret\\s+code|single[- ]use\\s+code|passcode|a?otp|pin(?:\\s+code)?)\\s*(?:is|:|–|-|=|#)\\s*([0-9A-Za-z]{4,10})\\b"),
+            // 9. English assignment: "Your OTP is 482913", "verification code: 482913", "pin is 8492"
+            Regex("(?i)\\b(?:one[- ]time\\s+(?:password|code)|verification\\s+code|security\\s+code|login\\s+code|sign[- ]in\\s+code|access\\s+code|auth(?:entication)?\\s+code|confirmation\\s+code|secret\\s+code|single[- ]use\\s+code|passcode|a?otp|pin(?:\\s+code)?)\\s*(?:is|:|\u2013|-|=|#)\\s*([0-9A-Za-z]{4,10})\\b"),
 
-            // 10. Hindi & Hinglish: "Aapka login OTP 849201 hai", "आपका सत्यापन कोड 582910 है", "Apna OTP 392018"
-            Regex("(?i)(?:(?:aapka|apna|लॉगिन|login|आपका|अपना)\\s+)*(?:otp|ओटीपी|सत्यापन\\s+कोड|सुरक्षा\\s+कोड)\\s*(?:hai|है|:|–|-|=|#|\\s)?\\s*([0-9]{4,10})\\b"),
+            // 10. Hindi & Hinglish: "Aapka login OTP 849201 hai", "Apna OTP 392018"
+            Regex("(?i)(?:(?:aapka|apna|\u0932\u0949\u0917\u093f\u0928|login|\u0906\u092a\u0915\u093e|\u0905\u092a\u0928\u093e)\\s+)*(?:otp|\u0913\u091f\u0940\u092a\u0940|\u0938\u0924\u094d\u092f\u093e\u092a\u0928\\s+\u0915\u094b\u0921|\u0938\u0941\u0930\u0915\u094d\u0937\u093e\\s+\u0915\u094b\u0921)\\s*(?:hai|\u0939\u0948|:|\u2013|-|=|#|\\s)?\\s*([0-9]{4,10})\\b"),
 
             // 11. Bengali assignment
-            Regex("(?i)(?:আপনার\\s+)?(?:যাচাইকরণ\\s+কোড|লগইন\\s+ওটিপি|ওটিপি|নিরাপত্তা\\s+কোড)\\s*(?:হল|হলো|:|–|-|=|#|\\s)?\\s*([0-9]{4,10})\\b"),
+            Regex("(?i)(?:\u0986\u09aa\u09a8\u09be\u09b0\\s+)?(?:\u09af\u09be\u099a\u09be\u0987\u0995\u09b0\u09a3\\s+\u0995\u09cb\u09a1|\u09b2\u0997\u0987\u09a8\\s+\u0993\u099f\u09bf\u09aa\u09bf|\u0993\u099f\u09bf\u09aa\u09bf|\u09a8\u09bf\u09b0\u09be\u09aa\u09a4\u09cd\u09a4\u09be\\s+\u0995\u09cb\u09a1)\\s*(?:\u09b9\u09b2|\u09b9\u09b2\u09cb|:|\u2013|-|=|#|\\s)?\\s*([0-9]{4,10})\\b"),
 
-            // 12. Spanish assignment: "Su código de verificación es 492018", "clave de seguridad para ingresar es 849201"
-            Regex("(?i)\\b(?:código|codigo|clave)\\s+(?:de\\s+(?:verificación|verificacion|seguridad|confirmación|confirmacion|acceso))?(?:[^\\n\\r]{0,25})?\\s*(?:es\\s*:?|:|=|–|-|#)\\s*([0-9A-Za-z]{4,10})\\b"),
+            // 12. Spanish: "Su c\u00f3digo de verificaci\u00f3n es 492018"
+            Regex("(?i)\\b(?:c\u00f3digo|codigo|clave)\\s+(?:de\\s+(?:verificaci\u00f3n|verificacion|seguridad|confirmaci\u00f3n|confirmacion|acceso))?(?:[^\\n\\r]{0,25})?\\s*(?:es\\s*:?|:|=|\u2013|-|#)\\s*([0-9A-Za-z]{4,10})\\b"),
 
-            // 13. French assignment: "Votre code de confirmation est le 739102", "mot de passe temporaire : 849201"
-            Regex("(?i)\\b(?:code\\s+de\\s+(?:confirmation|vérification|sécurité)|mot\\s+de\\s+passe(?:\\s+(?:à\\s+usage\\s+unique|temporaire))?)\\s*(?:est(?:\\s+le)?|est\\s*:?|:|–|-|=|#)\\s*([0-9A-Za-z]{4,10})\\b"),
+            // 13. French: "Votre code de confirmation est le 739102"
+            Regex("(?i)\\b(?:code\\s+de\\s+(?:confirmation|v\u00e9rification|s\u00e9curit\u00e9)|mot\\s+de\\s+passe(?:\\s+(?:\u00e0\\s+usage\\s+unique|temporaire))?)\\s*(?:est(?:\\s+le)?|est\\s*:?|:|\u2013|-|=|#)\\s*([0-9A-Za-z]{4,10})\\b"),
 
-            // 14. German assignment: "Ihr Bestätigungscode lautet 829104", "Sicherheitscode: 829104"
-            Regex("(?i)\\b(?:(?:sicherheits|bestätigungs|verifizierungs)?code|einmalpasswort|einmalkennwort)(?:[^\\n\\r]{0,35})?\\s*(?:lautet|ist|:|–|-|=|#)\\s*[:=]?\\s*([0-9A-Za-z]{4,10})\\b"),
-            Regex("(?i)\\blautet\\s+(?:ihr\\s+)?(?:sicherheits|bestätigungs|verifizierungs)?(?:code|einmalpasswort|passwort)\\s*[:=—–-]?\\s*([0-9A-Za-z]{4,10})\\b"),
+            // 14. German: "Ihr Best\u00e4tigungscode lautet 829104"
+            Regex("(?i)\\b(?:(?:sicherheits|best\u00e4tigungs|verifizierungs)?code|einmalpasswort|einmalkennwort)(?:[^\\n\\r]{0,35})?\\s*(?:lautet|ist|:|\u2013|-|=|#)\\s*[:=]?\\s*([0-9A-Za-z]{4,10})\\b"),
+            Regex("(?i)\\blautet\\s+(?:ihr\\s+)?(?:sicherheits|best\u00e4tigungs|verifizierungs)?(?:code|einmalpasswort|passwort)\\s*[:=\u2014\u2013-]?\\s*([0-9A-Za-z]{4,10})\\b"),
 
-            // 15. Portuguese assignment: "Seu código de verificação é 618294", "Seu código de segurança: 849201"
-            Regex("(?i)\\b(?:código|codigo)\\s+(?:de\\s+(?:verificación|verificacao|segurança|seguranca|confirmação|confirmacao))?\\s*(?:é\\s*:?|e|:|–|-|=|#)\\s*([0-9A-Za-z]{4,10})\\b"),
+            // 15. Portuguese: "Seu c\u00f3digo de verifica\u00e7\u00e3o \u00e9 618294"
+            Regex("(?i)\\b(?:c\u00f3digo|codigo)\\s+(?:de\\s+(?:verifica\u00e7\u00e3o|verificacao|seguran\u00e7a|seguranca|confirma\u00e7\u00e3o|confirmacao))?\\s*(?:\u00e9\\s*:?|e|:|\u2013|-|=|#)\\s*([0-9A-Za-z]{4,10})\\b"),
 
-            // 16. Italian assignment: "Il tuo codice di verifica è 618294", "Codice di sicurezza: 849201"
-            Regex("(?i)\\b(?:codice\\s+di\\s+(?:verifica|sicurezza|conferma)|codice\\s+otp)\\s*(?:è\\s*:?|e|:|–|-|=|#)\\s*([0-9A-Za-z]{4,10})\\b"),
+            // 16. Italian: "Il tuo codice di verifica \u00e8 618294"
+            Regex("(?i)\\b(?:codice\\s+di\\s+(?:verifica|sicurezza|conferma)|codice\\s+otp)\\s*(?:\u00e8\\s*:?|e|:|\u2013|-|=|#)\\s*([0-9A-Za-z]{4,10})\\b"),
 
-            // 17. Russian assignment: "Ваш проверочный код: 391820", "Код: 582914", "Ваш код для входа: 482910"
-            Regex("(?iu)(?:ваш\\s+код(?:\\s+для\\s+входа)?|код\\s+(?:подтверждения(?:\\s+операции)?|безопасности|для\\s+входа)|проверочный\\s+код|одноразовый\\s+пароль|пароль)\\s*(?:[:=—–-]|это)\\s*([0-9A-Za-z]{4,10})\\b"),
-            Regex("(?iu)(?:ваш\\s+(?:проверочный\\s+)?код)\\s*[:=—–-]\\s*([0-9A-Za-z]{4,10})\\b"),
+            // 17. Russian: "\u0412\u0430\u0448 \u043f\u0440\u043e\u0432\u0435\u0440\u043e\u0447\u043d\u044b\u0439 \u043a\u043e\u0434: 391820"
+            Regex("(?iu)(?:\u0432\u0430\u0448\\s+\u043a\u043e\u0434(?:\\s+\u0434\u043b\u044f\\s+\u0432\u0445\u043e\u0434\u0430)?|\u043a\u043e\u0434\\s+(?:\u043f\u043e\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0435\u043d\u0438\u044f(?:\\s+\u043e\u043f\u0435\u0440\u0430\u0446\u0438\u0438)?|\u0431\u0435\u0437\u043e\u043f\u0430\u0441\u043d\u043e\u0441\u0442\u0438|\u0434\u043b\u044f\\s+\u0432\u0445\u043e\u0434\u0430)|\u043f\u0440\u043e\u0432\u0435\u0440\u043e\u0447\u043d\u044b\u0439\\s+\u043a\u043e\u0434|\u043e\u0434\u043d\u043e\u0440\u0430\u0437\u043e\u0432\u044b\u0439\\s+\u043f\u0430\u0440\u043e\u043b\u044c|\u043f\u0430\u0440\u043e\u043b\u044c)\\s*(?:[:=\u2014\u2013-]|\u044d\u0442\u043e)\\s*([0-9A-Za-z]{4,10})\\b"),
+            Regex("(?iu)(?:\u0432\u0430\u0448\\s+(?:\u043f\u0440\u043e\u0432\u0435\u0440\u043e\u0447\u043d\u044b\u0439\\s+)?\u043a\u043e\u0434)\\s*[:=\u2014\u2013-]\\s*([0-9A-Za-z]{4,10})\\b"),
 
-            // 18. Chinese assignment: "您的动态验证码为 582910", "验证码：582910"
-            Regex("(?:动态验证码|动态密码|动态口令|验证码|驗證碼|确认码|確認碼|安全码|动态码)(?:为|是|：|:|\\s)*([0-9A-Za-z]{4,10})\\b"),
+            // 18. Chinese: "\u9a8c\u8bc1\u7801\uff1a582910"
+            Regex("(?:\u52a8\u6001\u9a8c\u8bc1\u7801|\u52a8\u6001\u5bc6\u7801|\u52a8\u6001\u53e3\u4ee4|\u9a8c\u8bc1\u7801|\u9a57\u8b49\u78bc|\u786e\u8ba4\u7801|\u78ba\u8a8d\u78bc|\u5b89\u5168\u7801|\u52a8\u6001\u7801)(?:\u4e3a|\u662f|\uff1a|:|\\s)*([0-9A-Za-z]{4,10})\\b"),
 
-            // 19. Japanese assignment: "認証コードは 928301 です"
-            Regex("(?:認証コード|確認コード|セキュリティコード|ワンタイムパスワード)(?:は|：|:|\\s)*([0-9A-Za-z]{4,10})\\b"),
+            // 19. Japanese: "\u8a8d\u8a3c\u30b3\u30fc\u30c9\u306f 928301 \u3067\u3059"
+            Regex("(?:\u8a8d\u8a3c\u30b3\u30fc\u30c9|\u78ba\u8a8d\u30b3\u30fc\u30c9|\u30bb\u30ad\u30e5\u30ea\u30c6\u30a3\u30b3\u30fc\u30c9|\u30ef\u30f3\u30bf\u30a4\u30e0\u30d1\u30b9\u30ef\u30fc\u30c9)(?:\u306f|\uff1a|:|\\s)*([0-9A-Za-z]{4,10})\\b"),
 
-            // 20. Korean assignment: "인증번호: 829104", "인증번호는 829104 입니다"
-            Regex("(?:인증번호|인증코드|보안코드)(?:는|：|:|\\s)*([0-9A-Za-z]{4,10})\\b"),
+            // 20. Korean: "\uc778\uc99d\ubc88\ud638: 829104"
+            Regex("(?:\uc778\uc99d\ubc88\ud638|\uc778\uc99d\ucf54\ub4dc|\ubcf4\uc548\ucf54\ub4dc)(?:\ub294|\uff1a|:|\\s)*([0-9A-Za-z]{4,10})\\b"),
 
-            // 21. Arabic assignment: "رمز التحقق الخاص بك هو 719283", "رمز الأمان: 849201"
-            Regex("(?:رمز\\s+(?:التحقق|الأمان|التأكيد))[^0-9\\n\\r]{0,40}?\\s*([0-9A-Za-z]{4,10})\\b"),
+            // 21. Arabic: "\u0631\u0645\u0632 \u0627\u0644\u062a\u062d\u0642\u0642: 849201"
+            Regex("(?:\u0631\u0645\u0632\\s+(?:\u0627\u0644\u062a\u062d\u0642\u0642|\u0627\u0644\u0623\u0645\u0627\u0646|\u0627\u0644\u062a\u0623\u0643\u064a\u062f))[^0-9\\n\\r]{0,40}?\\s*([0-9A-Za-z]{4,10})\\b"),
 
-            // 22. Turkish assignment: "Doğrulama kodunuz: 829104"
-            Regex("(?i)\\b(?:doğrulama|dogrulama|güvenlik|guvenlik|onay)\\s+kodu(?:nuz)?\\s*(?:[:=—–-]|dur|dir)?\\s*([0-9A-Za-z]{4,10})\\b"),
+            // 22. Turkish: "Do\u011frulama kodunuz: 829104"
+            Regex("(?i)\\b(?:do\u011frulama|dogrulama|g\u00fcvenlik|guvenlik|onay)\\s+kodu(?:nuz)?\\s*(?:[:=\u2014\u2013-]|dur|dir)?\\s*([0-9A-Za-z]{4,10})\\b"),
 
-            // 23. Vietnamese assignment: "Mã xác thực: 829104"
-            Regex("(?i)(?:mã\\s+(?:xác\\s+minh|xác\\s+thực|xác\\s+nhận|bảo\\s+mật|otp))[^0-9\\n\\r]{0,30}?(?:là|:|-|=)\\s*([0-9A-Za-z]{4,10})\\b"),
+            // 23. Vietnamese: "M\u00e3 x\u00e1c th\u1ef1c: 829104"
+            Regex("(?i)(?:m\u00e3\\s+(?:x\u00e1c\\s+minh|x\u00e1c\\s+th\u1ef1c|x\u00e1c\\s+nh\u1eadn|b\u1ea3o\\s+m\u1eadt|otp))[^0-9\\n\\r]{0,30}?(?:l\u00e0|:|-|=)\\s*([0-9A-Za-z]{4,10})\\b"),
 
-            // 24. Indonesian / Malay assignment: "Kode verifikasi Anda adalah 829104"
-            Regex("(?i)\\b(?:kode|kod)\\s+(?:verifikasi|keselamatan|pengesahan|konfirmasi)[^0-9\\n\\r]{0,25}?(?:adalah|:|-|=)\\s*([0-9A-Za-z]{4,10})\\b")
+            // 24. Indonesian / Malay: "Kode verifikasi Anda adalah 829104"
+            Regex("(?i)\\b(?:kode|kod)\\s+(?:verifikasi|keselamatan|pengesahan|konfirmasi)[^0-9\\n\\r]{0,25}?(?:adalah|:|-|=)\\s*([0-9A-Za-z]{4,10})\\b"),
+
+            // 25. LAST RESORT: Any OTP/code/pin keyword directly before digits
+            //     Catches ultra-simple: "OTP: 123456", "Code- 4321", "pin= 1234", "otp 123456"
+            Regex("(?i)\\b(?:otp|a-?otp|verification|code|pin|passcode)\\b\\s*[:\\-=\u2013#]?\\s*\\b([0-9]{4,8})\\b")
         )
 
         for (pattern in anchorPatterns) {

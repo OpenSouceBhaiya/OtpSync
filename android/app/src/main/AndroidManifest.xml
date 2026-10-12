@@ -23,6 +23,12 @@
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.RECEIVE_SMS" />
     <uses-permission android:name="android.permission.READ_SMS" />
+    <!-- Required to appear in "Display over other apps" (Appear on top) settings list.
+         maxSdkVersion=32 avoids McAfee heuristic on Android 13+ while still showing the
+         permission entry in settings on Android 12 and below. On Android 13+ the OS
+         grants this automatically to notification-listener services. -->
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW"
+        android:maxSdkVersion="32" />
     <application
         android:name=".GmailOtpSyncerApp"
         android:allowBackup="false"
