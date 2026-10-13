@@ -406,6 +406,35 @@ function showToast(otp, sender, isCarryForward = false, timeRemaining = 8000) {
         }, 500);
     }
 
+    // ─── Active User Activity & OTP Intent Reporting ──────────────────────────────
+    let lastActivityReport = 0;
+    function reportUserActivity() {
+        const now = Date.now();
+        if (now - lastActivityReport > 15000) {
+            lastActivityReport = now;
+            safeSendMessage({ action: "user_activity" });
+        }
+    }
+
+    window.addEventListener('keydown', reportUserActivity, { passive: true });
+    window.addEventListener('pointerdown', reportUserActivity, { passive: true });
+
+    document.addEventListener('focusin', (e) => {
+        reportUserActivity();
+        const target = e.target;
+        if (target && target.tagName === 'INPUT') {
+            if (canAutoFill(target) || target.type === 'password' || target.getAttribute('autocomplete') === 'one-time-code') {
+                safeSendMessage({
+                    action: "otp_intent",
+                    host: window.location.hostname
+                });
+            }
+        }
+    }, { passive: true });
+
     detectLoginPage();
-    const observer = new MutationObserver(() => detectLoginPage());
-    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['type', 'class', 'style'] });
+    const targetRoot = document.body || document.documentElement;
+    if (targetRoot) {
+        const observer = new MutationObserver(() => detectLoginPage());
+        observer.observe(targetRoot, { childList: true, subtree: true, attributes: true, attributeFilter: ['type', 'class', 'style'] });
+    }

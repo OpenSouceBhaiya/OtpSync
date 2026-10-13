@@ -241,11 +241,18 @@ class OtpNotificationListenerService : NotificationListenerService() {
                     settingsManager.updateLinkedDeviceLastOtpTime(deviceId, currentTime)
                 }
 
+                val powerManager = getSystemService(android.content.Context.POWER_SERVICE) as? android.os.PowerManager
+                val keyguardManager = getSystemService(android.content.Context.KEYGUARD_SERVICE) as? android.app.KeyguardManager
+                val isScreenOn = powerManager?.isInteractive ?: false
+                val isLocked = keyguardManager?.isKeyguardLocked ?: false
+                val isPhoneInUse = isScreenOn && !isLocked
+
                 firebaseManager.broadcastOtp(
                     otpCode = otpCode,
                     sender = senderName,
                     activeDeviceKeys = keys,
-                    expiresAt = extractedOtp.expiresAt ?: (System.currentTimeMillis() + 5 * 60 * 1000L)
+                    expiresAt = extractedOtp.expiresAt ?: (System.currentTimeMillis() + 5 * 60 * 1000L),
+                    isPhoneInteractive = isPhoneInUse
                 )
             } catch (e: Exception) {
                 Log.e("OtpNotification", "Firebase broadcast failed", e)

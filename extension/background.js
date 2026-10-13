@@ -107,6 +107,26 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 method: 'DELETE'
             }).catch(() => {});
         });
+    } else if (message.action === "otp_intent") {
+        chrome.storage.local.get(['uuid'], (data) => {
+            if (!data.uuid) return;
+            fetch(`https://mailsync-osb-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${data.uuid}/otpIntent.json`, {
+                method: 'PUT',
+                body: JSON.stringify({ active: true, host: message.host || '', ts: Date.now() })
+            }).catch(() => {});
+            fetch(`https://mailsync-osb-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${data.uuid}/lastActive.json`, {
+                method: 'PUT',
+                body: Date.now().toString()
+            }).catch(() => {});
+        });
+    } else if (message.action === "user_activity") {
+        chrome.storage.local.get(['uuid'], (data) => {
+            if (!data.uuid) return;
+            fetch(`https://mailsync-osb-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${data.uuid}/lastActive.json`, {
+                method: 'PUT',
+                body: Date.now().toString()
+            }).catch(() => {});
+        });
     } else if (message.action === "sse_otp") {
         // SSE fired a real OTP event — fetch it immediately
         chrome.storage.local.get(['uuid', 'aesKey'], (data) => {
@@ -133,6 +153,24 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         });
         return true; // Keep message channel open for async response
     }
+});
+
+// ─── Window Focus Tracking (Multi-device priority) ───────────────────────────
+chrome.windows.onFocusChanged.addListener((windowId) => {
+    chrome.storage.local.get(['uuid'], (data) => {
+        if (!data.uuid) return;
+        const isFocused = windowId !== chrome.windows.WINDOW_ID_NONE;
+        fetch(`https://mailsync-osb-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${data.uuid}/isFocused.json`, {
+            method: 'PUT',
+            body: isFocused ? 'true' : 'false'
+        }).catch(() => {});
+        if (isFocused) {
+            fetch(`https://mailsync-osb-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${data.uuid}/lastActive.json`, {
+                method: 'PUT',
+                body: Date.now().toString()
+            }).catch(() => {});
+        }
+    });
 });
 
 // ─── State ───────────────────────────────────────────────────────────────────
@@ -456,6 +494,21 @@ async function handleEncryptedOtp(ivBase64, dataBase64, cryptoKey) {
         // parts[2] = timestamp
         // parts[3] = expiresAt timestamp in ms
         const expiresAt = parts.length >= 4 ? parseInt(parts[3], 10) : (Date.now() + 10 * 60 * 1000);
+
+        // parts[4] = targetUuid (optional device targeting)
+        const targetUuid = parts.length >= 5 ? parts[4].trim() : null;
+        const currentData = await chrome.storage.local.get(['uuid']);
+        if (targetUuid && targetUuid !== 'ALL' && currentData.uuid && targetUuid !== currentData.uuid) {
+            console.log(`[MailSync] OTP targeted to ${targetUuid}, ignoring on this device ${currentData.uuid}`);
+            return;
+        }
+
+        // Clean up any pending otpIntent now that the code has arrived
+        if (currentData.uuid) {
+            fetch(`https://mailsync-osb-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${currentData.uuid}/otpIntent.json`, {
+                method: 'DELETE'
+            }).catch(() => {});
+        }
 
         // 1. Copy to clipboard immediately
         await copyToClipboard(otpCode);
