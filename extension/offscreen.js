@@ -133,12 +133,11 @@ function playIphoneTing() {
     try {
         const audio = new Audio(chrome.runtime.getURL('ting_iphone.mp3'));
         audio.volume = 0.95;
-        audio.play().catch(e => {
-            console.warn('[MailSync] Audio playback failed:', e);
+        audio.play().catch(() => {
+            // Silently caught: offscreen document lacks user activation in Chrome MV3.
+            // The chime is played directly inside the user's active tab by content.js.
         });
-    } catch (e) {
-        console.warn('[MailSync] Audio initialization error:', e);
-    }
+    } catch (_) {}
 }
 
 function notifyBg(action) {

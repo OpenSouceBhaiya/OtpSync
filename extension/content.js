@@ -1,18 +1,96 @@
 // content.js — OTP Sync Companion
 // CSS is injected via content.css (manifest), NOT inline here.
 
-// ─── Persistent Toast: Re-show on page navigation ────────────────────────────
-(function checkPendingToast() {
+// ─── Persistent Toast: Re-show on page navigation or tab visibility ──────────
+function checkAndDisplayPendingToast() {
     try {
         chrome.storage.local.get(['pendingToast'], (data) => {
             if (chrome.runtime.lastError) return;
             const pt = data.pendingToast;
             if (pt && pt.showUntil && Date.now() < pt.showUntil) {
-                showToast(pt.otp, pt.sender, true, pt.showUntil - Date.now());
+                const remaining = pt.showUntil - Date.now();
+                if (remaining > 500) {
+                    showToast(pt.otp, pt.sender, true, remaining);
+                }
             }
         });
     } catch (e) { }
-})();
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', checkAndDisplayPendingToast);
+} else {
+    checkAndDisplayPendingToast();
+}
+
+document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible') {
+        checkAndDisplayPendingToast();
+    }
+});
+
+// Listen for storage changes so active tabs receive pending toast immediately
+chrome.storage.onChanged.addListener((changes, area) => {
+    if (area === 'local' && changes.pendingToast) {
+        const pt = changes.pendingToast.newValue;
+        if (pt && pt.showUntil && Date.now() < pt.showUntil) {
+            const remaining = pt.showUntil - Date.now();
+            if (remaining > 500) {
+                showToast(pt.otp, pt.sender, false, remaining);
+            }
+        }
+    }
+});
+
+// ─── Authentic iPhone "Ting" Glass Chime ─────────────────────────────────────
+let lastChimeTime = 0;
+function playNotificationChime() {
+    if (document.hidden) return; // Only play sound on the visible/active tab
+    const now = Date.now();
+    if (now - lastChimeTime < 1500) return;
+    lastChimeTime = now;
+
+    try {
+        const audio = new Audio(chrome.runtime.getURL('ting_iphone.mp3'));
+        audio.volume = 0.95;
+        const playPromise = audio.play();
+        if (playPromise !== undefined) {
+            playPromise.catch(() => {
+                // Autoplay blocked by browser policy; fallback to Web Audio API
+                playSynthesizedGlassChime();
+            });
+        }
+    } catch (_) {
+        playSynthesizedGlassChime();
+    }
+}
+
+function playSynthesizedGlassChime() {
+    try {
+        const AudioCtx = window.AudioContext || window.webkitAudioContext;
+        if (!AudioCtx) return;
+        const ctx = new AudioCtx();
+        if (ctx.state === 'suspended') {
+            ctx.resume().catch(() => {});
+        }
+        const now = ctx.currentTime;
+        // Twin crystal glass harmonics (Apple style high resonant sine frequencies)
+        const frequencies = [2093, 2637]; // C7, E7
+        frequencies.forEach((freq) => {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(freq, now);
+            gain.gain.setValueAtTime(0, now);
+            gain.gain.linearRampToValueAtTime(0.2, now + 0.008);
+            gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.7);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(now);
+            osc.stop(now + 0.7);
+        });
+    } catch (_) {}
+}
 
 // ─── Guard: Don't inject twice ────────────────────────────────────────────────
 {
@@ -41,7 +119,7 @@
     });
 }
 
-function showToast(otp, sender, isCarryForward = false, timeRemaining = 6000) {
+function showToast(otp, sender, isCarryForward = false, timeRemaining = 8000) {
     let existing = document.getElementById('otpsync-toast');
     if (existing) {
         if (isCarryForward && existing.dataset.otp === otp) {
@@ -49,6 +127,11 @@ function showToast(otp, sender, isCarryForward = false, timeRemaining = 6000) {
             return;
         }
         existing.remove();
+    }
+
+    // Play notification sound on fresh arrival
+    if (!isCarryForward) {
+        playNotificationChime();
     }
 
     const toast = document.createElement('div');
@@ -69,7 +152,17 @@ function showToast(otp, sender, isCarryForward = false, timeRemaining = 6000) {
         </div>
     `;
 
-    document.body.appendChild(toast);
+    const mount = () => {
+        const container = document.body || document.documentElement;
+        if (container) {
+            container.appendChild(toast);
+        } else {
+            document.addEventListener('DOMContentLoaded', () => {
+                (document.body || document.documentElement).appendChild(toast);
+            }, { once: true });
+        }
+    };
+    mount();
 
     toast.addEventListener('click', () => {
         if (navigator.clipboard && navigator.clipboard.writeText) {
@@ -93,6 +186,12 @@ function showToast(otp, sender, isCarryForward = false, timeRemaining = 6000) {
     
     setTimeout(() => {
         snapThanos(toast);
+        // Clear pendingToast from storage once expired
+        chrome.storage.local.get(['pendingToast'], (data) => {
+            if (data.pendingToast && data.pendingToast.otp === otp) {
+                chrome.storage.local.remove(['pendingToast']);
+            }
+        });
     }, timeRemaining);
 }
 
