@@ -465,5 +465,24 @@ class OtpExtractorTest {
         val result = OtpExtractor.extractOtp(null, subject, body, null, 0L)
         assertEquals("849201", result?.code)
     }
+
+    @Test
+    fun testGstAlphanumericOtpWithHelplineDecoy() {
+        val subject = "One Time Password for EVC signature"
+        val body = """
+            Dear Sir/Madam,
+            POONAM DEVI,
+
+            This mail is in reference to the Application for Amendment of Core fields in Registration particulars (For all types of registered persons) in GST REG-14.
+            Your One Time Password (OTP) for Electronic Verification of the Form is 862AAD. The same has also been sent to your registered mobile number.
+            This password is valid for 10 minutes till . On expiry, kindly regenerate the password.
+
+            Note: In case you have not generated this OTP, please contact us on 1800-103-4786.
+
+            This is a system generated mail.
+        """.trimIndent()
+        val result = OtpExtractor.extractOtp(null, subject, body, null, 0L)
+        assertEquals("862AAD", result?.code)
+    }
 }
 
