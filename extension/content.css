@@ -1,22 +1,24 @@
-/* OTP Sync In-Page Toast — Mac-style Top Right Slide-In */
+/* OTP Sync In-Page Toast — Ultra-smooth GPU-Accelerated Slide-In */
 #otpsync-toast {
     position: fixed !important;
     top: 24px !important;
-    right: -380px !important;
+    right: 24px !important;
     width: 320px !important;
     box-sizing: border-box !important;
-    background: rgba(22, 22, 28, 0.92) !important;
-    border: 1px solid rgba(0, 255, 163, 0.25) !important;
-    border-radius: 18px !important;
+    background: rgba(22, 22, 28, 0.94) !important;
+    border: 1px solid rgba(0, 255, 163, 0.3) !important;
+    border-radius: 16px !important;
     padding: 14px 16px !important;
     margin: 0 !important;
-    box-shadow: 0 20px 60px rgba(0,0,0,0.5), 0 0 30px rgba(0,255,163,0.06), inset 0 1px 0 rgba(255,255,255,0.05) !important;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.6), 0 0 25px rgba(0,255,163,0.08), inset 0 1px 0 rgba(255,255,255,0.08) !important;
     display: flex !important;
     align-items: center !important;
     gap: 14px !important;
     z-index: 2147483647 !important;
-    transition: right 0.45s cubic-bezier(0.175, 0.885, 0.32, 1.275), opacity 0.45s ease !important;
+    transform: translateX(380px) !important;
     opacity: 0 !important;
+    transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1), opacity 0.25s ease-out !important;
+    will-change: transform, opacity !important;
     pointer-events: auto !important;
     cursor: pointer !important;
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
@@ -29,14 +31,15 @@
 }
 
 #otpsync-toast.show {
-    right: 24px !important;
+    transform: translateX(0) !important;
     opacity: 1 !important;
 }
 
 #otpsync-toast.hide {
-    right: -380px !important;
+    transform: translateX(380px) !important;
     opacity: 0 !important;
-    transition: right 0.35s ease-in, opacity 0.35s ease-in !important;
+    transition: transform 0.3s cubic-bezier(0.4, 0, 1, 1), opacity 0.2s ease-in !important;
+    pointer-events: none !important;
 }
 
 #otpsync-toast:hover {
@@ -94,10 +97,4 @@
     margin-top: 2px;
 }
 
-/* Thanos Particle Canvases */
-.dust-canvas {
-    position: fixed;
-    pointer-events: none;
-    z-index: 2147483648;
-    transition: transform 1.5s ease-out, opacity 1.5s ease-out, filter 1.5s ease-out;
-}
+

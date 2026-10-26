@@ -197,8 +197,8 @@ object OtpExtractor {
         normalized = normalized.replace(Regex("(?<=[^\\w]|^)[\"'\\[\\]()<>]+(?=\\d)"), " ")
         normalized = normalized.replace(Regex("(?<=\\d)[\"'\\[\\]()<>]+(?=[^\\w]|$)"), " ")
 
-        // 9. Mask helpline and support phone numbers so their trailing digits are never mistaken for OTPs
-        normalized = normalized.replace(Regex("(?i)\\b(contact(?:\\s+us)?(?:\\s+on|\\s+at)?|call(?:\\s+us)?(?:\\s+on|\\s+at)?|helpline(?:\\s*:)?|support(?:\\s*:)?)\\s*(?:1800|1860|1[- ]?800|\\+?\\d{1,3})[- ]+\\d{2,4}[- ]+\\d{3,4}\\b")) { m ->
+        // 9. Mask helpline, toll-free and customer care numbers so their trailing digits are never mistaken for OTPs
+        normalized = normalized.replace(Regex("(?i)\\b(contact(?:\\s+us)?(?:\\s+on|\\s+at)?|call(?:\\s+us)?(?:\\s+on|\\s+at)?|customer\\s+care(?:\\s*:)?|helpdesk(?:\\s*:)?|helpline(?:\\s*:)?|support(?:\\s*:)?|toll[- ]?free(?:\\s+no\\.?)?(?:\\s*:)?|reach\\s+us\\s+at)\\s*(?:1800|1860|1[- ]?800|\\+?\\d{1,3})[- ]+\\d{2,4}[- ]+\\d{3,4}\\b")) { m ->
             "${m.groupValues[1]} [HELPLINE]"
         }
         return normalized
@@ -273,8 +273,8 @@ object OtpExtractor {
     }
 
     private fun isIdentifierOrReference(text: String, startPos: Int): Boolean {
-        val prefix = text.substring(maxOf(0, startPos - 25), startPos).lowercase()
-        return Regex("(?:ref(?:erence|erencia|érence)?|riferimento|order|pedido|commande|bestellung|ordine|заказ|订单|注文|sipariş|مرجع|رقم\\s+المرجع|संदर्भ|txn|ticket|case|awb|tracking|单号|快递单号|invoice|factura|rechnung|statement|beneficiary|destinatario|empfänger|bénéficiaire|store|tienda|magasin)\\s*(?:no\\.?|id|#|:|-|\\s)\\s*$").containsMatchIn(prefix)
+        val prefix = text.substring(maxOf(0, startPos - 35), startPos).lowercase()
+        return Regex("(?:ref(?:erence|erencia|érence)?|riferimento|order|pedido|commande|bestellung|ordine|заказ|订单|注文|sipariş|مرجع|رقم\\s+المرجع|संदर्भ|txn|ticket|case|awb|tracking|单号|快递单号|invoice|factura|rechnung|statement|beneficiary|destinatario|empfänger|bénéficiaire|store|tienda|magasin|arn|srn|urn|pran|uan|crn|cif|pan|tan|din|cin|gstin|reg[- ]?\\d*|form[- ]?\\d*|acknowledg(?:e)?ment|application|registration|challan|complaint|notice|circular|appeal|assessment)\\s*(?:no\\.?|num(?:ber)?|id|#|:|-|=|\\s)\\s*$").containsMatchIn(prefix)
     }
 
     private fun isPincode(text: String, startPos: Int, candidate: String): Boolean {

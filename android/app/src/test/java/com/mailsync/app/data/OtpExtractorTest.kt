@@ -484,5 +484,40 @@ class OtpExtractorTest {
         val result = OtpExtractor.extractOtp(null, subject, body, null, 0L)
         assertEquals("862AAD", result?.code)
     }
+
+    @Test
+    fun testIncomeTaxEfilingWithAckNoAndHelpline() {
+        val text = "Dear Taxpayer, Your OTP for e-Verification of ITR with Ack No 2910482019482 for AY 2026-27 is 948201. Do not share with anyone. Helpline: 1800-180-1961."
+        val result = OtpExtractor.extractOtp(null, text, null, 0L)
+        assertEquals("948201", result?.code)
+    }
+
+    @Test
+    fun testEpfoUanPassbookOtp() {
+        val text = "Dear Member, UAN: 100928301928, OTP for generating Member Passbook is 392018. Valid for 10 min. Customer Care: 1800-118-005."
+        val result = OtpExtractor.extractOtp(null, text, null, 0L)
+        assertEquals("392018", result?.code)
+    }
+
+    @Test
+    fun testAadhaarUidaiAuthenticationOtp() {
+        val text = "192830 is your OTP for Aadhaar (UIDAI: XXXX-XXXX-4820) authentication. Do not share it with anyone. Toll free no: 1947."
+        val result = OtpExtractor.extractOtp(null, text, null, 0L)
+        assertEquals("192830", result?.code)
+    }
+
+    @Test
+    fun testIrctcBookingWithPnrAndTxnId() {
+        val text = "OTP for IRCTC ticket booking Txn ID 82910482019, PNR: 2491029482 is 482910. Valid for 3 mins. Call 139 for railway enquiry."
+        val result = OtpExtractor.extractOtp(null, text, null, 0L)
+        assertEquals("482910", result?.code)
+    }
+
+    @Test
+    fun testMicrosoftAlphanumericSecurityCodeWithTollFreeSupport() {
+        val text = "Security info update: Your single-use code is 4A8K9M2P. If you did not request this code, reach us at 1-800-642-7676."
+        val result = OtpExtractor.extractOtp(null, text, null, 0L)
+        assertEquals("4A8K9M2P", result?.code)
+    }
 }
 

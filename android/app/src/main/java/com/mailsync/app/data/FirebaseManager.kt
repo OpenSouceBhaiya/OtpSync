@@ -128,7 +128,7 @@ class FirebaseManager {
         sender: String,
         activeDeviceKeys: Map<String, String>,
         expiresAt: Long,
-        isPhoneInteractive: Boolean = false
+        @Suppress("UNUSED_PARAMETER") isPhoneInteractive: Boolean = false
     ): Boolean {
         if (activeDeviceKeys.isEmpty()) return false
 
@@ -156,21 +156,13 @@ class FirebaseManager {
                 tier2
             }
 
-            // Case 3: No PC is active. Check if the user is actively using their phone.
-            isPhoneInteractive -> {
-                // Screen is ON, phone is UNLOCKED, user is actively on phone, and NO PC is active!
-                // Keep OTP on phone, do not blast inactive PCs.
-                Log.d("FirebaseManager", "User actively on phone and no PC active. Suppressing PC sync.")
-                emptyList()
-            }
-
-            // Case 4: Phone screen is off or locked (user NOT using phone), but devices seen recently
+            // Case 3: Zero-drop guarantee: Even if phone screen is on, NEVER drop OTP. Target standby devices.
             tier3.isNotEmpty() -> {
-                Log.d("FirebaseManager", "Phone idle, targeting ${tier3.size} standby device(s).")
+                Log.d("FirebaseManager", "Targeting ${tier3.size} standby device(s).")
                 tier3
             }
 
-            // Case 5: Zero-drop fail-safe: Ambiguity or all reported cold -> Broadcast to ALL linked devices!
+            // Case 4: Zero-drop fail-safe: Ambiguity or all reported cold -> Broadcast to ALL linked devices!
             else -> {
                 Log.d("FirebaseManager", "Fail-safe: Ambiguity detected. Broadcasting to all linked devices to ensure zero dropped OTPs.")
                 candidates

@@ -543,8 +543,8 @@ async function handleEncryptedOtp(ivBase64, dataBase64, cryptoKey) {
         // 2. Auto-clear clipboard after 60s
         setTimeout(() => copyToClipboard(' '), 60000);
 
-        // 3. Save pending toast for persistence across page reloads, redirects and tab switches
-        const toastDuration = 10000;
+        // 3. Save pending toast for persistence across page reloads, redirects and tab switches (6s duration)
+        const toastDuration = 6000;
         const showUntil = Date.now() + toastDuration;
         chrome.storage.local.set({
             pendingToast: {

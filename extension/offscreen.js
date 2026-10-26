@@ -13,22 +13,22 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     }
 
     if (message.type === 'start-sse') {
-        const otpUrl = `https://mailsync-osb-default-rtdb.asia-southeast1.firebasedatabase.app/otps/${message.uuid}.json`;
-        const deviceUrl = `https://mailsync-osb-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${message.uuid}.json`;
+        const uuid = message.uuid;
+        const otpUrl = `https://mailsync-osb-default-rtdb.asia-southeast1.firebasedatabase.app/otps/${uuid}.json`;
+        const deviceUrl = `https://mailsync-osb-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${uuid}.json`;
 
-        // 1. Setup OTP SSE
-        if (otpSse && otpSse.url !== otpUrl) { otpSse.close(); otpSse = null; }
-        if (!otpSse) {
+        function setupOtp() {
+            if (otpSse) {
+                try { otpSse.close(); } catch(_) {}
+                otpSse = null;
+            }
             otpSse = new EventSource(otpUrl);
-            let otpSseReady = false; // Skip the first (initial snapshot) put event to avoid false triggers
+            let otpSseReady = false;
             otpSse.addEventListener('put', (e) => {
                 if (!otpSseReady) {
-                    // The very first 'put' is Firebase's initial data snapshot — parse it but only
-                    // notify if there is ALREADY an OTP waiting (e.g. after service worker restart)
                     otpSseReady = true;
                     try {
                         const parsed = JSON.parse(e.data);
-                        // parsed.data is the OTP object or null
                         if (parsed && parsed.data && parsed.data.iv && parsed.data.data) {
                             notifyBg('sse_otp');
                         }
@@ -37,7 +37,6 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                 }
                 try {
                     const parsed = JSON.parse(e.data);
-                    // Only trigger if this is a real OTP write (not a deletion/null)
                     if (parsed && parsed.data && parsed.data.iv && parsed.data.data) {
                         notifyBg('sse_otp');
                     }
@@ -51,23 +50,40 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
                     }
                 } catch (_) {}
             });
-            otpSse.onerror = () => {};
+            otpSse.onerror = () => {
+                if (otpSse && otpSse.readyState === EventSource.CLOSED) {
+                    try { otpSse.close(); } catch(_) {}
+                    otpSse = null;
+                    setTimeout(setupOtp, 2500);
+                }
+            };
         }
 
-        // 2. Setup Device Status SSE
-        if (deviceSse && deviceSse.url !== deviceUrl) { deviceSse.close(); deviceSse = null; }
-        if (!deviceSse) {
+        function setupDevice() {
+            if (deviceSse) {
+                try { deviceSse.close(); } catch(_) {}
+                deviceSse = null;
+            }
             deviceSse = new EventSource(deviceUrl);
             let deviceSseReady = false;
             deviceSse.addEventListener('put', (e) => {
-                if (!deviceSseReady) { deviceSseReady = true; return; } // Skip initial snapshot
+                if (!deviceSseReady) { deviceSseReady = true; return; }
                 if (e.data) notifyBg('sse_device');
             });
             deviceSse.addEventListener('patch', (e) => {
                 if (e.data) notifyBg('sse_device');
             });
-            deviceSse.onerror = () => {};
+            deviceSse.onerror = () => {
+                if (deviceSse && deviceSse.readyState === EventSource.CLOSED) {
+                    try { deviceSse.close(); } catch(_) {}
+                    deviceSse = null;
+                    setTimeout(setupDevice, 2500);
+                }
+            };
         }
+
+        setupOtp();
+        setupDevice();
 
         sendResponse({ success: true });
         return true;
