@@ -482,14 +482,41 @@ async function handleEncryptedOtp(ivBase64, dataBase64, cryptoKey) {
         const otpCode = parts[0].trim();
         const sender = parts[1].trim();
 
-        // Strict Deduplication: never deliver identical OTP code within 15 seconds
+        // Smart Deduplication: never deliver duplicate OTP within 2 minutes (e.g. Dual SMS + Email dispatch)
         const now = Date.now();
-        if (lastDeliveredOtp === otpCode && (now - lastDeliveredTime) < 15000) {
-            console.log(`[MailSync] Duplicate delivery of ${otpCode} suppressed within debounce window.`);
+        const stored = await chrome.storage.local.get(['recentDeliveredOtps']);
+        let recentList = (stored.recentDeliveredOtps || []).filter(item => (now - item.time) < 180000);
+
+        function extractTokens(str) {
+            if (!str) return [];
+            let clean = str.toLowerCase();
+            if (clean.length > 3 && (clean[2] === '-' || clean[2] === '_')) clean = clean.substring(3);
+            const ignore = new Set(['sms', 'otp', 'code', 'mail', 'gmail', 'service', 'noreply', 'team', 'account', 'info', 'support']);
+            return clean.split(/[^a-z0-9]+/).filter(t => t.length >= 3 && !ignore.has(t));
+        }
+
+        const senderTokens = extractTokens(sender);
+        const isDuplicate = recentList.some(item => {
+            if (item.otp === otpCode) {
+                const elapsed = now - item.time;
+                if (elapsed <= 60000) return true; // Exact same code within 60s is always duplicate
+                if (elapsed <= 120000) {
+                    const itemTokens = extractTokens(item.sender);
+                    const sharesBrand = senderTokens.some(t => itemTokens.includes(t));
+                    return sharesBrand || item.sender.toLowerCase() === sender.toLowerCase();
+                }
+            }
+            return false;
+        });
+
+        if (isDuplicate) {
+            console.log(`[MailSync] Duplicate delivery of ${otpCode} from ${sender} suppressed within debounce window.`);
             return;
         }
-        lastDeliveredOtp = otpCode;
-        lastDeliveredTime = now;
+
+        recentList.unshift({ otp: otpCode, sender, time: now });
+        if (recentList.length > 10) recentList.pop();
+        await chrome.storage.local.set({ recentDeliveredOtps: recentList });
 
         // parts[2] = timestamp
         // parts[3] = expiresAt timestamp in ms

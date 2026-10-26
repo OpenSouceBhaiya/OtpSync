@@ -438,4 +438,32 @@ class OtpExtractorTest {
         val result = OtpExtractor.extractOtp(null, text, null, 0L)
         assertEquals("849201", result?.code)
     }
+
+    @Test
+    fun testSheinOtpNotificationFormat() {
+        val text = "To log in into your SHEIN India account, use one time password 7918, valid for 10 minutes. Make sure you don't share it with anyone for security reasons."
+        val result = OtpExtractor.extractOtp(null, text, null, 0L)
+        assertEquals("7918", result?.code)
+    }
+
+    @Test
+    fun testReversePhrasingBrands() {
+        val swiggy = "592018 is your Swiggy OTP to log in to your account."
+        assertEquals("592018", OtpExtractor.extractOtp(null, swiggy, null, 0L)?.code)
+
+        val amazon = "829104 is your Amazon login code."
+        assertEquals("829104", OtpExtractor.extractOtp(null, amazon, null, 0L)?.code)
+
+        val netflix = "192847 is your Netflix verification code."
+        assertEquals("192847", OtpExtractor.extractOtp(null, netflix, null, 0L)?.code)
+    }
+
+    @Test
+    fun testSeparateSubjectAndBodyContext() {
+        val subject = "Your verification code"
+        val body = "Use 849201 to complete your sign in. Do not share this code with anyone."
+        val result = OtpExtractor.extractOtp(null, subject, body, null, 0L)
+        assertEquals("849201", result?.code)
+    }
 }
+

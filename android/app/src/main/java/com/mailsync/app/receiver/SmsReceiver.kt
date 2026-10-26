@@ -54,8 +54,34 @@ class SmsReceiver : BroadcastReceiver() {
                 FileLogger.log(context, "Success! Extracted SMS OTP: $otpCode from $sender")
                 Log.d("SmsReceiver", "Found OTP: $otpCode from $sender")
 
+                val isDuplicate = com.mailsync.app.utils.OtpCache.isDuplicate(otpCode, sender, "SMS")
+                if (isDuplicate) {
+                    FileLogger.log(context, "Duplicate SMS OTP $otpCode from $sender suppressed (already synced recently).")
+                    Log.d("SmsReceiver", "Duplicate SMS OTP $otpCode from $sender suppressed.")
+                    
+                    val pendingResult = goAsync()
+                    scope.launch {
+                        try {
+                            val db = AppDatabase.getDatabase(context)
+                            AppDatabase.insertMutex.withLock {
+                                val existing = db.otpDao().getOtpByCodeRecent(otpCode, System.currentTimeMillis() - 3 * 60 * 1000L)
+                                if (existing != null) {
+                                    val mergedAccount = if (!existing.account.contains("SMS")) "${existing.account} + SMS" else existing.account
+                                    val updated = existing.copy(account = mergedAccount, receivedAt = System.currentTimeMillis())
+                                    db.otpDao().updateOtp(updated)
+                                }
+                            }
+                        } catch (e: Exception) {
+                            Log.e("SmsReceiver", "Error merging SMS OTP", e)
+                        } finally {
+                            pendingResult.finish()
+                        }
+                    }
+                    continue
+                }
+
                 // 1. INSTANT Clipboard Copy (Sub-millisecond execution, zero DB blocking!)
-                if (settingsManager.isClipboardCopyEnabled() && com.mailsync.app.utils.OtpCache.shouldCopy(otpCode)) {
+                if (settingsManager.isClipboardCopyEnabled()) {
                     try {
                         val clipIntent = Intent(context, com.mailsync.app.ui.TransparentClipboardActivity::class.java).apply {
                             putExtra("EXTRA_OTP_CODE", otpCode)
@@ -89,10 +115,6 @@ class SmsReceiver : BroadcastReceiver() {
                         val db = AppDatabase.getDatabase(context)
                         AppDatabase.insertMutex.withLock {
                             var existing = db.otpDao().getOtpByCodeRecent(otpCode, System.currentTimeMillis() - 6 * 60 * 1000L)
-                            if (existing != null && existing.sender != sender) {
-                                existing = null
-                            }
-
                             if (existing == null) {
                                 db.otpDao().insertOtp(OtpEntity(
                                     id = UUID.randomUUID().toString(),

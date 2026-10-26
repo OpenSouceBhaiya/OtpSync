@@ -242,9 +242,33 @@ class OtpNotificationListenerService : NotificationListenerService() {
 
     private fun handleExtractedOtp(extractedOtp: com.mailsync.app.data.ExtractionResult, senderName: String, finalAccountName: String, packageName: String) {
         val otpCode = extractedOtp.code
+        val isDuplicate = com.mailsync.app.utils.OtpCache.isDuplicate(otpCode, senderName, finalAccountName)
+
+        if (isDuplicate) {
+            com.mailsync.app.utils.FileLogger.log(this, "Duplicate OTP $otpCode from $senderName suppressed (already synced recently).")
+            Log.d("OtpNotification", "Duplicate OTP $otpCode from $senderName suppressed.")
+            
+            // Still update Room Database to merge account labels (e.g. "SMS" -> "SMS + Gmail")
+            scope.launch {
+                try {
+                    val db = AppDatabase.getDatabase(this@OtpNotificationListenerService)
+                    AppDatabase.insertMutex.withLock {
+                        val existing = db.otpDao().getOtpByCodeRecent(otpCode, System.currentTimeMillis() - 3 * 60 * 1000L)
+                        if (existing != null) {
+                            val mergedAccount = if (!existing.account.contains(finalAccountName)) "${existing.account} + $finalAccountName" else existing.account
+                            val updated = existing.copy(account = mergedAccount, receivedAt = System.currentTimeMillis())
+                            db.otpDao().updateOtp(updated)
+                        }
+                    }
+                } catch (e: Exception) {
+                    Log.e("OtpNotification", "Database merge failed", e)
+                }
+            }
+            return
+        }
 
         // 1. INSTANT Clipboard Copy (Sub-millisecond execution, zero DB delay!)
-        if (settingsManager.isClipboardCopyEnabled() && com.mailsync.app.utils.OtpCache.shouldCopy(otpCode)) {
+        if (settingsManager.isClipboardCopyEnabled()) {
             try {
                 val intent = android.content.Intent(this@OtpNotificationListenerService, com.mailsync.app.ui.TransparentClipboardActivity::class.java).apply {
                     putExtra("EXTRA_OTP_CODE", otpCode)
@@ -290,10 +314,6 @@ class OtpNotificationListenerService : NotificationListenerService() {
                 val db = AppDatabase.getDatabase(this@OtpNotificationListenerService)
                 AppDatabase.insertMutex.withLock {
                     var existing = db.otpDao().getOtpByCodeRecent(otpCode, System.currentTimeMillis() - 6 * 60 * 1000L)
-                    if (existing != null && existing.sender != senderName) {
-                        existing = null
-                    }
-
                     if (existing == null) {
                         db.otpDao().insertOtp(OtpEntity(
                             id = UUID.randomUUID().toString(),

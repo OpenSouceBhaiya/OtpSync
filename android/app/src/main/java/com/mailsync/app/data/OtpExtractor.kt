@@ -20,21 +20,25 @@ object OtpExtractor {
         "use this code", "enter this code", "enter the code", "use the code", "code to sign in",
         "code to log in", "code to verify", "your code is", "your code:", "pin is",
         "your pin", "secret pin", "temporary password", "delivery otp", "pickup otp",
+        "never share", "do not share", "don't share", "verification pin", "security pin",
+        "login pin", "auth pin", "passcode is", "one-time pin", "one time pin", "temporary pin",
+        "2fa code", "2-factor code", "two-factor", "two factor", "mfa code", "multi-factor",
+        "here is your code", "here is your otp", "uber code", "uber otp",
         // Spanish (Español)
         "código de verificación", "codigo de verificacion", "código de seguridad", "codigo de seguridad",
         "código de confirmación", "codigo de confirmacion", "código de acceso", "codigo de acceso",
         "clave de seguridad", "clave de confirmación", "clave de verificacion", "clave de verificación",
         "contraseña de un solo uso", "su código es", "tu código es", "su codigo es", "tu codigo es",
-        "su código de", "tu código de", "código otp", "codigo otp",
+        "su código de", "tu código de", "código otp", "codigo otp", "no comparta",
         // French (Français)
         "code de vérification", "code de verification", "code de sécurité", "code de securite",
         "code de confirmation", "code de connexion", "code d'accès", "code d'activation",
         "mot de passe à usage unique", "mot de passe a usage unique", "mot de passe temporaire",
-        "votre code est", "votre code de", "code d'authentification",
+        "votre code est", "votre code de", "code d'authentification", "ne partagez pas",
         // German (Deutsch)
         "verifizierungscode", "sicherheitscode", "bestätigungscode", "bestatigungscode",
         "aktivierungscode", "einmalpasswort", "einmalkennwort", "ihr code lautet",
-        "ihr sicherheitscode", "ihr bestätigungscode", "sicherheitsschlüssel",
+        "ihr sicherheitscode", "ihr bestätigungscode", "sicherheitsschlüssel", "teilen sie nicht",
         // Portuguese (Português)
         "código de verificação", "codigo de verificacao", "código de segurança", "codigo de seguranca",
         "código de confirmação", "codigo de confirmacao", "senha de uso único", "senha de uso unico",
@@ -78,8 +82,10 @@ object OtpExtractor {
         "otp", "aotp", "code", "pin", "passcode", "código", "codigo", "clave", "schlüssel", "пароль",
         "flipkart", "amazon", "swiggy", "zomato", "meesho", "myntra", "snapdeal", "nykaa",
         "paytm", "phonepe", "gpay", "razorpay", "juspay", "hdfc", "sbi", "icici", "axis", "kotak",
-        "uber", "ola", "rapido", "zippay", "blinkit", "bigbasket", "dunzo",
-        "instagram", "facebook", "twitter", "linkedin", "snapchat", "discord", "telegram"
+        "uber", "ola", "rapido", "zippay", "blinkit", "bigbasket", "dunzo", "netflix", "microsoft",
+        "apple", "google", "shein", "github", "gitlab", "discord", "steam", "epic", "paypal",
+        "binance", "coinbase", "zerodha", "groww", "upstox", "zepto", "tataneu", "irctc",
+        "instagram", "facebook", "twitter", "linkedin", "snapchat", "telegram"
     )
 
     // Footer boundaries for deprioritization
@@ -113,6 +119,11 @@ object OtpExtractor {
         // If not found in subject, try body
         if (result == null) {
             result = extractFromText(context, truncatedBody, receivedTimeMs)
+        }
+
+        // If not found separately, evaluate combined subject + body context
+        if (result == null && !subject.isNullOrBlank() && truncatedBody.isNotBlank()) {
+            result = extractFromText(context, "$subject\n$truncatedBody", receivedTimeMs)
         }
         
         return result
@@ -169,10 +180,11 @@ object OtpExtractor {
             m.groupValues.drop(1).filter { it.isNotEmpty() }.joinToString("")
         }
 
-        // 5. Collapse 3-3, 2-2, 4-4 split codes: e.g. "829-104" -> "829104", "392 810" -> "392810", "49-20" -> "4920"
-        normalized = normalized.replace(Regex("(?<=\\b\\d{3})[ -](?=\\d{3}\\b)"), "")
-        normalized = normalized.replace(Regex("(?<=\\b\\d{2})[ -](?=\\d{2}\\b)"), "")
-        normalized = normalized.replace(Regex("(?<=\\b\\d{4})[ -](?=\\d{4}\\b)"), "")
+        // 5. Collapse 2-4 digit chunks separated by hyphens or spaces up to 10 total digits: e.g. "849-201-92" -> "84920192", "829-104" -> "829104", "392 810" -> "392810"
+        normalized = normalized.replace(Regex("\\b(\\d{2,4})[- ](\\d{2,4})(?:[- ](\\d{2,4}))?\\b")) { m ->
+            val joined = m.groupValues.drop(1).filter { it.isNotEmpty() }.joinToString("")
+            if (joined.length in 4..10) joined else m.value
+        }
 
         // 6. Normalize brackets wrapping codes: e.g. "[492018]" -> " 492018 "
         normalized = normalized.replace(Regex("\\[(\\d{4,8})\\]"), " $1 ")
@@ -261,18 +273,24 @@ object OtpExtractor {
     }
 
     private fun isPincode(text: String, startPos: Int, candidate: String): Boolean {
-        if (candidate.length != 6 || !candidate.all { it.isDigit() }) return false
+        if (candidate.length !in 4..6 || !candidate.all { it.isDigit() }) return false
         val prefix = text.substring(maxOf(0, startPos - 25), startPos).lowercase()
         return Regex("(?:pin(?:\\s*code)?|postal(?:\\s*code)?|zip(?:\\s*code)?|código\\s*postal|code\\s*postal|plz)\\s*[:=]?\\s*$").containsMatchIn(prefix)
     }
 
     private fun isPhoneNumber(text: String, startPos: Int, candidate: String): Boolean {
-        val prefix = text.substring(maxOf(0, startPos - 30), startPos).lowercase()
-        if (Regex("(?:call|helpline|contact|tel|phone|support|teléfono|téléphone|telefon|toll\\s*free|helpdesk|संपर्क)\\s*[:=]?\\s*$").containsMatchIn(prefix)) return true
+        val prefix = text.substring(maxOf(0, startPos - 35), startPos).lowercase()
+        if (Regex("(?:call|helpline|contact|tel|phone|support|teléfono|téléphone|telefon|toll\\s*free|helpdesk|संपर्क)\\b").containsMatchIn(prefix)) return true
 
-        val window = text.substring(maxOf(0, startPos - 4), minOf(text.length, startPos + candidate.length + 4))
-        val digitsInWindow = window.count { it.isDigit() }
-        if (digitsInWindow > candidate.length && digitsInWindow >= 10) return true
+        // If part of standard phone format e.g. 1-800-555-0199 or +1 800 555 0199 or 800-555-0199
+        val windowStart = maxOf(0, startPos - 12)
+        val windowEnd = minOf(text.length, startPos + candidate.length + 12)
+        val window = text.substring(windowStart, windowEnd)
+        if (Regex("(?:\\+?\\d{1,3}[- ]?)?\\(?\\d{3}\\)?[- ]\\d{3}[- ]\\d{4}").containsMatchIn(window)) return true
+        if (Regex("\\d{3,4}[- ]\\d{3,4}").containsMatchIn(window)) {
+            val digitsInWindow = window.count { it.isDigit() }
+            if (digitsInWindow >= 7) return true
+        }
 
         return false
     }
@@ -346,12 +364,11 @@ object OtpExtractor {
             // Catches SHEIN, Uber, banks: "To log in into your SHEIN India account, use one time password 7918, valid for 10 minutes..."
             Regex("(?i)\\b(?:use|enter|input|your|the)?\\s*(?:one[- ]time\\s*(?:password|passcode|code)|verification\\s*(?:code|otp)|security\\s*(?:code|otp)|login\\s*(?:code|otp)|access\\s*(?:code|otp)|auth\\s*(?:code|otp)|a?otp|passcode|pin)\\s*[:=\u2013\\-#]?\\s*([0-9]{4,10})\\b"),
 
-            // 5. CRITICAL FIX: Reverse phrasing - "256587 is your LOGIN OTP for Flipkart"
-            //    Allows up to 3 intermediate words between "your" and the OTP keyword
-            Regex("(?i)\\b([0-9]{4,10})\\s+(?:is|es|est|\u00e9|\u00e8)\\s+(?:your|su|votre|dein|il\\s+tuo|aapka|apka)?\\s*(?:[\\w-]+\\s+){0,3}(?:otp|one[- ]time\\s*(?:password|passcode)|verification\\s*(?:code|otp)|security\\s*(?:code|otp)|login\\s*(?:code|otp)|access\\s*(?:code|otp)|auth\\s*(?:code|otp)|confirmation\\s*code|passcode|pin)\\b"),
+            // 5. Reverse phrasing: "4829 is your Uber code", "256587 is your LOGIN OTP for Flipkart", "918201 is your verification code"
+            Regex("(?i)\\b([0-9]{4,10})\\s+(?:is|es|est|\u00e9|\u00e8|lautet|hai)\\s+(?:your|su|votre|dein|il\\s+tuo|aapka|apka|the|an?)?\\s*(?:[\\w-]+\\s+){0,4}(?:otp|code|pin|passcode|one[- ]time\\s*(?:password|passcode|code)|verification\\s*(?:code|otp|pin)|security\\s*(?:code|otp|pin)|login\\s*(?:code|otp|pin)|access\\s*(?:code|otp|pin)|auth(?:entication)?\\s*(?:code|otp|pin)|confirmation\\s*(?:code|pin))\\b"),
 
-            // 5b. Simpler reverse: "256587 is your OTP" / "123456 is the OTP" / "256587 is the LOGIN OTP"
-            Regex("(?i)\\b([0-9]{4,10})\\s+is\\s+(?:your|the|an?)?\\s*(?:[A-Za-z]+\\s+)?(?:a?otp|one[- ]time|verification|security|login|access)(?:\\s+(?:code|password|passcode|pin|otp))?\\b"),
+            // 5b. Simpler reverse: "256587 is your OTP" / "123456 is the OTP" / "4829 is your Uber code"
+            Regex("(?i)\\b([0-9]{4,10})\\s+is\\s+(?:your|the|an?)?\\s*(?:[A-Za-z0-9_-]+\\s+)?(?:a?otp|one[- ]time|verification|security|login|access|[A-Za-z0-9_-]+)(?:\\s+(?:code|password|passcode|pin|otp))\\b"),
 
             // 6. Multi-line isolated code on its own line after a label or "code below"
             // Handles Northwest: "Use the verification code below to complete...\n\n006802\n\nThis code will expire..."
@@ -364,8 +381,8 @@ object OtpExtractor {
             //    "LOGIN OTP for Flipkart is 256587"
             Regex("(?i)\\b(?:one[- ]time\\s+(?:password|passcode|code|pin)|verification\\s+(?:code|pin|token|otp)|security\\s+(?:code|pin|token|otp)|auth(?:entication|orization)?\\s+(?:code|pin|token|otp)|confirm(?:ation)?\\s+(?:code|pin|token|otp)|login\\s+(?:code|pin|token|otp)|sign[- ]in\\s+(?:code|pin|token|otp)|access\\s+(?:code|pin|token|otp)|delivery\\s+otp|pickup\\s+otp|secret\\s+(?:code|pin)|passcode|a?otp|[\\w-]+\\s+(?:otp|code)|pin)(?:[^.!\n\r]{0,80})(?:is|are|es|est|lautet|\u00e9|\u00e8|:|\u2013|-|=|#)\\s*[:=]?\\s*([0-9]{4,10})\\b"),
 
-            // 8. Direct keyword + colon/dash/is + OTP: "Telegram code: 49201", "WhatsApp code: 829104"
-            Regex("(?i)\\b(?:code|otp|pin|passcode)\\s*(?:is\\s*:?|:|=)\\s*[:=]?\\s*([0-9]{4,10})\\b"),
+            // 8. Direct keyword + colon/dash/is + OTP: "Telegram code: 49201", "WhatsApp code: 829104", "Код: 582914", "رمز: 83910"
+            Regex("(?iU)(?:^|[^\\p{L}\\p{Nd}])(?:code|otp|pin|passcode|код|пароль|رمز|کد)\\s*(?:is\\s*:?|:|=)\\s*[:=]?\\s*([0-9]{4,10})\\b"),
 
             // 9. English assignment: "Your OTP is 482913", "verification code: 482913", "pin is 8492"
             Regex("(?i)\\b(?:one[- ]time\\s+(?:password|code)|verification\\s+code|security\\s+code|login\\s+code|sign[- ]in\\s+code|access\\s+code|auth(?:entication)?\\s+code|confirmation\\s+code|secret\\s+code|single[- ]use\\s+code|passcode|a?otp|pin(?:\\s+code)?)\\s*(?:is|:|\u2013|-|=|#)\\s*([0-9A-Za-z]{4,10})\\b"),
@@ -453,7 +470,7 @@ object OtpExtractor {
             if (match != null) {
                 val kwPos = match.range.first
                 val contextWindow = normalized.substring(maxOf(0, kwPos - 50), minOf(normalized.length, kwPos + 50)).lowercase()
-                listOf("verify", "verification", "sign", "login", "auth", "confirm", "secret", "access", "protect", "valid", "seguridad", "verificar", "confirmer").any { 
+                listOf("verify", "verification", "sign", "login", "auth", "confirm", "secret", "access", "protect", "valid", "seguridad", "verificar", "confirmer", "share", "code", "pin", "passcode").any { 
                     contextWindow.contains(it) 
                 }
             } else false
