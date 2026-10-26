@@ -4,28 +4,18 @@
     ".write": false,
     "devices": {
       "$uuid": {
-        // Only accessible via exact 10-64 char paired device UUID
-        // Root /devices.json enumeration is strictly forbidden
         ".read": "$uuid.length >= 10 && $uuid.length <= 64",
         ".write": "$uuid.length >= 10 && $uuid.length <= 64",
-        
-        // Validate payload structure & protect against oversized data injection
         ".validate": "!newData.exists() || (newData.hasChild('dateLinked') && (!newData.hasChild('accountName') || newData.child('accountName').val().length <= 60) && (!newData.hasChild('app_error') || newData.child('app_error').val().length <= 250))"
       }
     },
     "otps": {
       "$uuid": {
-        // Real-time E2EE encrypted OTP relay slot
-        // Root /otps.json enumeration is strictly forbidden
         ".read": "$uuid.length >= 10 && $uuid.length <= 64",
         ".write": "$uuid.length >= 10 && $uuid.length <= 64",
-        
-        // Strict E2EE AES-GCM payload validation:
-        // Must contain iv (<= 64 chars) and ciphertext data (<= 1024 chars), or be null (consumed/deleted)
         ".validate": "!newData.exists() || (newData.hasChildren(['iv', 'data']) && newData.child('iv').isString() && newData.child('iv').val().length <= 64 && newData.child('data').isString() && newData.child('data').val().length <= 1024)"
       }
     },
-    // Deny access to any other database paths
     "$other": {
       ".read": false,
       ".write": false
