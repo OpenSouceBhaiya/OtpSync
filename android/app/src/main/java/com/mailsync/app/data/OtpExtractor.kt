@@ -342,6 +342,10 @@ object OtpExtractor {
             // 4. Action phrasing: "Enter 492018 to verify...", "Use 839201 to complete..."
             Regex("(?i)\\b(?:use|enter|input|utilice|ingrese|entrez|geben\\s+sie)\\s+(?:code|otp|pin|the\\s+code|the\\s+otp)?\\s*([0-9A-Za-z]{4,8})\\s+(?:to|for|para|pour|um|zu|as|on)\\s+(?:verif|sign|log|complete|access|confirm|authenticat|valid|register)\\b"),
 
+            // 4b. Direct action/use phrasing without 'to/for': "use one time password 7918", "enter one-time password 7918", "use code 7918", "your one-time password 7918"
+            // Catches SHEIN, Uber, banks: "To log in into your SHEIN India account, use one time password 7918, valid for 10 minutes..."
+            Regex("(?i)\\b(?:use|enter|input|your|the)?\\s*(?:one[- ]time\\s*(?:password|passcode|code)|verification\\s*(?:code|otp)|security\\s*(?:code|otp)|login\\s*(?:code|otp)|access\\s*(?:code|otp)|auth\\s*(?:code|otp)|a?otp|passcode|pin)\\s*[:=\u2013\\-#]?\\s*([0-9]{4,10})\\b"),
+
             // 5. CRITICAL FIX: Reverse phrasing - "256587 is your LOGIN OTP for Flipkart"
             //    Allows up to 3 intermediate words between "your" and the OTP keyword
             Regex("(?i)\\b([0-9]{4,10})\\s+(?:is|es|est|\u00e9|\u00e8)\\s+(?:your|su|votre|dein|il\\s+tuo|aapka|apka)?\\s*(?:[\\w-]+\\s+){0,3}(?:otp|one[- ]time\\s*(?:password|passcode)|verification\\s*(?:code|otp)|security\\s*(?:code|otp)|login\\s*(?:code|otp)|access\\s*(?:code|otp)|auth\\s*(?:code|otp)|confirmation\\s*code|passcode|pin)\\b"),

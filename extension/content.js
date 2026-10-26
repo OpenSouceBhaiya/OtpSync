@@ -7,11 +7,15 @@ function checkAndDisplayPendingToast() {
         chrome.storage.local.get(['pendingToast'], (data) => {
             if (chrome.runtime.lastError) return;
             const pt = data.pendingToast;
-            if (pt && pt.showUntil && Date.now() < pt.showUntil) {
+            if (pt && pt.showUntil) {
                 const remaining = pt.showUntil - Date.now();
-                if (remaining > 500) {
-                    showToast(pt.otp, pt.sender, true, remaining);
+                if (remaining > 300) {
+                    showToast(pt.otp, pt.sender, true, remaining, pt.showUntil);
+                } else {
+                    dismissToast();
                 }
+            } else {
+                dismissToast();
             }
         });
     } catch (e) { }
@@ -33,11 +37,17 @@ document.addEventListener('visibilitychange', () => {
 chrome.storage.onChanged.addListener((changes, area) => {
     if (area === 'local' && changes.pendingToast) {
         const pt = changes.pendingToast.newValue;
-        if (pt && pt.showUntil && Date.now() < pt.showUntil) {
+        if (pt && pt.showUntil) {
             const remaining = pt.showUntil - Date.now();
-            if (remaining > 500) {
-                showToast(pt.otp, pt.sender, false, remaining);
+            if (remaining > 300) {
+                const existing = document.getElementById('otpsync-toast');
+                const isCarry = Boolean(existing && existing.dataset.otp === pt.otp);
+                showToast(pt.otp, pt.sender, isCarry, remaining, pt.showUntil);
+            } else {
+                dismissToast();
             }
+        } else {
+            dismissToast();
         }
     }
 });
@@ -112,31 +122,57 @@ function playSynthesizedGlassChime() {
                 } catch (e) { }
             }
             
-            showToast(request.otp, request.sender, request.isCarryForward, request.timeRemaining);
+            showToast(request.otp, request.sender, request.isCarryForward, request.timeRemaining, request.showUntil);
             sendResponse({success: true});
             return true;
         }
     });
 }
 
-function showToast(otp, sender, isCarryForward = false, timeRemaining = 8000) {
+let currentToastTimer = null;
+
+function dismissToast() {
+    if (currentToastTimer) {
+        clearTimeout(currentToastTimer);
+        currentToastTimer = null;
+    }
+    const existing = document.getElementById('otpsync-toast');
+    if (existing) {
+        snapThanos(existing);
+    }
+}
+
+function showToast(otp, sender, isCarryForward = false, timeRemaining = 10000, showUntil = null) {
+    const calculatedRemaining = showUntil ? (showUntil - Date.now()) : timeRemaining;
+    if (calculatedRemaining <= 300) {
+        dismissToast();
+        return;
+    }
+
     let existing = document.getElementById('otpsync-toast');
     if (existing) {
-        if (isCarryForward && existing.dataset.otp === otp) {
-            // Already showing this exact OTP on this tab, do not recreate.
+        if (existing.dataset.otp === otp) {
+            // Already showing this exact OTP on this tab!
+            // Do NOT recreate DOM, do NOT re-trigger sliding animation.
+            // Synchronize the single dismissal timer strictly with calculatedRemaining
+            if (currentToastTimer) clearTimeout(currentToastTimer);
+            currentToastTimer = setTimeout(() => {
+                dismissToast();
+            }, calculatedRemaining);
             return;
         }
         existing.remove();
     }
 
-    // Play notification sound on fresh arrival
+    // Play notification sound on fresh arrival only
     if (!isCarryForward) {
         playNotificationChime();
     }
 
     const toast = document.createElement('div');
     toast.id = 'otpsync-toast';
-    toast.dataset.otp = otp; // store to prevent recreation
+    toast.dataset.otp = otp;
+    if (showUntil) toast.dataset.showUntil = showUntil.toString();
 
     const displaySender = sender && sender.length > 25 ? sender.substring(0, 23) + '…' : (sender || 'OTP Sync');
     const iconUrl = chrome.runtime.getURL('icon48.png');
@@ -183,16 +219,11 @@ function showToast(otp, sender, isCarryForward = false, timeRemaining = 8000) {
             toast.classList.add('show');
         }, 50);
     }
-    
-    setTimeout(() => {
-        snapThanos(toast);
-        // Clear pendingToast from storage once expired
-        chrome.storage.local.get(['pendingToast'], (data) => {
-            if (data.pendingToast && data.pendingToast.otp === otp) {
-                chrome.storage.local.remove(['pendingToast']);
-            }
-        });
-    }, timeRemaining);
+
+    if (currentToastTimer) clearTimeout(currentToastTimer);
+    currentToastTimer = setTimeout(() => {
+        dismissToast();
+    }, calculatedRemaining);
 }
 
     function snapThanos(element) {

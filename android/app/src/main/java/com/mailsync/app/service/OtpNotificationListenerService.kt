@@ -190,13 +190,38 @@ class OtpNotificationListenerService : NotificationListenerService() {
 
         val senderName = title.takeIf { it.isNotBlank() } ?: packageName
 
-        val extractedOtp = OtpExtractor.extractOtp(
-            context = this,
-            subject = senderName,
-            bodyText = fullText,
-            bodyHtml = null,
-            receivedTimeMs = System.currentTimeMillis()
-        )
+        // 1. Check individual lines first (handles Gmail, Outlook, WhatsApp with 20-50 grouped messages)
+        val textLines = extras.getCharSequenceArray(Notification.EXTRA_TEXT_LINES)
+        var extractedOtp: com.mailsync.app.data.ExtractionResult? = null
+
+        if (textLines != null && textLines.isNotEmpty()) {
+            for (line in textLines) {
+                val lineStr = line?.toString() ?: continue
+                val res = OtpExtractor.extractOtp(
+                    context = this,
+                    subject = senderName,
+                    bodyText = lineStr,
+                    bodyHtml = null,
+                    receivedTimeMs = System.currentTimeMillis()
+                )
+                if (res != null) {
+                    extractedOtp = res
+                    com.mailsync.app.utils.FileLogger.log(this, "Found OTP in grouped notification line: ${res.code}")
+                    break
+                }
+            }
+        }
+
+        // 2. If not found in individual lines, evaluate fullText as a whole
+        if (extractedOtp == null) {
+            extractedOtp = OtpExtractor.extractOtp(
+                context = this,
+                subject = senderName,
+                bodyText = fullText,
+                bodyHtml = null,
+                receivedTimeMs = System.currentTimeMillis()
+            )
+        }
 
         val subText = extras.getCharSequence(Notification.EXTRA_SUB_TEXT)?.toString() ?: ""
         val appName = resolveSourceLabel(packageName)

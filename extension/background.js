@@ -517,7 +517,7 @@ async function handleEncryptedOtp(ivBase64, dataBase64, cryptoKey) {
         setTimeout(() => copyToClipboard(' '), 60000);
 
         // 3. Save pending toast for persistence across page reloads, redirects and tab switches
-        const toastDuration = 8000;
+        const toastDuration = 10000;
         const showUntil = Date.now() + toastDuration;
         chrome.storage.local.set({
             pendingToast: {
@@ -577,14 +577,15 @@ async function handleEncryptedOtp(ivBase64, dataBase64, cryptoKey) {
                             action: "show_toast_and_copy",
                             otp: otpCode,
                             sender,
-                            timeRemaining: toastDuration
+                            timeRemaining: toastDuration,
+                            showUntil: showUntil
                         }).catch(async (err) => {
                             if (err.message && (err.message.includes("Receiving end does not exist") || err.message.includes("Could not establish connection"))) {
                                 try {
                                     await chrome.scripting.insertCSS({ target: { tabId: tab.id }, files: ["content.css"] });
                                     await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["content.js"] });
                                     await new Promise(resolve => setTimeout(resolve, 200));
-                                    await chrome.tabs.sendMessage(tab.id, { action: "show_toast_and_copy", otp: otpCode, sender, timeRemaining: toastDuration });
+                                    await chrome.tabs.sendMessage(tab.id, { action: "show_toast_and_copy", otp: otpCode, sender, timeRemaining: toastDuration, showUntil: showUntil });
                                 } catch (_) {
                                     showNativeNotification(otpCode, sender);
                                 }
@@ -631,13 +632,14 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
             const pt = data.pendingToast;
             if (pt && pt.showUntil && Date.now() < pt.showUntil) {
                 const remaining = pt.showUntil - Date.now();
-                if (remaining > 500) {
+                if (remaining > 300) {
                     chrome.tabs.sendMessage(tabId, {
                         action: "show_toast_and_copy",
                         otp: pt.otp,
                         sender: pt.sender,
                         isCarryForward: true,
-                        timeRemaining: remaining
+                        timeRemaining: remaining,
+                        showUntil: pt.showUntil
                     }).catch(() => {});
                 }
             }
@@ -655,16 +657,18 @@ chrome.tabs.onActivated.addListener((activeInfo) => {
             const pt = data.pendingToast;
             if (pt && pt.showUntil && Date.now() < pt.showUntil) {
                 const remaining = pt.showUntil - Date.now();
-                if (remaining > 500) {
+                if (remaining > 300) {
                     chrome.tabs.sendMessage(activeInfo.tabId, {
                         action: "show_toast_and_copy",
                         otp: pt.otp,
                         sender: pt.sender,
                         isCarryForward: true,
-                        timeRemaining: remaining
+                        timeRemaining: remaining,
+                        showUntil: pt.showUntil
                     }).catch(() => {});
                 }
             }
         });
     });
 });
+
