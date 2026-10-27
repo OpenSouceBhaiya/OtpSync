@@ -45,6 +45,7 @@ import android.content.ClipData
 import android.widget.Toast
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.SignalWifiOff
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.clickable
@@ -129,17 +130,38 @@ class MainActivity : FragmentActivity() {
                         text = { 
                             Column {
                                 Text("\"Every bug is a feature waiting to be born.\" \uD83D\uDE80", fontStyle = androidx.compose.ui.text.font.FontStyle.Italic, color = Color(0xFFA1A1AA))
-                                Spacer(modifier = Modifier.height(16.dp))
-                                Text("The app unexpectedly crashed last time. Please help us fix it by reporting this bug!", color = Color.White)
-                                Spacer(modifier = Modifier.height(16.dp))
-                                Text("Steps to report:", fontWeight = FontWeight.Bold, color = Color.White)
-                                Text("1. Click 'Report to Developer' below", color = Color(0xFFA1A1AA))
-                                Text("2. Hit 'Send' in your email app to notify us directly", color = Color(0xFFA1A1AA))
-                                Spacer(modifier = Modifier.height(16.dp))
-                                Box(modifier = Modifier.background(Color(0xFF2D2938), RoundedCornerShape(8.dp)).padding(8.dp).fillMaxHeight(0.3f)) {
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Text("The app encountered an error. Please report it so we can fix it immediately!", color = Color.White)
+                                Spacer(modifier = Modifier.height(12.dp))
+                                Box(modifier = Modifier
+                                    .fillMaxWidth()
+                                    .background(Color(0xFF2D2938), RoundedCornerShape(8.dp))
+                                    .padding(10.dp)
+                                    .fillMaxHeight(0.32f)
+                                ) {
                                     LazyColumn {
                                         item { Text(lastCrash, style = MaterialTheme.typography.bodySmall, color = Color.LightGray) }
                                     }
+                                }
+                                Spacer(modifier = Modifier.height(12.dp))
+                                OutlinedButton(
+                                    onClick = {
+                                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                                        clipboard.setPrimaryClip(ClipData.newPlainText("Crash Log", lastCrash))
+                                        Toast.makeText(context, "Crash log copied to clipboard! \u2713", Toast.LENGTH_SHORT).show()
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF00FFA3)),
+                                    border = androidx.compose.foundation.BorderStroke(1.dp, Color(0xFF00FFA3))
+                                ) {
+                                    Icon(
+                                        imageVector = Icons.Default.ContentCopy,
+                                        contentDescription = "Copy Log",
+                                        modifier = Modifier.size(16.dp),
+                                        tint = Color(0xFF00FFA3)
+                                    )
+                                    Spacer(modifier = Modifier.width(8.dp))
+                                    Text("Copy Crash Log", fontWeight = FontWeight.SemiBold)
                                 }
                             }
                         },
@@ -148,14 +170,17 @@ class MainActivity : FragmentActivity() {
                                 val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                                 clipboard.setPrimaryClip(ClipData.newPlainText("Crash Log", lastCrash))
                                 
+                                val subject = "Crash Report: OTP Sync Android"
+                                val body = "Device: ${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL} (Android ${android.os.Build.VERSION.RELEASE})\n\nCrash Log:\n$lastCrash"
+                                val uriText = "mailto:bug-report@opensourcebhaiya.com?" +
+                                    "subject=" + android.net.Uri.encode(subject) +
+                                    "&body=" + android.net.Uri.encode(body)
+                                
                                 val emailIntent = Intent(Intent.ACTION_SENDTO).apply {
-                                    data = android.net.Uri.parse("mailto:bug-report@opensourcebhaiya.com")
+                                    data = android.net.Uri.parse(uriText)
                                     putExtra(Intent.EXTRA_EMAIL, arrayOf("bug-report@opensourcebhaiya.com"))
-                                    putExtra(Intent.EXTRA_SUBJECT, "Crash Report: OTP Sync Android")
-                                    putExtra(
-                                        Intent.EXTRA_TEXT,
-                                        "Device: ${android.os.Build.MANUFACTURER} ${android.os.Build.MODEL} (Android ${android.os.Build.VERSION.RELEASE})\n\nCrash Log:\n$lastCrash"
-                                    )
+                                    putExtra(Intent.EXTRA_SUBJECT, subject)
+                                    putExtra(Intent.EXTRA_TEXT, body)
                                 }
                                 try {
                                     context.startActivity(Intent.createChooser(emailIntent, "Send crash report..."))
@@ -164,8 +189,8 @@ class MainActivity : FragmentActivity() {
                                         val genericIntent = Intent(Intent.ACTION_SEND).apply {
                                             type = "message/rfc822"
                                             putExtra(Intent.EXTRA_EMAIL, arrayOf("bug-report@opensourcebhaiya.com"))
-                                            putExtra(Intent.EXTRA_SUBJECT, "Crash Report: OTP Sync Android")
-                                            putExtra(Intent.EXTRA_TEXT, lastCrash)
+                                            putExtra(Intent.EXTRA_SUBJECT, subject)
+                                            putExtra(Intent.EXTRA_TEXT, body)
                                         }
                                         context.startActivity(Intent.createChooser(genericIntent, "Send crash report..."))
                                     } catch (_: Exception) {

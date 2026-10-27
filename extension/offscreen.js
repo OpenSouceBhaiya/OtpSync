@@ -142,17 +142,28 @@ let lastSoundPlayTime = 0;
 
 function playIphoneTing() {
     const now = Date.now();
-    // Strict debounce: never play twice within 2 seconds
-    if (now - lastSoundPlayTime < 2000) return;
+    // Strict debounce: never play twice within 1.5 seconds
+    if (now - lastSoundPlayTime < 1500) return;
     lastSoundPlayTime = now;
 
     try {
-        const audio = new Audio(chrome.runtime.getURL('ting_iphone.mp3'));
-        audio.volume = 0.95;
-        audio.play().catch(() => {
-            // Silently caught: offscreen document lacks user activation in Chrome MV3.
-            // The chime is played directly inside the user's active tab by content.js.
-        });
+        const audioEl = document.getElementById('ting-audio');
+        if (audioEl) {
+            audioEl.currentTime = 0;
+            audioEl.volume = 0.95;
+            const playPromise = audioEl.play();
+            if (playPromise !== undefined) {
+                playPromise.catch(() => {
+                    const fallbackAudio = new Audio(chrome.runtime.getURL('ting_iphone.mp3'));
+                    fallbackAudio.volume = 0.95;
+                    fallbackAudio.play().catch(() => {});
+                });
+            }
+        } else {
+            const audio = new Audio(chrome.runtime.getURL('ting_iphone.mp3'));
+            audio.volume = 0.95;
+            audio.play().catch(() => {});
+        }
     } catch (_) {}
 }
 

@@ -61,7 +61,7 @@ object OtpExtractor {
         // Korean (한국어)
         "인증번호", "인증코드", "보안코드", "확인코드",
         // Hindi & Hinglish (हिंदी)
-        "ओटीपी", "सत्यापन कोड", "सुरक्षा कोड", "aapka otp", "apna otp",
+        "ओटीपी", "सत्यापन कोड", "सुरक्षा कोड", "गुप्त कोड", "प्रमाणीकरण कोड", "पासकोड", "aapka otp", "apna otp",
         "otp hai", "otp darj", "تصدیقی کوڈ", "او ٹی پی",
         // Bengali (বাংলা)
         "যাচাইকরণ কোড", "ওয়ান-টাইম পাসওয়ার্ড", "ওটিপি", "নিরাপত্তা কোড", "লগইন কোড",
@@ -74,7 +74,15 @@ object OtpExtractor {
         "mã bảo mật", "ma bao mat", "mã otp",
         // Indonesian / Malay (Bahasa)
         "kode verifikasi", "kode keamanan", "kode konfirmasi", "kata sandi sekali pakai",
-        "kod pengesahan", "kod keselamatan"
+        "kod pengesahan", "kod keselamatan",
+        // Marathi (मराठी)
+        "तुमचा ओटीपी", "सत्यापन कोड", "सुरक्षा कोड", "लॉगिन कोड", "ओटीपी आहे", "एकवेळचा पासवर्ड",
+        // Telugu (తెలుగు)
+        "ధృవీకరణ కోడ్", "ధ్రువీకరణ కోడ్", "రహస్య కోడ్", "వన్-టైమ్ పాస్‌వర్డ్", "మీ ఓటీపీ", "లాగిన్ కోడ్",
+        // Tamil (தமிழ்)
+        "சரிபார்ப்புக் குறியீடு", "பாதுகாப்புக் குறியீடு", "ஒருமுறை கடவுச்சொல்", "உங்கள் ஓடிபி", "உள்நுழைவு குறியீடு",
+        // Gujarati (ગુજરાતી)
+        "ચકાસણી કોડ", "સુરક્ષા કોડ", "વન-ટાઇમ પાસવર્ડ", "તમારો ઓટીપી", "લોગિન કોડ"
     )
 
     // Secondary keywords that require proximity to verification/auth context
@@ -274,7 +282,7 @@ object OtpExtractor {
 
     private fun isIdentifierOrReference(text: String, startPos: Int): Boolean {
         val prefix = text.substring(maxOf(0, startPos - 35), startPos).lowercase()
-        return Regex("(?:ref(?:erence|erencia|érence)?|riferimento|order|pedido|commande|bestellung|ordine|заказ|订单|注文|sipariş|مرجع|رقم\\s+المرجع|संदर्भ|txn|ticket|case|awb|tracking|单号|快递单号|invoice|factura|rechnung|statement|beneficiary|destinatario|empfänger|bénéficiaire|store|tienda|magasin|arn|srn|urn|pran|uan|crn|cif|pan|tan|din|cin|gstin|reg[- ]?\\d*|form[- ]?\\d*|acknowledg(?:e)?ment|application|registration|challan|complaint|notice|circular|appeal|assessment)\\s*(?:no\\.?|num(?:ber)?|id|#|:|-|=|\\s)\\s*$").containsMatchIn(prefix)
+        return Regex("(?:ref(?:erence|erencia|érence)?|riferimento|order|pedido|commande|bestellung|ordine|заказ|订单|注文|sipariş|مرجع|رقم\\s+المرجع|संदर्भ|txn|ticket|case|awb|tracking|单号|快递单号|invoice|factura|rechnung|statement|beneficiary|destinatario|empfänger|bénéficiaire|store|tienda|magasin|arn|srn|urn|pran|uan|crn|cif|pan|tan|din|cin|gstin|reg[- ]?\\d*|form[- ]?\\d*|acknowledg(?:e)?ment|application|registration|challan|complaint|notice|circular|appeal|assessment)\\s*(?:(?:no\\.?|num(?:ber)?|id|#|:|-|=)\\s*(?:[a-z]{1,4}[- ]?)?|\\s)\\s*$").containsMatchIn(prefix)
     }
 
     private fun isPincode(text: String, startPos: Int, candidate: String): Boolean {
@@ -374,8 +382,8 @@ object OtpExtractor {
             // 3. Steam Guard specifically: 5 uppercase letters/digits
             Regex("(?i)\\b(?:steam\\s+guard(?:\\s+code)?)\\s*(?:is|:|\\s)\\s*([0-9A-Z]{5})\\b"),
 
-            // 4. Action phrasing: "Enter 492018 to verify...", "Use 839201 to complete..."
-            Regex("(?i)\\b(?:use|enter|input|utilice|ingrese|entrez|geben\\s+sie)\\s+(?:code|otp|pin|the\\s+code|the\\s+otp)?\\s*([0-9A-Za-z]{4,8})\\s+(?:to|for|para|pour|um|zu|as|on)\\s+(?:verif|sign|log|complete|access|confirm|authenticat|valid|register)\\b"),
+            // 4. Action phrasing: "Enter 492018 to verify...", "Use 839201 to complete...", "Use 849201 as your Tata Neu transaction OTP"
+            Regex("(?i)\\b(?:use|enter|input|utilice|ingrese|entrez|geben\\s+sie)\\s+(?:code|otp|pin|the\\s+code|the\\s+otp)?\\s*([0-9A-Za-z]{4,8})\\s+(?:as|to|for|para|pour|um|zu|on)\\s+(?:(?:your|su|votre|dein)\\s+)?(?:[\\w-]+\\s+)*(?:otp|passcode|code|pin|password|verif|sign|log|complete|access|confirm|authenticat|valid|register)\\b"),
 
             // 4b. Direct action/use phrasing without 'to/for': "use one time password 7918", "enter one-time password 7918", "use code 7918", "your one-time password 7918"
             // Catches SHEIN, Uber, banks: "To log in into your SHEIN India account, use one time password 7918, valid for 10 minutes..."
@@ -400,13 +408,13 @@ object OtpExtractor {
             Regex("(?i)\\b(?:one[- ]time\\s+(?:password|passcode|code|pin)|verification\\s+(?:code|pin|token|otp)|security\\s+(?:code|pin|token|otp)|auth(?:entication|orization)?\\s+(?:code|pin|token|otp)|confirm(?:ation)?\\s+(?:code|pin|token|otp)|login\\s+(?:code|pin|token|otp)|sign[- ]in\\s+(?:code|pin|token|otp)|access\\s+(?:code|pin|token|otp)|delivery\\s+otp|pickup\\s+otp|secret\\s+(?:code|pin)|passcode|a?otp|[\\w-]+\\s+(?:otp|code)|pin)(?:[^.!\n\r]{0,80})(?<!\\d)(?:is|are|es|est|lautet|\u00e9|\u00e8|:|=)(?!\\d)\\s*[:=]?\\s*([0-9A-Za-z]{4,10})\\b"),
 
             // 8. Direct keyword + colon/dash/is + OTP: "Telegram code: 49201", "WhatsApp code: 829104", "Код: 582914", "رمز: 83910"
-            Regex("(?iU)(?:^|[^\\p{L}\\p{Nd}])(?:code|otp|pin|passcode|код|пароль|رمز|کد)\\s*(?:is\\s*:?|:|=)\\s*[:=]?\\s*([0-9A-Za-z]{4,10})\\b"),
+            Regex("(?i)(?:^|[^\\p{L}\\p{Nd}])(?:code|otp|pin|passcode|[Кк]од|[Пп]ароль|رمز|کد)\\s*(?:is\\s*:?|:|=)\\s*[:=]?\\s*([0-9A-Za-z]{4,10})\\b"),
 
             // 9. English assignment: "Your OTP is 482913", "verification code: 482913", "pin is 8492"
             Regex("(?i)\\b(?:one[- ]time\\s+(?:password|code)|verification\\s+code|security\\s+code|login\\s+code|sign[- ]in\\s+code|access\\s+code|auth(?:entication)?\\s+code|confirmation\\s+code|secret\\s+code|single[- ]use\\s+code|passcode|a?otp|pin(?:\\s+code)?)\\s*(?:is|:|\u2013|-|=|#)\\s*([0-9A-Za-z]{4,10})\\b"),
 
-            // 10. Hindi & Hinglish: "Aapka login OTP 849201 hai", "Apna OTP 392018"
-            Regex("(?i)(?:(?:aapka|apna|\u0932\u0949\u0917\u093f\u0928|login|\u0906\u092a\u0915\u093e|\u0905\u092a\u0928\u093e)\\s+)*(?:otp|\u0913\u091f\u0940\u092a\u0940|\u0938\u0924\u094d\u092f\u093e\u092a\u0928\\s+\u0915\u094b\u0921|\u0938\u0941\u0930\u0915\u094d\u0937\u093e\\s+\u0915\u094b\u0921)\\s*(?:hai|\u0939\u0948|:|\u2013|-|=|#|\\s)?\\s*([0-9A-Za-z]{4,10})\\b"),
+            // 10. Hindi & Hinglish: "Aapka login OTP 849201 hai", "Apna OTP 392018", "गुप्त कोड 618294 है"
+            Regex("(?i)(?:(?:aapka|apna|\u0932\u0949\u0917\u093f\u0928|login|\u0906\u092a\u0915\u093e|\u0905\u092a\u0928\u093e)\\s+)*(?:otp|\u0913\u091f\u0940\u092a\u0940|\u0938\u0924\u094d\u092f\u093e\u092a\u0928\\s+\u0915\u094b\u0921|\u0938\u0941\u0930\u0915\u094d\u0937\u093e\\s+\u0915\u094b\u0921|\u0917\u0941\u092a\u094d\u0924\\s+\u0915\u094b\u0921)\\s*(?:hai|\u0939\u0948|:|\u2013|-|=|#|\\s)?\\s*([0-9A-Za-z]{4,10})\\b"),
 
             // 11. Bengali assignment
             Regex("(?i)(?:\u0986\u09aa\u09a8\u09be\u09b0\\s+)?(?:\u09af\u09be\u099a\u09be\u0987\u0995\u09b0\u09a3\\s+\u0995\u09cb\u09a1|\u09b2\u0997\u0987\u09a8\\s+\u0993\u099f\u09bf\u09aa\u09bf|\u0993\u099f\u09bf\u09aa\u09bf|\u09a8\u09bf\u09b0\u09be\u09aa\u09a4\u09cd\u09a4\u09be\\s+\u0995\u09cb\u09a1)\\s*(?:\u09b9\u09b2|\u09b9\u09b2\u09cb|:|\u2013|-|=|#|\\s)?\\s*([0-9A-Za-z]{4,10})\\b"),
@@ -428,8 +436,8 @@ object OtpExtractor {
             Regex("(?i)\\b(?:codice\\s+di\\s+(?:verifica|sicurezza|conferma)|codice\\s+otp)\\s*(?:\u00e8\\s*:?|e|:|\u2013|-|=|#)\\s*([0-9A-Za-z]{4,10})\\b"),
 
             // 17. Russian: "\u0412\u0430\u0448 \u043f\u0440\u043e\u0432\u0435\u0440\u043e\u0447\u043d\u044b\u0439 \u043a\u043e\u0434: 391820"
-            Regex("(?iu)(?:\u0432\u0430\u0448\\s+\u043a\u043e\u0434(?:\\s+\u0434\u043b\u044f\\s+\u0432\u0445\u043e\u0434\u0430)?|\u043a\u043e\u0434\\s+(?:\u043f\u043e\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0435\u043d\u0438\u044f(?:\\s+\u043e\u043f\u0435\u0440\u0430\u0446\u0438\u0438)?|\u0431\u0435\u0437\u043e\u043f\u0430\u0441\u043d\u043e\u0441\u0442\u0438|\u0434\u043b\u044f\\s+\u0432\u0445\u043e\u0434\u0430)|\u043f\u0440\u043e\u0432\u0435\u0440\u043e\u0447\u043d\u044b\u0439\\s+\u043a\u043e\u0434|\u043e\u0434\u043d\u043e\u0440\u0430\u0437\u043e\u0432\u044b\u0439\\s+\u043f\u0430\u0440\u043e\u043b\u044c|\u043f\u0430\u0440\u043e\u043b\u044c)\\s*(?:[:=\u2014\u2013-]|\u044d\u0442\u043e)\\s*([0-9A-Za-z]{4,10})\\b"),
-            Regex("(?iu)(?:\u0432\u0430\u0448\\s+(?:\u043f\u0440\u043e\u0432\u0435\u0440\u043e\u0447\u043d\u044b\u0439\\s+)?\u043a\u043e\u0434)\\s*[:=\u2014\u2013-]\\s*([0-9A-Za-z]{4,10})\\b"),
+            Regex("(?i)(?:[Вв]аш\\s+[Кк]од(?:\\s+\u0434\u043b\u044f\\s+\u0432\u0445\u043e\u0434\u0430)?|[Кк]од\\s+(?:\u043f\u043e\u0434\u0442\u0432\u0435\u0440\u0436\u0434\u0435\u043d\u0438\u044f(?:\\s+\u043e\u043f\u0435\u0440\u0430\u0446\u0438\u0438)?|\u0431\u0435\u0437\u043e\u043f\u0430\u0441\u043d\u043e\u0441\u0442\u0438|\u0434\u043b\u044f\\s+\u0432\u0445\u043e\u0434\u0430)|[Пп]роверочный\\s+[Кк]од|[Оо]дноразовый\\s+[Пп]ароль|[Пп]ароль)\\s*(?:[:=\u2014\u2013-]|\u044d\u0442\u043e)\\s*([0-9A-Za-z]{4,10})\\b"),
+            Regex("(?i)(?:[Вв]аш\\s+(?:[Пп]роверочный\\s+)?[Кк]од)\\s*[:=\u2014\u2013-]\\s*([0-9A-Za-z]{4,10})\\b"),
 
             // 18. Chinese: "\u9a8c\u8bc1\u7801\uff1a582910"
             Regex("(?:\u52a8\u6001\u9a8c\u8bc1\u7801|\u52a8\u6001\u5bc6\u7801|\u52a8\u6001\u53e3\u4ee4|\u9a8c\u8bc1\u7801|\u9a57\u8b49\u78bc|\u786e\u8ba4\u7801|\u78ba\u8a8d\u78bc|\u5b89\u5168\u7801|\u52a8\u6001\u7801)(?:\u4e3a|\u662f|\uff1a|:|\\s)*([0-9A-Za-z]{4,10})\\b"),
@@ -452,7 +460,19 @@ object OtpExtractor {
             // 24. Indonesian / Malay: "Kode verifikasi Anda adalah 829104"
             Regex("(?i)\\b(?:kode|kod)\\s+(?:verifikasi|keselamatan|pengesahan|konfirmasi)[^0-9\\n\\r]{0,25}?(?:adalah|:|-|=)\\s*([0-9A-Za-z]{4,10})\\b"),
 
-            // 25. LAST RESORT: Any OTP/code/pin keyword directly before digits
+            // 25. Marathi: "तुमचा लॉगिन ओटीपी 849201 आहे"
+            Regex("(?i)(?:तुमचा\\s+)?(?:लॉगिन\\s+)?(?:ओटीपी|सत्यापन\\s+कोड|सुरक्षा\\s+कोड)\\s*(?:आहे|:|-|=|#|\\s)?\\s*([0-9A-Za-z]{4,10})\\b"),
+
+            // 26. Telugu: "మీ ధృవీకరణ కోడ్ 849201"
+            Regex("(?i)(?:మీ\\s+)?(?:ధృవీకరణ\\s+కోడ్|ధ్రువీకరణ\\s+కోడ్|ఓటీపీ|భద్రతా\\s+కోడ్)\\s*(?:అయింది|:|-|=|#|\\s)?\\s*([0-9A-Za-z]{4,10})\\b"),
+
+            // 27. Tamil: "உங்கள் சரிபார்ப்புக் குறியீடு 849201"
+            Regex("(?i)(?:உங்கள்\\s+)?(?:சரிபார்ப்புக்\\s+குறியீடு|பாதுகாப்புக்\\s+குறியீடு|ஓடிபி)\\s*(?:ஆகும்|:|-|=|#|\\s)?\\s*([0-9A-Za-z]{4,10})\\b"),
+
+            // 28. Gujarati: "તમારો ચકાસણી કોડ 849201 છે"
+            Regex("(?i)(?:તમારો\\s+)?(?:ચકાસણી\\s+કોડ|સુરક્ષા\\s+કોડ|ઓટીપી)\\s*(?:છે|:|-|=|#|\\s)?\\s*([0-9A-Za-z]{4,10})\\b"),
+
+            // 29. LAST RESORT: Any OTP/code/pin keyword directly before digits
             //     Catches ultra-simple: "OTP: 123456", "Code- 4321", "pin= 1234", "otp 123456"
             Regex("(?i)\\b(?:otp|a-?otp|verification|code|pin|passcode)\\b\\s*[:\\-=\u2013#]?\\s*\\b([0-9]{4,8})\\b")
         )

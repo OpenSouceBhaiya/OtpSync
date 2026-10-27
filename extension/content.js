@@ -66,40 +66,13 @@ function playNotificationChime() {
         const playPromise = audio.play();
         if (playPromise !== undefined) {
             playPromise.catch(() => {
-                // Autoplay blocked by browser policy; fallback to Web Audio API
-                playSynthesizedGlassChime();
+                // Autoplay blocked by tab policy — route to offscreen document which has audio permissions
+                safeSendMessage({ type: 'play-ting', target: 'offscreen' });
             });
         }
     } catch (_) {
-        playSynthesizedGlassChime();
+        safeSendMessage({ type: 'play-ting', target: 'offscreen' });
     }
-}
-
-function playSynthesizedGlassChime() {
-    try {
-        const AudioCtx = window.AudioContext || window.webkitAudioContext;
-        if (!AudioCtx) return;
-        const ctx = new AudioCtx();
-        if (ctx.state === 'suspended') {
-            ctx.resume().catch(() => {});
-        }
-        const now = ctx.currentTime;
-        // Twin crystal glass harmonics (Apple style high resonant sine frequencies)
-        const frequencies = [2093, 2637]; // C7, E7
-        frequencies.forEach((freq) => {
-            const osc = ctx.createOscillator();
-            const gain = ctx.createGain();
-            osc.type = 'sine';
-            osc.frequency.setValueAtTime(freq, now);
-            gain.gain.setValueAtTime(0, now);
-            gain.gain.linearRampToValueAtTime(0.2, now + 0.008);
-            gain.gain.exponentialRampToValueAtTime(0.0001, now + 0.7);
-            osc.connect(gain);
-            gain.connect(ctx.destination);
-            osc.start(now);
-            osc.stop(now + 0.7);
-        });
-    } catch (_) {}
 }
 
 // ─── Guard: Don't inject twice ────────────────────────────────────────────────
