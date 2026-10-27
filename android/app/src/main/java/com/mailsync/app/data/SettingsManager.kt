@@ -291,6 +291,14 @@ class SettingsManager(context: Context) {
         sharedPreferences.edit().putString("device_last_otp_time_$uuid", time).apply()
     }
 
+    fun getLinkedDeviceName(uuid: String): String {
+        val customName = sharedPreferences.getString("device_name_$uuid", null)?.trim()
+        if (!customName.isNullOrEmpty()) return customName
+        val browser = sharedPreferences.getString("device_browser_$uuid", null)?.trim()
+        if (!browser.isNullOrEmpty()) return "$browser PC"
+        return "Linked PC"
+    }
+
     fun getLinkedDeviceUuids(): Set<String> {
         return sharedPreferences.getStringSet(KEY_LINKED_DEVICE_UUIDS, emptySet()) ?: emptySet()
     }

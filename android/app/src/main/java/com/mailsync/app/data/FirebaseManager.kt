@@ -129,12 +129,12 @@ class FirebaseManager {
         activeDeviceKeys: Map<String, String>,
         expiresAt: Long,
         @Suppress("UNUSED_PARAMETER") isPhoneInteractive: Boolean = false
-    ): Boolean {
-        if (activeDeviceKeys.isEmpty()) return false
+    ): List<String> {
+        if (activeDeviceKeys.isEmpty()) return emptyList()
 
         val otpsRef = database.getReference("otps")
         val timestamp = System.currentTimeMillis()
-        var sentToAnyPc = false
+        val sentDeviceUuids = mutableListOf<String>()
 
         // Evaluate candidate PCs concurrently with 800ms fail-safe timeout
         val candidates = evaluateCandidates(activeDeviceKeys, timestamp)
@@ -170,7 +170,7 @@ class FirebaseManager {
         }
 
         if (targetsToSend.isEmpty()) {
-            return false
+            return emptyList()
         }
 
         for (candidate in targetsToSend) {
@@ -183,7 +183,7 @@ class FirebaseManager {
                 otpsRef.child(uuid).setValue(encryptedData).await()
                 // Ensure device status is active so extension never falsely shows offline
                 devicesRef.child(uuid).child("status").setValue("active")
-                sentToAnyPc = true
+                sentDeviceUuids.add(uuid)
                 Log.d("FirebaseManager", "OTP sent to target device $uuid (tier: ${candidate.tier})")
 
                 // Self-destruct the OTP from Firebase after 30 seconds.
@@ -200,7 +200,7 @@ class FirebaseManager {
             }
         }
 
-        return sentToAnyPc
+        return sentDeviceUuids
     }
 
     private suspend fun evaluateCandidates(

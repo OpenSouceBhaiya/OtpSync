@@ -763,6 +763,30 @@ fun OtpListItemFeed(otp: OtpEntity, context: Context, currentLang: com.mailsync.
                         modifier = Modifier.padding(top = 2.dp)
                     )
                 }
+
+                if (!otp.sentToDevices.isNullOrBlank()) {
+                    val prefix = com.mailsync.app.data.AppStrings.get("sent_to_prefix", currentLang).ifEmpty { "Sent to" }
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(top = 2.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Computer,
+                            contentDescription = null,
+                            tint = Color(0xFF00FFA3),
+                            modifier = Modifier.size(13.dp)
+                        )
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(
+                            text = "$prefix ${otp.sentToDevices}",
+                            color = Color(0xFF00FFA3),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            softWrap = true,
+                            maxLines = 2
+                        )
+                    }
+                }
                 
                 // 12-hour format time string
                 val timeString = SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date(otp.receivedAt))

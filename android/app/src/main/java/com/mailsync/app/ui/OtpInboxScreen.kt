@@ -11,6 +11,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Computer
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.*
@@ -19,6 +20,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -276,6 +278,30 @@ fun InboxOtpCard(otp: OtpEntity, viewModel: OtpHistoryViewModel, currentLang: co
                             maxLines = 3,
                             modifier = Modifier.padding(top = 3.dp)
                         )
+                    }
+
+                    if (!otp.sentToDevices.isNullOrBlank()) {
+                        val prefix = com.mailsync.app.data.AppStrings.get("sent_to_prefix", currentLang).ifEmpty { "Sent to" }
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(top = 3.dp)
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.Computer,
+                                contentDescription = null,
+                                tint = Color(0xFF00FFA3),
+                                modifier = Modifier.size(13.dp)
+                            )
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text(
+                                text = "$prefix ${otp.sentToDevices}",
+                                color = Color(0xFF00FFA3),
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.SemiBold,
+                                softWrap = true,
+                                maxLines = 2
+                            )
+                        }
                     }
                 }
                 Text(timeString, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, modifier = Modifier.align(Alignment.Top))

@@ -5,7 +5,10 @@ import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
 
-@Database(entities = [OtpEntity::class], version = 4, exportSchema = false)
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
+
+@Database(entities = [OtpEntity::class], version = 5, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun otpDao(): OtpDao
 
@@ -14,6 +17,12 @@ abstract class AppDatabase : RoomDatabase() {
         
         @Volatile
         private var INSTANCE: AppDatabase? = null
+
+        private val MIGRATION_4_5 = object : Migration(4, 5) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE otps ADD COLUMN sentToDevices TEXT DEFAULT NULL")
+            }
+        }
 
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
@@ -47,6 +56,7 @@ abstract class AppDatabase : RoomDatabase() {
                     "otp_syncer_database"
                 )
                 .openHelperFactory(supportFactory)
+                .addMigrations(MIGRATION_4_5)
                 .fallbackToDestructiveMigration()
                 .build()
                 INSTANCE = instance

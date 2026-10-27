@@ -45,6 +45,7 @@ object AppStrings {
             "link_new_pc" to "Link New PC",
             "scan_qr_to_link" to "Scan PC Extension QR",
             "recent_otps" to "Recent OTPs",
+            "sent_to_prefix" to "Sent to",
             "no_otps_yet" to "No OTPs captured yet",
             "no_otps_hint" to "Incoming codes from SMS, Gmail, WhatsApp will appear here.",
             "copied_to_clipboard" to "Copied to clipboard!",

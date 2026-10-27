@@ -111,12 +111,23 @@ class SmsReceiver : BroadcastReceiver() {
                             settingsManager.updateLinkedDeviceLastOtpTime(deviceId, currentTime)
                         }
 
-                        firebaseManager.broadcastOtp(
+                        val sentDeviceUuids = firebaseManager.broadcastOtp(
                             otpCode = otpCode,
                             sender = sender,
                             activeDeviceKeys = allKeys,
                             expiresAt = extractedOtp.expiresAt ?: (System.currentTimeMillis() + 5 * 60 * 1000L)
                         )
+
+                        val sentDeviceNames = if (sentDeviceUuids.isNotEmpty()) {
+                            sentDeviceUuids.map { settingsManager.getLinkedDeviceName(it) }.distinct()
+                        } else {
+                            emptyList()
+                        }
+                        val sentToDevicesString = if (sentDeviceNames.isNotEmpty()) {
+                            sentDeviceNames.joinToString(", ")
+                        } else {
+                            null
+                        }
 
                         // 3. ASYNC Room Database Insertion (Never delays user clipboard/cloud broadcast)
                         val db = AppDatabase.getDatabase(context)
@@ -131,10 +142,14 @@ class SmsReceiver : BroadcastReceiver() {
                                     account = "SMS",
                                     receivedAt = System.currentTimeMillis(),
                                     expiresAt = extractedOtp.expiresAt ?: (System.currentTimeMillis() + 5 * 60 * 1000L),
-                                    sourcePackage = "sms"
+                                    sourcePackage = "sms",
+                                    sentToDevices = sentToDevicesString
                                 ))
                             } else {
                                 existing.receivedAt = System.currentTimeMillis()
+                                if (sentToDevicesString != null) {
+                                    existing.sentToDevices = sentToDevicesString
+                                }
                                 db.otpDao().updateOtp(existing)
                             }
                         }

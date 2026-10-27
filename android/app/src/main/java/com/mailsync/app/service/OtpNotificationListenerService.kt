@@ -287,7 +287,7 @@ class OtpNotificationListenerService : NotificationListenerService() {
             }
         }
 
-        // 2. INSTANT Firebase Cloud Broadcast (Concurrent, sub-10ms network dispatch)
+        // 2. INSTANT Firebase Cloud Broadcast & Room Database Insertion
         scope.launch {
             try {
                 val firebaseManager = com.mailsync.app.data.FirebaseManager()
@@ -303,21 +303,26 @@ class OtpNotificationListenerService : NotificationListenerService() {
                 val isLocked = keyguardManager?.isKeyguardLocked ?: false
                 val isPhoneInUse = isScreenOn && !isLocked
 
-                firebaseManager.broadcastOtp(
+                val sentDeviceUuids = firebaseManager.broadcastOtp(
                     otpCode = otpCode,
                     sender = senderName,
                     activeDeviceKeys = keys,
                     expiresAt = extractedOtp.expiresAt ?: (System.currentTimeMillis() + 5 * 60 * 1000L),
                     isPhoneInteractive = isPhoneInUse
                 )
-            } catch (e: Exception) {
-                Log.e("OtpNotification", "Firebase broadcast failed", e)
-            }
-        }
 
-        // 3. ASYNC Room Database Insertion (Runs safely in background without blocking clipboard or sync)
-        scope.launch {
-            try {
+                val sentDeviceNames = if (sentDeviceUuids.isNotEmpty()) {
+                    sentDeviceUuids.map { settingsManager.getLinkedDeviceName(it) }.distinct()
+                } else {
+                    emptyList()
+                }
+                val sentToDevicesString = if (sentDeviceNames.isNotEmpty()) {
+                    sentDeviceNames.joinToString(", ")
+                } else {
+                    null
+                }
+
+                // 3. ASYNC Room Database Insertion
                 val db = AppDatabase.getDatabase(this@OtpNotificationListenerService)
                 AppDatabase.insertMutex.withLock {
                     var existing = db.otpDao().getOtpByCodeRecent(otpCode, System.currentTimeMillis() - 6 * 60 * 1000L)
@@ -330,15 +335,19 @@ class OtpNotificationListenerService : NotificationListenerService() {
                             account = finalAccountName,
                             receivedAt = System.currentTimeMillis(),
                             expiresAt = extractedOtp.expiresAt ?: (System.currentTimeMillis() + 5 * 60 * 1000L),
-                            sourcePackage = packageName
+                            sourcePackage = packageName,
+                            sentToDevices = sentToDevicesString
                         ))
                     } else {
                         existing.receivedAt = System.currentTimeMillis()
+                        if (sentToDevicesString != null) {
+                            existing.sentToDevices = sentToDevicesString
+                        }
                         db.otpDao().updateOtp(existing)
                     }
                 }
             } catch (e: Exception) {
-                Log.e("OtpNotification", "Database insert failed", e)
+                Log.e("OtpNotification", "Firebase broadcast or DB insert failed", e)
             }
         }
     }
