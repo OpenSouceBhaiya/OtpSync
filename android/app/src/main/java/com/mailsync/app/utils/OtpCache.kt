@@ -4,17 +4,25 @@ data class CachedOtpRecord(
     val code: String,
     val sender: String,
     val source: String,
-    val timestamp: Long
+    var timestamp: Long
 )
+
+enum class OtpArrivalStatus {
+    NEW,                   // Brand new OTP
+    SIMULTANEOUS_BURST,    // Received within <= 2.5s (concurrent dual dispatch e.g. SMS + Gmail notification)
+    RESENT_SAME_CODE       // Exact same code resent between 2.5s and 120s
+}
 
 object OtpCache {
     private val recentOtps = mutableListOf<CachedOtpRecord>()
     private const val DEDUP_WINDOW_MS = 120_000L // 2-minute debounce window for matching brands/senders
     private const val STRICT_IDENTICAL_WINDOW_MS = 60_000L // 60 seconds strict window for exact same OTP code
+    private const val SIMULTANEOUS_BURST_MS = 2_500L // Dual SMS + Email burst window
 
     @Synchronized
-    fun isDuplicate(code: String, sender: String, source: String): Boolean {
+    fun checkStatus(code: String, sender: String, source: String): OtpArrivalStatus {
         val sanitizedCode = code.replace("\\s".toRegex(), "")
+        if (sanitizedCode.isBlank()) return OtpArrivalStatus.NEW
         val now = System.currentTimeMillis()
 
         // Purge expired records older than 3 minutes
@@ -26,30 +34,45 @@ object OtpCache {
             if (item.code == sanitizedCode) {
                 val elapsed = now - item.timestamp
                 
-                // 1. Exact same OTP code within 60 seconds is always a duplicate (e.g., dual SMS + Email login dispatch)
-                if (elapsed <= STRICT_IDENTICAL_WINDOW_MS) {
-                    return true
+                // 1. Exact same OTP code within 2.5 seconds is a concurrent dual arrival (e.g. SMS + Email)
+                if (elapsed <= SIMULTANEOUS_BURST_MS) {
+                    return OtpArrivalStatus.SIMULTANEOUS_BURST
                 }
                 
-                // 2. Same OTP code within 2 minutes with matching brand/company/sender
-                if (elapsed <= DEDUP_WINDOW_MS) {
+                // 2. Re-sent OTP: exact same code within 60s, or matching brand within 2 minutes
+                val isMatchingSender = if (elapsed <= STRICT_IDENTICAL_WINDOW_MS) {
+                    true
+                } else if (elapsed <= DEDUP_WINDOW_MS) {
                     val existingTokens = extractSignificantTokens(item.sender)
                     val sharesBrand = senderTokens.any { it in existingTokens }
-                    if (sharesBrand || item.sender.equals(sender, ignoreCase = true)) {
-                        return true
-                    }
+                    sharesBrand || item.sender.equals(sender, ignoreCase = true)
+                } else false
+
+                if (isMatchingSender) {
+                    item.timestamp = now
+                    return OtpArrivalStatus.RESENT_SAME_CODE
                 }
             }
         }
 
         // New fresh OTP — record it
         recentOtps.add(CachedOtpRecord(sanitizedCode, sender, source, now))
-        return false
+        return OtpArrivalStatus.NEW
+    }
+
+    @Synchronized
+    fun isDuplicate(code: String, sender: String, source: String): Boolean {
+        return checkStatus(code, sender, source) != OtpArrivalStatus.NEW
     }
 
     @Synchronized
     fun shouldCopy(code: String): Boolean {
-        return !isDuplicate(code, "", "")
+        return checkStatus(code, "", "") != OtpArrivalStatus.SIMULTANEOUS_BURST
+    }
+
+    @Synchronized
+    fun clearForTesting() {
+        recentOtps.clear()
     }
 
     private fun extractSignificantTokens(sender: String): Set<String> {

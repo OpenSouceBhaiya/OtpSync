@@ -242,11 +242,11 @@ class OtpNotificationListenerService : NotificationListenerService() {
 
     private fun handleExtractedOtp(extractedOtp: com.mailsync.app.data.ExtractionResult, senderName: String, finalAccountName: String, packageName: String) {
         val otpCode = extractedOtp.code
-        val isDuplicate = com.mailsync.app.utils.OtpCache.isDuplicate(otpCode, senderName, finalAccountName)
+        val status = com.mailsync.app.utils.OtpCache.checkStatus(otpCode, senderName, finalAccountName)
 
-        if (isDuplicate) {
-            com.mailsync.app.utils.FileLogger.log(this, "Duplicate OTP $otpCode from $senderName suppressed (already synced recently).")
-            Log.d("OtpNotification", "Duplicate OTP $otpCode from $senderName suppressed.")
+        if (status == com.mailsync.app.utils.OtpArrivalStatus.SIMULTANEOUS_BURST) {
+            com.mailsync.app.utils.FileLogger.log(this, "Simultaneous burst OTP $otpCode from $senderName suppressed (arrived concurrently).")
+            Log.d("OtpNotification", "Simultaneous burst OTP $otpCode from $senderName suppressed.")
             
             // Still update Room Database to merge account labels (e.g. "SMS" -> "SMS + Gmail")
             scope.launch {
@@ -267,11 +267,18 @@ class OtpNotificationListenerService : NotificationListenerService() {
             return
         }
 
+        val isResentDuplicate = (status == com.mailsync.app.utils.OtpArrivalStatus.RESENT_SAME_CODE)
+        if (isResentDuplicate) {
+            com.mailsync.app.utils.FileLogger.log(this, "Re-sent identical OTP $otpCode from $senderName detected. Re-copying and broadcasting.")
+            Log.d("OtpNotification", "Re-sent identical OTP $otpCode from $senderName detected.")
+        }
+
         // 1. INSTANT Clipboard Copy (Sub-millisecond execution, zero DB delay!)
         if (settingsManager.isClipboardCopyEnabled()) {
             try {
                 val intent = android.content.Intent(this@OtpNotificationListenerService, com.mailsync.app.ui.TransparentClipboardActivity::class.java).apply {
                     putExtra("EXTRA_OTP_CODE", otpCode)
+                    putExtra("EXTRA_IS_DUPLICATE", isResentDuplicate)
                     addFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK or android.content.Intent.FLAG_ACTIVITY_MULTIPLE_TASK or android.content.Intent.FLAG_ACTIVITY_NO_ANIMATION)
                 }
                 startActivity(intent)

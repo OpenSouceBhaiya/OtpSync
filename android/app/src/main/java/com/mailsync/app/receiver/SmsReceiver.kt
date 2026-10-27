@@ -54,10 +54,10 @@ class SmsReceiver : BroadcastReceiver() {
                 FileLogger.log(context, "Success! Extracted SMS OTP: $otpCode from $sender")
                 Log.d("SmsReceiver", "Found OTP: $otpCode from $sender")
 
-                val isDuplicate = com.mailsync.app.utils.OtpCache.isDuplicate(otpCode, sender, "SMS")
-                if (isDuplicate) {
-                    FileLogger.log(context, "Duplicate SMS OTP $otpCode from $sender suppressed (already synced recently).")
-                    Log.d("SmsReceiver", "Duplicate SMS OTP $otpCode from $sender suppressed.")
+                val status = com.mailsync.app.utils.OtpCache.checkStatus(otpCode, sender, "SMS")
+                if (status == com.mailsync.app.utils.OtpArrivalStatus.SIMULTANEOUS_BURST) {
+                    FileLogger.log(context, "Simultaneous burst SMS OTP $otpCode from $sender suppressed (arrived concurrently).")
+                    Log.d("SmsReceiver", "Simultaneous burst SMS OTP $otpCode from $sender suppressed.")
                     
                     val pendingResult = goAsync()
                     scope.launch {
@@ -80,11 +80,18 @@ class SmsReceiver : BroadcastReceiver() {
                     continue
                 }
 
+                val isResentDuplicate = (status == com.mailsync.app.utils.OtpArrivalStatus.RESENT_SAME_CODE)
+                if (isResentDuplicate) {
+                    FileLogger.log(context, "Re-sent identical SMS OTP $otpCode from $sender detected. Re-copying and broadcasting.")
+                    Log.d("SmsReceiver", "Re-sent identical SMS OTP $otpCode from $sender detected.")
+                }
+
                 // 1. INSTANT Clipboard Copy (Sub-millisecond execution, zero DB blocking!)
                 if (settingsManager.isClipboardCopyEnabled()) {
                     try {
                         val clipIntent = Intent(context, com.mailsync.app.ui.TransparentClipboardActivity::class.java).apply {
                             putExtra("EXTRA_OTP_CODE", otpCode)
+                            putExtra("EXTRA_IS_DUPLICATE", isResentDuplicate)
                             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_MULTIPLE_TASK or Intent.FLAG_ACTIVITY_NO_ANIMATION)
                         }
                         context.startActivity(clipIntent)

@@ -10,7 +10,7 @@ function checkAndDisplayPendingToast() {
             if (pt && pt.showUntil) {
                 const remaining = pt.showUntil - Date.now();
                 if (remaining > 300) {
-                    showToast(pt.otp, pt.sender, true, remaining, pt.showUntil);
+                    showToast(pt.otp, pt.sender, true, remaining, pt.showUntil, Boolean(pt.isDuplicate));
                 } else {
                     dismissToast();
                 }
@@ -41,8 +41,8 @@ chrome.storage.onChanged.addListener((changes, area) => {
             const remaining = pt.showUntil - Date.now();
             if (remaining > 300) {
                 const existing = document.getElementById('otpsync-toast');
-                const isCarry = Boolean(existing && existing.dataset.otp === pt.otp);
-                showToast(pt.otp, pt.sender, isCarry, remaining, pt.showUntil);
+                const isCarry = Boolean(existing && existing.dataset.otp === pt.otp && !pt.isDuplicate);
+                showToast(pt.otp, pt.sender, isCarry, remaining, pt.showUntil, Boolean(pt.isDuplicate));
             } else {
                 dismissToast();
             }
@@ -95,7 +95,7 @@ function playNotificationChime() {
                 } catch (e) { }
             }
             
-            showToast(request.otp, request.sender, request.isCarryForward, request.timeRemaining, request.showUntil);
+            showToast(request.otp, request.sender, request.isCarryForward, request.timeRemaining, request.showUntil, Boolean(request.isDuplicate));
             sendResponse({success: true});
             return true;
         }
@@ -124,7 +124,7 @@ function dismissToast() {
     }
 }
 
-function showToast(otp, sender, isCarryForward = false, timeRemaining = 6000, showUntil = null) {
+function showToast(otp, sender, isCarryForward = false, timeRemaining = 6000, showUntil = null, isDuplicate = false) {
     const calculatedRemaining = showUntil ? (showUntil - Date.now()) : timeRemaining;
     if (calculatedRemaining <= 300) {
         dismissToast();
@@ -133,7 +133,7 @@ function showToast(otp, sender, isCarryForward = false, timeRemaining = 6000, sh
 
     let existing = document.getElementById('otpsync-toast');
     if (existing) {
-        if (existing.dataset.otp === otp) {
+        if (existing.dataset.otp === otp && !isDuplicate) {
             // Already showing this exact OTP on this tab!
             // Synchronize the single dismissal timer strictly with calculatedRemaining
             if (currentToastTimer) clearTimeout(currentToastTimer);
@@ -156,19 +156,22 @@ function showToast(otp, sender, isCarryForward = false, timeRemaining = 6000, sh
     const toast = document.createElement('div');
     toast.id = 'otpsync-toast';
     toast.dataset.otp = otp;
+    if (isDuplicate) toast.dataset.duplicate = 'true';
     if (showUntil) toast.dataset.showUntil = showUntil.toString();
 
     const displaySender = sender && sender.length > 25 ? sender.substring(0, 23) + '…' : (sender || 'OTP Sync');
     const iconUrl = chrome.runtime.getURL('icon48.png');
+    const toastTitle = isDuplicate ? '✓ Same OTP · Already on Clipboard' : '✓ OTP Copied';
+    const toastSender = isDuplicate ? `from ${displaySender} · Re-sent code` : `from ${displaySender}`;
 
     toast.innerHTML = `
         <div class="mailsync-toast-icon">
             <img src="${iconUrl}" width="24" height="24" alt="Icon" />
         </div>
         <div class="mailsync-toast-content">
-            <div class="mailsync-toast-title">✓ OTP Copied</div>
+            <div class="mailsync-toast-title">${toastTitle}</div>
             <div class="mailsync-toast-code">${otp}</div>
-            <div class="mailsync-toast-sender">from ${displaySender}</div>
+            <div class="mailsync-toast-sender">${toastSender}</div>
         </div>
     `;
 

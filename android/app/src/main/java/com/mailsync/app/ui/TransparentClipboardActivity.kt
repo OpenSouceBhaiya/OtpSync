@@ -14,6 +14,7 @@ import android.view.WindowManager
 class TransparentClipboardActivity : Activity() {
 
     private var otpCode: String? = null
+    private var isDuplicate = false
     private var hasCopied = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -34,9 +35,11 @@ class TransparentClipboardActivity : Activity() {
         }
 
         otpCode = intent.getStringExtra("EXTRA_OTP_CODE")
+        isDuplicate = intent.getBooleanExtra("EXTRA_IS_DUPLICATE", false)
 
         if (savedInstanceState != null) {
             hasCopied = savedInstanceState.getBoolean("hasCopied", false)
+            isDuplicate = savedInstanceState.getBoolean("isDuplicate", false)
         }
         
         if (hasCopied) {
@@ -52,6 +55,7 @@ class TransparentClipboardActivity : Activity() {
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
         outState.putBoolean("hasCopied", hasCopied)
+        outState.putBoolean("isDuplicate", isDuplicate)
     }
 
     override fun onWindowFocusChanged(hasFocus: Boolean) {
@@ -70,9 +74,11 @@ class TransparentClipboardActivity : Activity() {
             val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
             val clip = ClipData.newPlainText("OTP", code)
             clipboard.setPrimaryClip(clip)
-            Log.d("TransparentClipboard", "Successfully copied OTP to clipboard: $code")
+            Log.d("TransparentClipboard", "Successfully copied OTP to clipboard: $code (isDuplicate: $isDuplicate)")
 
-            if (Build.VERSION.SDK_INT <= 32) {
+            if (isDuplicate) {
+                com.mailsync.app.utils.ToastManager.show(this, "Same OTP: $code · Already on clipboard ✓", android.widget.Toast.LENGTH_SHORT)
+            } else if (Build.VERSION.SDK_INT <= 32) {
                 com.mailsync.app.utils.ToastManager.show(this, "MailSync: OTP Copied ✔️", android.widget.Toast.LENGTH_SHORT)
             }
 

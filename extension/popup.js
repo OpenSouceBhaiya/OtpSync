@@ -128,10 +128,16 @@ function renderOtpHistory() {
             const expiresAt = item.expiresAt || (item.time + 10 * 60 * 1000);
             const initialCountdown = formatCountdown(expiresAt - Date.now());
 
+            const isDup = Boolean(item.isDuplicate);
+            const badgeHtml = isDup ? `<span style="font-size:10px;font-weight:600;padding:2px 7px;border-radius:6px;background:rgba(0,255,163,0.15);color:#00FFA3;border:1px solid rgba(0,255,163,0.3);letter-spacing:0.3px;white-space:nowrap;">Same OTP · Copied</span>` : '';
+
             div.innerHTML = `
                 <div style="display:flex;justify-content:space-between;align-items:center;">
-                    <div class="otp-history-code">${item.otp}</div>
-                    <div class="otp-copy-btn">${clipboardSvg}</div>
+                    <div style="display:flex;align-items:center;gap:8px;">
+                        <div class="otp-history-code">${item.otp}</div>
+                        ${badgeHtml}
+                    </div>
+                    <div class="otp-copy-btn" title="Copy OTP">${clipboardSvg}</div>
                 </div>
                 <div class="otp-history-meta" style="display:flex;justify-content:space-between;align-items:center;">
                     <span><span class="otp-history-sender">${item.sender}</span> · <span>${timeAgo(item.time)}</span></span>

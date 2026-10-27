@@ -482,7 +482,9 @@ async function handleEncryptedOtp(ivBase64, dataBase64, cryptoKey) {
         const otpCode = parts[0].trim();
         const sender = parts[1].trim();
 
-        // Smart Deduplication: never deliver duplicate OTP within 2 minutes (e.g. Dual SMS + Email dispatch)
+        // Smart Deduplication:
+        // 1. Simultaneous dual arrival (< 2.5s e.g. concurrent SMS + Email dispatch): suppress to avoid double chime/toast.
+        // 2. Provider re-send (between 2.5s and 120s): re-copy to clipboard and show an extended toast (9s) notifying user it's the same OTP already on clipboard.
         const now = Date.now();
         const stored = await chrome.storage.local.get(['recentDeliveredOtps']);
         let recentList = (stored.recentDeliveredOtps || []).filter(item => (now - item.time) < 180000);
@@ -496,10 +498,12 @@ async function handleEncryptedOtp(ivBase64, dataBase64, cryptoKey) {
         }
 
         const senderTokens = extractTokens(sender);
-        const isDuplicate = recentList.some(item => {
+        let isResentDuplicate = false;
+
+        const matchedIndex = recentList.findIndex(item => {
             if (item.otp === otpCode) {
                 const elapsed = now - item.time;
-                if (elapsed <= 60000) return true; // Exact same code within 60s is always duplicate
+                if (elapsed <= 60000) return true; // Exact same code within 60s
                 if (elapsed <= 120000) {
                     const itemTokens = extractTokens(item.sender);
                     const sharesBrand = senderTokens.some(t => itemTokens.includes(t));
@@ -509,13 +513,20 @@ async function handleEncryptedOtp(ivBase64, dataBase64, cryptoKey) {
             return false;
         });
 
-        if (isDuplicate) {
-            console.log(`[MailSync] Duplicate delivery of ${otpCode} from ${sender} suppressed within debounce window.`);
-            return;
+        if (matchedIndex !== -1) {
+            const elapsed = now - recentList[matchedIndex].time;
+            if (elapsed <= 2500) {
+                console.log(`[MailSync] Simultaneous burst of ${otpCode} from ${sender} suppressed (${elapsed}ms).`);
+                return;
+            } else {
+                isResentDuplicate = true;
+                recentList[matchedIndex].time = now;
+            }
+        } else {
+            recentList.unshift({ otp: otpCode, sender, time: now });
+            if (recentList.length > 10) recentList.pop();
         }
 
-        recentList.unshift({ otp: otpCode, sender, time: now });
-        if (recentList.length > 10) recentList.pop();
         await chrome.storage.local.set({ recentDeliveredOtps: recentList });
 
         // parts[2] = timestamp
@@ -543,14 +554,16 @@ async function handleEncryptedOtp(ivBase64, dataBase64, cryptoKey) {
         // 2. Auto-clear clipboard after 60s
         setTimeout(() => copyToClipboard(' '), 60000);
 
-        // 3. Save pending toast for persistence across page reloads, redirects and tab switches (6s duration)
-        const toastDuration = 6000;
+        // 3. Save pending toast for persistence across page reloads, redirects and tab switches
+        // Re-sent duplicate OTP stays on screen for 9s (user requested 8-10s for ample visibility); fresh OTP stays for 6s
+        const toastDuration = isResentDuplicate ? 9000 : 6000;
         const showUntil = Date.now() + toastDuration;
         chrome.storage.local.set({
             pendingToast: {
                 otp: otpCode,
                 sender: sender,
-                showUntil: showUntil
+                showUntil: showUntil,
+                isDuplicate: isResentDuplicate
             }
         });
         setTimeout(() => {
@@ -565,20 +578,20 @@ async function handleEncryptedOtp(ivBase64, dataBase64, cryptoKey) {
         chrome.storage.local.get(['otpHistory', 'uuid'], (data) => {
             let history = data.otpHistory || [];
             
-            // Check if exact same OTP from exact same sender is already in history
-            const duplicateIndex = history.findIndex(h => h.otp === otpCode && h.sender === sender);
+            // Check if exact same OTP is already in history
+            const duplicateIndex = history.findIndex(h => h.otp === otpCode);
             
             if (duplicateIndex !== -1) {
                 // It's a duplicate. Remove it from its current position so we can move it to the top
                 history.splice(duplicateIndex, 1);
             }
             
-            // Add to top of history (new or updated)
-            history.unshift({ otp: otpCode, sender, time: Date.now(), expiresAt: expiresAt });
+            // Add to top of history (new or updated, with isDuplicate flag)
+            history.unshift({ otp: otpCode, sender, time: Date.now(), expiresAt: expiresAt, isDuplicate: isResentDuplicate });
             
             if (history.length > 3) history.pop();
             chrome.storage.local.set({ otpHistory: history });
-            chrome.runtime.sendMessage({ action: "otp_received", otpCode, sender }).catch(() => {});
+            chrome.runtime.sendMessage({ action: "otp_received", otpCode, sender, isDuplicate: isResentDuplicate }).catch(() => {});
             
             // 4.5 Write lastOtpCapturedTime to Firebase for THIS specific device
             if (data.uuid) {
@@ -605,19 +618,20 @@ async function handleEncryptedOtp(ivBase64, dataBase64, cryptoKey) {
                             otp: otpCode,
                             sender,
                             timeRemaining: toastDuration,
-                            showUntil: showUntil
+                            showUntil: showUntil,
+                            isDuplicate: isResentDuplicate
                         }).catch(async (err) => {
                             if (err.message && (err.message.includes("Receiving end does not exist") || err.message.includes("Could not establish connection"))) {
                                 try {
                                     await chrome.scripting.insertCSS({ target: { tabId: tab.id }, files: ["content.css"] });
                                     await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["content.js"] });
                                     await new Promise(resolve => setTimeout(resolve, 200));
-                                    await chrome.tabs.sendMessage(tab.id, { action: "show_toast_and_copy", otp: otpCode, sender, timeRemaining: toastDuration, showUntil: showUntil });
+                                    await chrome.tabs.sendMessage(tab.id, { action: "show_toast_and_copy", otp: otpCode, sender, timeRemaining: toastDuration, showUntil: showUntil, isDuplicate: isResentDuplicate });
                                 } catch (_) {
-                                    showNativeNotification(otpCode, sender);
+                                    showNativeNotification(otpCode, sender, isResentDuplicate);
                                 }
                             } else {
-                                showNativeNotification(otpCode, sender);
+                                showNativeNotification(otpCode, sender, isResentDuplicate);
                             }
                         });
                     }
@@ -625,7 +639,7 @@ async function handleEncryptedOtp(ivBase64, dataBase64, cryptoKey) {
 
                 // If not viewing an active webpage (e.g. Chrome minimized or on system page), show native notification
                 if (!sentInPageToast) {
-                    showNativeNotification(otpCode, sender);
+                    showNativeNotification(otpCode, sender, isResentDuplicate);
                 }
             });
         });
@@ -635,13 +649,15 @@ async function handleEncryptedOtp(ivBase64, dataBase64, cryptoKey) {
     }
 }
 
-function showNativeNotification(otpCode, sender) {
+function showNativeNotification(otpCode, sender, isDuplicate = false) {
     try {
+        const title = isDuplicate ? `✓ Same OTP: ${otpCode} (Already Copied)` : `✓ OTP Copied: ${otpCode}`;
+        const message = isDuplicate ? `from ${sender} • Re-sent code already on clipboard!` : `from ${sender} • Auto-copied to clipboard!`;
         chrome.notifications.create(`otp-${Date.now()}`, {
             type: 'basic',
             iconUrl: 'icon128.png',
-            title: `✓ OTP Copied: ${otpCode}`,
-            message: `from ${sender} • Auto-copied to clipboard!`,
+            title: title,
+            message: message,
             priority: 2,
             silent: true,
             requireInteraction: false
@@ -666,7 +682,8 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
                         sender: pt.sender,
                         isCarryForward: true,
                         timeRemaining: remaining,
-                        showUntil: pt.showUntil
+                        showUntil: pt.showUntil,
+                        isDuplicate: Boolean(pt.isDuplicate)
                     }).catch(() => {});
                 }
             }
@@ -691,7 +708,8 @@ chrome.tabs.onActivated.addListener((activeInfo) => {
                         sender: pt.sender,
                         isCarryForward: true,
                         timeRemaining: remaining,
-                        showUntil: pt.showUntil
+                        showUntil: pt.showUntil,
+                        isDuplicate: Boolean(pt.isDuplicate)
                     }).catch(() => {});
                 }
             }
