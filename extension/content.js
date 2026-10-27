@@ -61,7 +61,7 @@ function playNotificationChime() {
     lastChimeTime = now;
 
     try {
-        const audio = new Audio(chrome.runtime.getURL('ting_iphone.mp3'));
+        const audio = new Audio(chrome.runtime.getURL('ting_sound.mp3'));
         audio.volume = 0.95;
         const playPromise = audio.play();
         if (playPromise !== undefined) {

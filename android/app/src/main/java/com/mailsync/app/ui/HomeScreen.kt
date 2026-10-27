@@ -1,6 +1,7 @@
 package com.mailsync.app.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -423,36 +424,58 @@ fun HomeScreen(
             }
 
             item {
-                val infiniteBgTransition = androidx.compose.animation.core.rememberInfiniteTransition()
-                val bgOffset by infiniteBgTransition.animateFloat(
-                    initialValue = 0f,
-                    targetValue = 1000f,
+                val infinitePulse = androidx.compose.animation.core.rememberInfiniteTransition(label = "system_dot_pulse")
+                val dotAlpha by infinitePulse.animateFloat(
+                    initialValue = 0.5f,
+                    targetValue = 1.0f,
                     animationSpec = androidx.compose.animation.core.infiniteRepeatable(
-                        animation = androidx.compose.animation.core.tween(5000, easing = androidx.compose.animation.core.LinearEasing),
+                        animation = androidx.compose.animation.core.tween(1200, easing = androidx.compose.animation.core.FastOutSlowInEasing),
                         repeatMode = androidx.compose.animation.core.RepeatMode.Reverse
-                    )
+                    ),
+                    label = "dot_alpha"
                 )
                 Box(
                     modifier = Modifier
                         .fillMaxWidth()
                         .clip(RoundedCornerShape(24.dp))
                         .background(
-                            brush = Brush.linearGradient(
-                                colors = if (isTrulyActive) listOf(Color(0xFF2C1C5E), Color(0xFF1E153A), Color(0xFF2C1C5E)) else listOf(Color(0xFF2A2A2A), Color(0xFF1A1A1A), Color(0xFF2A2A2A)),
-                                start = androidx.compose.ui.geometry.Offset(if (isTrulyActive) bgOffset else 0f, 0f),
-                                end = androidx.compose.ui.geometry.Offset(if (isTrulyActive) bgOffset + 500f else 500f, 500f)
+                            brush = Brush.verticalGradient(
+                                colors = if (isTrulyActive) listOf(Color(0xFF26194E), Color(0xFF140D2B)) else listOf(Color(0xFF232326), Color(0xFF151517))
                             )
+                        )
+                        .border(
+                            width = 1.dp,
+                            color = if (isTrulyActive) Color(0xFF7B61FF).copy(alpha = 0.35f) else Color.White.copy(alpha = 0.08f),
+                            shape = RoundedCornerShape(24.dp)
                         )
                         .padding(24.dp)
                 ) {
                     Column {
                         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
-                                Box(modifier = Modifier.size(8.dp).clip(CircleShape).background(if (isTrulyActive) Color(0xFF10B981) else Color.Gray))
-                                Spacer(modifier = Modifier.width(6.dp))
+                                Box(
+                                    modifier = Modifier.size(10.dp),
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    if (isTrulyActive) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(10.dp)
+                                                .clip(CircleShape)
+                                                .background(Color(0xFF10B981).copy(alpha = dotAlpha * 0.4f))
+                                        )
+                                    }
+                                    Box(
+                                        modifier = Modifier
+                                            .size(7.dp)
+                                            .clip(CircleShape)
+                                            .background(if (isTrulyActive) Color(0xFF10B981) else Color.Gray)
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(8.dp))
                                 val statusText = if (!isNotificationAccessGranted || !canDrawOverlays) com.mailsync.app.data.AppStrings.get("setup_required", currentLang).uppercase() else if (isTrulyActive) com.mailsync.app.data.AppStrings.get("system_active", currentLang).uppercase() else com.mailsync.app.data.AppStrings.get("system_paused", currentLang).uppercase()
                                 val statusColor = if (!isNotificationAccessGranted || !canDrawOverlays) Color(0xFFE53935) else if (isTrulyActive) Color(0xFF10B981) else Color.Gray
-                                Text(statusText, color = statusColor, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                Text(statusText, color = statusColor, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp)
                             }
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 if (isSyncing) {
@@ -492,21 +515,34 @@ fun HomeScreen(
                                 )
                             }
                         }
-                        Spacer(modifier = Modifier.height(16.dp))
-                        val lastOtpText = if (allOtps.isNotEmpty()) {
+                        Spacer(modifier = Modifier.height(18.dp))
+                        
+                        // 24-Hour Timer Rule: If last OTP is older than 24h, reset to clean ready state
+                        val (titleText, subText) = if (allOtps.isNotEmpty()) {
                             val diff = System.currentTimeMillis() - allOtps.first().receivedAt
                             val seconds = diff / 1000
                             val minutes = seconds / 60
                             val hours = minutes / 60
-                            val agoText = if (hours > 0) "$hours ${com.mailsync.app.data.AppStrings.get("ago_hr", currentLang)}"
-                            else if (minutes > 0) "$minutes ${com.mailsync.app.data.AppStrings.get("ago_min", currentLang)}"
-                            else "$seconds ${com.mailsync.app.data.AppStrings.get("ago_sec", currentLang)}"
-                            String.format(com.mailsync.app.data.AppStrings.get("last_otp_prefix", currentLang), agoText)
-                        } else com.mailsync.app.data.AppStrings.get("last_otp_never", currentLang)
+                            if (hours >= 24) {
+                                Pair("System Ready", "Listening for incoming OTPs")
+                            } else {
+                                val agoText = if (hours > 0) {
+                                    val remMin = minutes % 60
+                                    if (remMin > 0) "$hours hr $remMin min ago" else "$hours hr ago"
+                                } else if (minutes > 0) {
+                                    "$minutes min ago"
+                                } else {
+                                    "Just now"
+                                }
+                                Pair("Last OTP: $agoText", "Notification engine active")
+                            }
+                        } else {
+                            Pair("System Ready", "Waiting for incoming OTPs")
+                        }
                         
-                        Text(lastOtpText, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.ExtraBold)
-                        Spacer(modifier = Modifier.height(8.dp))
-                        Text(com.mailsync.app.data.AppStrings.get("notification_engine_active", currentLang), color = Color(0xFFA1A1AA), fontSize = 14.sp)
+                        Text(titleText, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.ExtraBold)
+                        Spacer(modifier = Modifier.height(6.dp))
+                        Text(subText, color = Color(0xFFA1A1AA), fontSize = 13.sp)
                     }
                 }
             }
@@ -717,47 +753,60 @@ fun OtpListItemFeed(otp: OtpEntity, context: Context, currentLang: com.mailsync.
                 Text(otp.code, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.primary, letterSpacing = 2.sp)
                 
                 val cleanAccount = otp.account.replace(tagRegex, "").trim()
-                
-                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 2.dp)) {
-                    Text(cleanAccount, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    // Expiry timer pill
-                    Box(
-                        modifier = Modifier
-                            .clip(RoundedCornerShape(8.dp))
-                            .background(timerColor.copy(alpha = 0.12f))
-                            .padding(horizontal = 6.dp, vertical = 2.dp)
-                    ) {
-                        Text(
-                            text = "⏱ $timerText",
-                            color = timerColor,
-                            fontSize = 10.sp,
-                            fontWeight = FontWeight.SemiBold
-                        )
-                    }
+                if (cleanAccount.isNotEmpty()) {
+                    Text(
+                        text = cleanAccount,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 11.sp,
+                        softWrap = true,
+                        maxLines = 3,
+                        modifier = Modifier.padding(top = 2.dp)
+                    )
                 }
                 
                 // 12-hour format time string
                 val timeString = SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date(otp.receivedAt))
-                Text("$timeString", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 10.sp)
+                Text(timeString, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f), fontSize = 10.sp, modifier = Modifier.padding(top = 2.dp))
             }
             
             Spacer(modifier = Modifier.width(8.dp))
             
-            // Copy Button
-            TextButton(
-                onClick = {
-                    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                    val clip = ClipData.newPlainText("OTP", otp.code)
-                    clipboard.setPrimaryClip(clip)
-                    if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.TIRAMISU) { com.mailsync.app.utils.ToastManager.show(context, "OTP Copied", android.widget.Toast.LENGTH_SHORT) }
-                    haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
-                },
-                modifier = Modifier
-                    .clip(RoundedCornerShape(12.dp))
-                    .background(MaterialTheme.colorScheme.surface)
+            // Action Column: Copy Button on top, Timer Pill directly below
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.Center
             ) {
-                Text(com.mailsync.app.data.AppStrings.get("copy_action", currentLang), color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                TextButton(
+                    onClick = {
+                        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                        val clip = ClipData.newPlainText("OTP", otp.code)
+                        clipboard.setPrimaryClip(clip)
+                        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.TIRAMISU) { com.mailsync.app.utils.ToastManager.show(context, "OTP Copied", android.widget.Toast.LENGTH_SHORT) }
+                        haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
+                    },
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(12.dp))
+                        .background(MaterialTheme.colorScheme.surface)
+                ) {
+                    Text(com.mailsync.app.data.AppStrings.get("copy_action", currentLang), color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, fontSize = 12.sp)
+                }
+                
+                Spacer(modifier = Modifier.height(6.dp))
+                
+                // Expiry timer pill placed cleanly beneath Copy button
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(timerColor.copy(alpha = 0.12f))
+                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                ) {
+                    Text(
+                        text = "⏱ $timerText",
+                        color = timerColor,
+                        fontSize = 10.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
             }
         }
     }

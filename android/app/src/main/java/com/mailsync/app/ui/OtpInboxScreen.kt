@@ -266,19 +266,19 @@ fun InboxOtpCard(otp: OtpEntity, viewModel: OtpHistoryViewModel, currentLang: co
                     val cleanSender = otp.sender.replace(tagRegex, "").trim()
                     Text(cleanSender, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurface, maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                     
-                    Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp)) {
-                        val cleanAccount = otp.account.replace(tagRegex, "").trim()
-                        
+                    val cleanAccount = otp.account.replace(tagRegex, "").trim()
+                    if (cleanAccount.isNotEmpty()) {
                         Text(
                             text = cleanAccount,
-                            fontSize = 10.sp,
+                            fontSize = 11.sp,
                             color = MaterialTheme.colorScheme.primary,
-                            maxLines = 1,
-                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                            softWrap = true,
+                            maxLines = 3,
+                            modifier = Modifier.padding(top = 3.dp)
                         )
                     }
                 }
-                Text(timeString, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+                Text(timeString, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp, modifier = Modifier.align(Alignment.Top))
             }
             Spacer(modifier = Modifier.height(16.dp))
             

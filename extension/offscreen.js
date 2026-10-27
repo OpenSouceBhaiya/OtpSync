@@ -154,13 +154,13 @@ function playIphoneTing() {
             const playPromise = audioEl.play();
             if (playPromise !== undefined) {
                 playPromise.catch(() => {
-                    const fallbackAudio = new Audio(chrome.runtime.getURL('ting_iphone.mp3'));
+                    const fallbackAudio = new Audio(chrome.runtime.getURL('ting_sound.mp3'));
                     fallbackAudio.volume = 0.95;
                     fallbackAudio.play().catch(() => {});
                 });
             }
         } else {
-            const audio = new Audio(chrome.runtime.getURL('ting_iphone.mp3'));
+            const audio = new Audio(chrome.runtime.getURL('ting_sound.mp3'));
             audio.volume = 0.95;
             audio.play().catch(() => {});
         }
