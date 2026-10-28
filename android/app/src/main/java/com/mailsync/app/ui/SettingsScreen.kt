@@ -490,11 +490,9 @@ fun SettingsScreen(viewModel: SettingsViewModel, highlight: String? = null, onNa
 
                         Box {
                             Surface(
+                                onClick = { expandedLanguageDropdown = true },
                                 shape = RoundedCornerShape(8.dp),
-                                color = Color(0xFF1E2333),
-                                modifier = Modifier
-                                    .clip(RoundedCornerShape(8.dp))
-                                    .clickable { expandedLanguageDropdown = true }
+                                color = Color(0xFF1E2333)
                             ) {
                                 Row(
                                     modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
@@ -516,18 +514,26 @@ fun SettingsScreen(viewModel: SettingsViewModel, highlight: String? = null, onNa
                                 }
                             }
 
-                            DropdownMenu(
-                                expanded = expandedLanguageDropdown,
-                                onDismissRequest = { expandedLanguageDropdown = false },
-                                scrollState = languageMenuScrollState,
-                                modifier = Modifier
-                                    .widthIn(min = 200.dp, max = 260.dp)
-                                    .heightIn(max = 300.dp)
-                                    .clip(RoundedCornerShape(16.dp))
-                                    .background(Color(0xFF1E1829))
-                                    .border(1.dp, Color(0xFF433959), RoundedCornerShape(16.dp))
+                            MaterialTheme(
+                                shapes = MaterialTheme.shapes.copy(
+                                    extraSmall = RoundedCornerShape(16.dp)
+                                ),
+                                colorScheme = MaterialTheme.colorScheme.copy(
+                                    surface = Color(0xFF1E1829),
+                                    surfaceContainer = Color(0xFF1E1829),
+                                    surfaceContainerHighest = Color(0xFF1E1829)
+                                )
                             ) {
-                                com.mailsync.app.data.AppLanguage.entries.forEach { lang ->
+                                DropdownMenu(
+                                    expanded = expandedLanguageDropdown,
+                                    onDismissRequest = { expandedLanguageDropdown = false },
+                                    scrollState = languageMenuScrollState,
+                                    modifier = Modifier
+                                        .widthIn(min = 200.dp, max = 260.dp)
+                                        .heightIn(max = 300.dp)
+                                        .border(1.dp, Color(0xFF433959), RoundedCornerShape(16.dp))
+                                ) {
+                                    com.mailsync.app.data.AppLanguage.entries.forEach { lang ->
                                     val isSelected = lang == currentLang
                                     DropdownMenuItem(
                                         modifier = Modifier
@@ -571,6 +577,7 @@ fun SettingsScreen(viewModel: SettingsViewModel, highlight: String? = null, onNa
                                 }
                             }
                         }
+                    }
                     }
 
                     Spacer(modifier = Modifier.height(6.dp))
@@ -717,7 +724,7 @@ fun SettingsScreen(viewModel: SettingsViewModel, highlight: String? = null, onNa
 
                         // App Info
               Column(
-                  modifier = Modifier.fillMaxWidth().padding(vertical = 16.dp),
+                  modifier = Modifier.fillMaxWidth().padding(top = 24.dp, bottom = 8.dp),
                   horizontalAlignment = Alignment.CenterHorizontally
               ) {
                   Row(
@@ -749,10 +756,8 @@ fun SettingsScreen(viewModel: SettingsViewModel, highlight: String? = null, onNa
                   )
               }
             
-            Spacer(modifier = Modifier.height(48.dp))
-            
-            Spacer(modifier = Modifier.height(100.dp))
-        }
+              Spacer(modifier = Modifier.height(20.dp))
+          }
     }
 }
 

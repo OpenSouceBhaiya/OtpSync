@@ -20,7 +20,7 @@ object OtpExtractor {
         "use this code", "enter this code", "enter the code", "use the code", "code to sign in",
         "code to log in", "code to verify", "your code is", "your code:", "pin is",
         "your pin", "secret pin", "temporary password", "delivery otp", "pickup otp",
-        "never share", "do not share", "don't share", "verification pin", "security pin",
+        "verification pin", "security pin",
         "login pin", "auth pin", "passcode is", "one-time pin", "one time pin", "temporary pin",
         "2fa code", "2-factor code", "two-factor", "two factor", "mfa code", "multi-factor",
         "here is your code", "here is your otp", "uber code", "uber otp",
@@ -29,16 +29,16 @@ object OtpExtractor {
         "código de confirmación", "codigo de confirmacion", "código de acceso", "codigo de acceso",
         "clave de seguridad", "clave de confirmación", "clave de verificacion", "clave de verificación",
         "contraseña de un solo uso", "su código es", "tu código es", "su codigo es", "tu codigo es",
-        "su código de", "tu código de", "código otp", "codigo otp", "no comparta",
+        "su código de", "tu código de", "código otp", "codigo otp",
         // French (Français)
         "code de vérification", "code de verification", "code de sécurité", "code de securite",
         "code de confirmation", "code de connexion", "code d'accès", "code d'activation",
         "mot de passe à usage unique", "mot de passe a usage unique", "mot de passe temporaire",
-        "votre code est", "votre code de", "code d'authentification", "ne partagez pas",
+        "votre code est", "votre code de", "code d'authentification",
         // German (Deutsch)
         "verifizierungscode", "sicherheitscode", "bestätigungscode", "bestatigungscode",
         "aktivierungscode", "einmalpasswort", "einmalkennwort", "ihr code lautet",
-        "ihr sicherheitscode", "ihr bestätigungscode", "sicherheitsschlüssel", "teilen sie nicht",
+        "ihr sicherheitscode", "ihr bestätigungscode", "sicherheitsschlüssel",
         // Portuguese (Português)
         "código de verificação", "codigo de verificacao", "código de segurança", "codigo de seguranca",
         "código de confirmação", "codigo de confirmacao", "senha de uso único", "senha de uso unico",
@@ -62,7 +62,7 @@ object OtpExtractor {
         "인증번호", "인증코드", "보안코드", "확인코드",
         // Hindi & Hinglish (हिंदी)
         "ओटीपी", "सत्यापन कोड", "सुरक्षा कोड", "गुप्त कोड", "प्रमाणीकरण कोड", "पासकोड", "aapka otp", "apna otp",
-        "otp hai", "otp darj", "تصدیقی کوڈ", "او ٹی پی",
+        "otp hai", "otp darj", "कोड:", "कोड ", "تصدیقی کوڈ", "او ٹی پی",
         // Bengali (বাংলা)
         "যাচাইকরণ কোড", "ওয়ান-টাইম পাসওয়ার্ড", "ওটিপি", "নিরাপত্তা কোড", "লগইন কোড",
         "আপনার কোড হল", "লগইন ওটিপি",
@@ -205,8 +205,11 @@ object OtpExtractor {
         normalized = normalized.replace(Regex("(?<=[^\\w]|^)[\"'\\[\\]()<>]+(?=\\d)"), " ")
         normalized = normalized.replace(Regex("(?<=\\d)[\"'\\[\\]()<>]+(?=[^\\w]|$)"), " ")
 
-        // 9. Mask helpline, toll-free and customer care numbers so their trailing digits are never mistaken for OTPs
-        normalized = normalized.replace(Regex("(?i)\\b(contact(?:\\s+us)?(?:\\s+on|\\s+at)?|call(?:\\s+us)?(?:\\s+on|\\s+at)?|customer\\s+care(?:\\s*:)?|helpdesk(?:\\s*:)?|helpline(?:\\s*:)?|support(?:\\s*:)?|toll[- ]?free(?:\\s+no\\.?)?(?:\\s*:)?|reach\\s+us\\s+at)\\s*(?:1800|1860|1[- ]?800|\\+?\\d{1,3})[- ]+\\d{2,4}[- ]+\\d{3,4}\\b")) { m ->
+        // 9. Mask universal toll-free and helpline numbers (e.g. 18001030, 18001234, 1800 1030, 1800-123-456, 1860-xxx)
+        normalized = normalized.replace(Regex("(?i)\\b(?:1800|1860|1900|1901|1[- ]?800)[- ]*\\d{3,7}\\b"), "[HELPLINE]")
+
+        // 9b. Mask numbers following contact/helpline/toll-free labels
+        normalized = normalized.replace(Regex("(?i)\\b(contact(?:\\s+us)?(?:\\s+on|\\s+at)?|call(?:\\s+us)?(?:\\s+on|\\s+at)?|customer\\s+care(?:\\s*:)?|helpdesk(?:\\s*:)?|helpline(?:\\s*:)?|support(?:\\s*:)?|toll[- ]?free(?:\\s+(?:number|no\\.?)?)?(?:\\s*:)?|reach\\s+us(?:\\s+at)?|dial|fraud(?:\\s+activity)?(?:\\s*[,:]|\\s+please\\s+contact[:\\s]*))\\s*[:=]?\\s*(?:(?:number|no\\.?)\\s*[:=]?\\s*)?\\+?\\d{3,14}\\b")) { m ->
             "${m.groupValues[1]} [HELPLINE]"
         }
         return normalized
@@ -282,7 +285,7 @@ object OtpExtractor {
 
     private fun isIdentifierOrReference(text: String, startPos: Int): Boolean {
         val prefix = text.substring(maxOf(0, startPos - 35), startPos).lowercase()
-        return Regex("(?:ref(?:erence|erencia|érence)?|riferimento|order|pedido|commande|bestellung|ordine|заказ|订单|注文|sipariş|مرجع|رقم\\s+المرجع|संदर्भ|txn|ticket|case|awb|tracking|单号|快递单号|invoice|factura|rechnung|statement|beneficiary|destinatario|empfänger|bénéficiaire|store|tienda|magasin|arn|srn|urn|pran|uan|crn|cif|pan|tan|din|cin|gstin|reg[- ]?\\d*|form[- ]?\\d*|acknowledg(?:e)?ment|application|registration|challan|complaint|notice|circular|appeal|assessment)\\s*(?:(?:no\\.?|num(?:ber)?|id|#|:|-|=)\\s*(?:[a-z]{1,4}[- ]?)?|\\s)\\s*$").containsMatchIn(prefix)
+        return Regex("(?:ref(?:erence|erencia|érence)?|riferimento|order|pedido|commande|bestellung|ordine|operaci[oó]n|vorgang|transacci[oó]n|transazione|transaction|operazione|заказ|订单|注文|sipariş|مرجع|رقم\\s+المرجع|संदर्भ|txn|ticket|case|awb|tracking|单号|快递单号|invoice|factura|rechnung|statement|beneficiary|destinatario|empfänger|bénéficiaire|store|tienda|magasin|arn|srn|urn|pran|uan|crn|cif|pan|tan|din|cin|gstin|reg[- ]?\\d*|form[- ]?\\d*|acknowledg(?:e)?ment|application|registration|challan|complaint|notice|circular|appeal|assessment)\\s*(?:(?:no\\.?|num(?:ber)?|id|#|:|-|=)\\s*(?:[a-z]{1,4}[- ]?)?|\\s)\\s*$").containsMatchIn(prefix)
     }
 
     private fun isPincode(text: String, startPos: Int, candidate: String): Boolean {
@@ -292,24 +295,37 @@ object OtpExtractor {
     }
 
     private fun isPhoneNumber(text: String, startPos: Int, candidate: String): Boolean {
-        // Look back 60 characters for helpline/contact indicators
-        val prefix60 = text.substring(maxOf(0, startPos - 60), startPos).lowercase()
-        if (Regex("(?:call|helpline|contact|tel|phone|dial|support|teléfono|téléphone|telefon|toll\\s*free|helpdesk|संपर्क)\\b").containsMatchIn(prefix60)) {
-            val immediatePrefix = text.substring(maxOf(0, startPos - 20), startPos)
-            if (Regex("(?:1800|1860|\\+?\\d{1,4})?[- ]*\\d{2,4}[- ]*$").containsMatchIn(immediatePrefix)) {
+        // Universal toll-free and helpline prefixes worldwide (India, US, UK, EU, etc.)
+        val tollFreePrefixes = listOf(
+            "1800", "1860", "1600", "0800", "0808", "0845", "0870"
+        )
+        if (tollFreePrefixes.any { candidate.startsWith(it) }) {
+            return true
+        }
+
+        // Look back 80 characters for helpline/contact indicators
+        val prefix80 = text.substring(maxOf(0, startPos - 80), startPos).lowercase()
+        val helplineKeywordMatch = Regex("(?:\\b(?:call(?:\\s+us)?|helpline|contact(?:\\s+us)?|tel|phone|dial|support|toll[- ]?free|customer\\s+care|helpdesk|fraud|reach\\s+us|teléfono|téléphone|telefon|servizio\\s+clienti|kundenservice)\\b|संपर्क)").containsMatchIn(prefix80)
+        if (helplineKeywordMatch) {
+            // Unless there is an explicit OTP assignment intervening directly before candidate
+            val explicitOtpBeforeCandidate = Regex("(?i)(?:otp|code|pin|passcode|código|clave|passwort|код|ओटीपी|पासवर्ड)\\s*(?:is|:|=|है)?\\s*$").containsMatchIn(prefix80)
+            if (!explicitOtpBeforeCandidate) {
                 return true
             }
         }
 
         // Check if candidate is embedded in or adjacent to a telephone/toll-free number
-        val windowStart = maxOf(0, startPos - 20)
-        val windowEnd = minOf(text.length, startPos + candidate.length + 20)
+        val windowStart = maxOf(0, startPos - 25)
+        val windowEnd = minOf(text.length, startPos + candidate.length + 25)
         val window = text.substring(windowStart, windowEnd)
 
-        // Toll-free and phone patterns: 1800-xxx-xxxx, 1860-xxx-xxxx, 1-800-xxx-xxxx
-        if (Regex("(?:1800|1860|1[- ]?800|\\+?\\d{1,3})[- ]+\\d{2,4}[- ]+\\d{3,4}").containsMatchIn(window)) return true
+        // Toll-free and phone patterns: 1800-xxx-xxxx, 1860-xxx-xxxx, 1-800-xxx-xxxx, (xxx) xxx-xxxx
+        if (Regex("(?:1800|1860|1600|1900|1[- ]?800|\\+?\\d{1,3})[- ]+\\d{2,4}[- ]+\\d{3,4}").containsMatchIn(window)) return true
         if (Regex("(?:\\+?\\d{1,3}[- ]?)?\\(?\\d{3}\\)?[- ]\\d{3}[- ]\\d{4}").containsMatchIn(window)) return true
         if (Regex("\\d{3,4}[- ]+\\d{3,4}[- ]+\\d{3,4}").containsMatchIn(window)) return true
+
+        // Toll-free numbers separated by slashes: e.g. 18001234 / 18002100 / 1800111101
+        if (Regex("\\d{4,11}\\s*/\\s*\\d{4,11}").containsMatchIn(window)) return true
 
         // Directly attached by hyphen: e.g. "103-4786" where 103 is preceded by digits
         if (startPos > 0 && text[startPos - 1] == '-' && startPos > 1 && text[startPos - 2].isDigit()) {
@@ -318,6 +334,37 @@ object OtpExtractor {
         }
 
         return false
+    }
+
+    private fun isPostTransactionReceipt(text: String): Boolean {
+        val lower = text.lowercase()
+        
+        // Positive markers of completed post-transaction notifications / bank receipts
+        val hasCompletedMarkers = listOf(
+            "has been credited", "has been debited", "is credited to", "is debited from",
+            "credited to your account", "debited from your account", "credited to a/c", "debited from a/c",
+            "total available balance", "available balance", "avl bal", "clear balance",
+            "transaction status: successful", "transaction status successful", "transaction successful",
+            "transaction details are as follows", "fund transfer successful", "payment successful",
+            "transfer successful", "payment received", "payment of inr", "money received",
+            "votre compte a été crédité", "votre compte a été débité", "virement effectué",
+            "ha sido acreditado", "ha sido debitado", "transferencia exitosa", "pago exitoso",
+            "wurde gutgeschrieben", "wurde abgebucht", "überweisung erfolgreich",
+            "stato transazione: eseguita", "bonifico effettuato",
+            "खाते में जमा", "खाते से निकाले गए", "लेन-देन सफल", "सफलतापूर्वक ट्रांसफर"
+        ).any { lower.contains(it) }
+
+        if (!hasCompletedMarkers) return false
+
+        // Check if there is an active OTP requirement to approve/authorize an action
+        val hasPendingOtpRequirement = listOf(
+            "use otp", "enter otp", "otp is", "your otp", "secret otp", "otp for",
+            "otp to", "otp required", "share delivery otp", "código para autorizar",
+            "pour autoriser", "pour valider", "um die transaktion zu bestätigen",
+            "सत्यापित करने के लिए ओटीपी", "लेन-देन के लिए ओटीपी", "ओटीपी दर्ज करें"
+        ).any { lower.contains(it) } || Regex("(?i)\\b(?:use|enter)?\\s*(?:an?\\s+)?otp\\s*[:=]?\\s*\\d{4,8}\\b").containsMatchIn(lower)
+
+        return !hasPendingOtpRequirement
     }
 
     private fun isValidCandidate(candidate: String, text: String, startPos: Int): Boolean {
@@ -369,6 +416,12 @@ object OtpExtractor {
         com.mailsync.app.utils.FileLogger.log(context, "[OtpExtractor] --- EVALUATING TEXT ---")
         com.mailsync.app.utils.FileLogger.log(context, "[OtpExtractor] Normalized Text: $normalized")
 
+        if (isPostTransactionReceipt(normalized)) {
+            safeLog("OtpExtractor", "Message is a completed post-transaction alert/receipt without pending OTP.")
+            com.mailsync.app.utils.FileLogger.log(context, "[OtpExtractor] Rejected: Message is a post-transaction receipt/alert without pending OTP.")
+            return null
+        }
+
         // ══════════════════════════════════════════════════════════════════════════════
         // PHASE 1: HIGH-CONFIDENCE ANCHOR MATCHING (Instant, 100% precision)
         // ══════════════════════════════════════════════════════════════════════════════
@@ -408,7 +461,7 @@ object OtpExtractor {
             Regex("(?i)\\b(?:one[- ]time\\s+(?:password|passcode|code|pin)|verification\\s+(?:code|pin|token|otp)|security\\s+(?:code|pin|token|otp)|auth(?:entication|orization)?\\s+(?:code|pin|token|otp)|confirm(?:ation)?\\s+(?:code|pin|token|otp)|login\\s+(?:code|pin|token|otp)|sign[- ]in\\s+(?:code|pin|token|otp)|access\\s+(?:code|pin|token|otp)|delivery\\s+otp|pickup\\s+otp|secret\\s+(?:code|pin)|passcode|a?otp|[\\w-]+\\s+(?:otp|code)|pin)(?:[^.!\n\r]{0,80})(?<!\\d)(?:is|are|es|est|lautet|\u00e9|\u00e8|:|=)(?!\\d)\\s*[:=]?\\s*([0-9A-Za-z]{4,10})\\b"),
 
             // 8. Direct keyword + colon/dash/is + OTP: "Telegram code: 49201", "WhatsApp code: 829104", "Код: 582914", "رمز: 83910"
-            Regex("(?i)(?:^|[^\\p{L}\\p{Nd}])(?:code|otp|pin|passcode|[Кк]од|[Пп]ароль|رمز|کد)\\s*(?:is\\s*:?|:|=)\\s*[:=]?\\s*([0-9A-Za-z]{4,10})\\b"),
+            Regex("(?i)(?:^|[^\\p{L}\\p{Nd}])(?:code|otp|pin|passcode|[Кк]од|[Пп]ароль|رمز|کد|कोड)\\s*(?:is\\s*:?|:|=)\\s*[:=]?\\s*([0-9A-Za-z]{4,10})\\b"),
 
             // 9. English assignment: "Your OTP is 482913", "verification code: 482913", "pin is 8492"
             Regex("(?i)\\b(?:one[- ]time\\s+(?:password|code)|verification\\s+code|security\\s+code|login\\s+code|sign[- ]in\\s+code|access\\s+code|auth(?:entication)?\\s+code|confirmation\\s+code|secret\\s+code|single[- ]use\\s+code|passcode|a?otp|pin(?:\\s+code)?)\\s*(?:is|:|\u2013|-|=|#)\\s*([0-9A-Za-z]{4,10})\\b"),
@@ -420,17 +473,17 @@ object OtpExtractor {
             Regex("(?i)(?:\u0986\u09aa\u09a8\u09be\u09b0\\s+)?(?:\u09af\u09be\u099a\u09be\u0987\u0995\u09b0\u09a3\\s+\u0995\u09cb\u09a1|\u09b2\u0997\u0987\u09a8\\s+\u0993\u099f\u09bf\u09aa\u09bf|\u0993\u099f\u09bf\u09aa\u09bf|\u09a8\u09bf\u09b0\u09be\u09aa\u09a4\u09cd\u09a4\u09be\\s+\u0995\u09cb\u09a1)\\s*(?:\u09b9\u09b2|\u09b9\u09b2\u09cb|:|\u2013|-|=|#|\\s)?\\s*([0-9A-Za-z]{4,10})\\b"),
 
             // 12. Spanish: "Su c\u00f3digo de verificaci\u00f3n es 492018"
-            Regex("(?i)\\b(?:c\u00f3digo|codigo|clave)\\s+(?:de\\s+(?:verificaci\u00f3n|verificacion|seguridad|confirmaci\u00f3n|confirmacion|acceso))?(?:[^\\n\\r]{0,25})?\\s*(?:es\\s*:?|:|=|\u2013|-|#)\\s*([0-9A-Za-z]{4,10})\\b"),
+            Regex("(?i)\\b(?:c\u00f3digo|codigo|clave)\\s+(?:de\\s+(?:verificaci\u00f3n|verificacion|seguridad|confirmaci\u00f3n|confirmacion|acceso))?(?:[^.!\n\r]{0,25})?\\s*(?:es\\s*:?|:|=|\u2013|-|#)\\s*([0-9A-Za-z]{4,10})\\b"),
 
             // 13. French: "Votre code de confirmation est le 739102"
             Regex("(?i)\\b(?:code\\s+de\\s+(?:confirmation|v\u00e9rification|s\u00e9curit\u00e9)|mot\\s+de\\s+passe(?:\\s+(?:\u00e0\\s+usage\\s+unique|temporaire))?)\\s*(?:est(?:\\s+le)?|est\\s*:?|:|\u2013|-|=|#)\\s*([0-9A-Za-z]{4,10})\\b"),
 
             // 14. German: "Ihr Best\u00e4tigungscode lautet 829104"
-            Regex("(?i)\\b(?:(?:sicherheits|best\u00e4tigungs|verifizierungs)?code|einmalpasswort|einmalkennwort)(?:[^\\n\\r]{0,35})?\\s*(?:lautet|ist|:|\u2013|-|=|#)\\s*[:=]?\\s*([0-9A-Za-z]{4,10})\\b"),
+            Regex("(?i)\\b(?:(?:sicherheits|best\u00e4tigungs|verifizierungs)?code|einmalpasswort|einmalkennwort)(?:[^.!\n\r]{0,35})?\\s*(?:lautet|ist|:|\u2013|-|=|#)\\s*[:=]?\\s*([0-9A-Za-z]{4,10})\\b"),
             Regex("(?i)\\blautet\\s+(?:ihr\\s+)?(?:sicherheits|best\u00e4tigungs|verifizierungs)?(?:code|einmalpasswort|passwort)\\s*[:=\u2014\u2013-]?\\s*([0-9A-Za-z]{4,10})\\b"),
 
             // 15. Portuguese: "Seu c\u00f3digo de verifica\u00e7\u00e3o \u00e9 618294"
-            Regex("(?i)\\b(?:c\u00f3digo|codigo)\\s+(?:de\\s+(?:verifica\u00e7\u00e3o|verificacao|seguran\u00e7a|seguranca|confirma\u00e7\u00e3o|confirmacao))?\\s*(?:\u00e9\\s*:?|e|:|\u2013|-|=|#)\\s*([0-9A-Za-z]{4,10})\\b"),
+            Regex("(?i)\\b(?:c\u00f3digo|codigo)\\s+(?:de\\s+(?:verifica\u00e7\u00e3o|verificacao|seguran\u00e7a|seguranca|confirma\u00e7\u00e3o|confirmacao))?(?:[^.!\n\r]{0,25})?\\s*(?:\u00e9\\s*:?|e|:|\u2013|-|=|#)\\s*([0-9A-Za-z]{4,10})\\b"),
 
             // 16. Italian: "Il tuo codice di verifica \u00e8 618294"
             Regex("(?i)\\b(?:codice\\s+di\\s+(?:verifica|sicurezza|conferma)|codice\\s+otp)\\s*(?:\u00e8\\s*:?|e|:|\u2013|-|=|#)\\s*([0-9A-Za-z]{4,10})\\b"),
@@ -493,21 +546,27 @@ object OtpExtractor {
         // ══════════════════════════════════════════════════════════════════════════════
         // PHASE 2: CONTEXTUAL SCORED EVALUATION (For multi-line, formatted emails)
         // ══════════════════════════════════════════════════════════════════════════════
+        // Strip informational banking security disclaimers / warnings where "OTP" is mentioned only as a warning advice
+        // e.g. "Safe Banking Tip: Never share your OTP...", "Bank never asks for OTP...", "Beware of fraud, do not share OTP..."
+        var evalText = normalized.replace(Regex("(?i)(?:safe\\s+banking\\s+tip|security\\s+tip|safety\\s+tip|security\\s+advice|important\\s+notice|caution|disclaimer|warning)[^.\\n\\r]*(?:never\\s+share|do\\s+not\\s+share|don'?t\\s+share|never\\s+disclose|never\\s+ask|never\\s+call|ne\\s+partagez\\s+pas|no\\s+comparta|jamás\\s+comparta|teilen\\s+sie\\s+nicht|geben\\s+sie\\s+niemals|कभी\\s+भी\\s+शेयर\\s+न\\s+करें|साझा\\s+न\\s+करें)[^.\\n\\r]*[.!]?"), " ")
+
+        evalText = evalText.replace(Regex("(?i)\\b(?:bank\\s+(?:never|will\\s+never)\\s+asks?\\s+for|we\\s+never\\s+ask\\s+for|never\\s+share\\s+your\\s+(?:internet\\s+banking|credentials|bank\\s+details|password|pin|mpin|cvv|otp))[^.\\n\\r]*[.!]?"), " ")
+
         // Strict gate: If the message contains ZERO genuine OTP keywords, return null immediately.
-        // This stops non-OTP marketing emails (like Amazon, Flipkart, WhatsApp newsletters) from false-extracting!
+        // This stops non-OTP marketing emails (like Amazon, Flipkart, WhatsApp newsletters) and bank transaction receipts from false-extracting!
         val hasGenuineKeyword = genuineOtpKeywords.any { kw ->
             if (kw.any { ch -> ch.code > 127 }) {
-                normalized.contains(kw, ignoreCase = true)
+                evalText.contains(kw, ignoreCase = true)
             } else {
-                Regex("\\b${Regex.escape(kw)}\\b", RegexOption.IGNORE_CASE).containsMatchIn(normalized)
+                Regex("\\b${Regex.escape(kw)}\\b", RegexOption.IGNORE_CASE).containsMatchIn(evalText)
             }
         }
 
         val hasContextualProximity = proximityKeywords.any { kw ->
-            val match = Regex("\\b${Regex.escape(kw)}\\b", RegexOption.IGNORE_CASE).find(normalized)
+            val match = Regex("\\b${Regex.escape(kw)}\\b", RegexOption.IGNORE_CASE).find(evalText)
             if (match != null) {
                 val kwPos = match.range.first
-                val contextWindow = normalized.substring(maxOf(0, kwPos - 50), minOf(normalized.length, kwPos + 50)).lowercase()
+                val contextWindow = evalText.substring(maxOf(0, kwPos - 50), minOf(evalText.length, kwPos + 50)).lowercase()
                 listOf("verify", "verification", "sign", "login", "auth", "confirm", "secret", "access", "protect", "valid", "seguridad", "verificar", "confirmer", "share", "code", "pin", "passcode").any { 
                     contextWindow.contains(it) 
                 }

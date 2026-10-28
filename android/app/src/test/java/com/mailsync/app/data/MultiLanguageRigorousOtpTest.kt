@@ -5,7 +5,7 @@ import org.junit.Assert.assertNotNull
 import org.junit.Test
 
 /**
- * Rigorous 570-Test Suite across 19 production languages (30 tests per language).
+ * Rigorous 950-Test Suite across 19 production languages (50 tests per language).
  * Every test includes realistic decoys: transaction IDs, amounts, dates, and helpline numbers.
  */
 class MultiLanguageRigorousOtpTest {
@@ -13,7 +13,7 @@ class MultiLanguageRigorousOtpTest {
     data class TestCase(val lang: String, val service: String, val message: String, val expected: String)
 
     // ========================================== 
-    // LANGUAGE: EN (30 PRODUCTION TEMPLATES)
+    // LANGUAGE: EN (50 PRODUCTION TEMPLATES)
     // ========================================== 
     @Test
     fun testLanguage_EN() {
@@ -48,17 +48,41 @@ class MultiLanguageRigorousOtpTest {
             TestCase("EN", "Zerodha Kite", "Your Zerodha login OTP is 582910. Valid for 5 mins. Client ID: ZK9482. Support: 080-47181888.", "582910"),
             TestCase("EN", "Groww Mutual Funds", "OTP to authorize redemption of INR 50,000 on Groww is 918204. Folio # 9482018. Toll free: 1800-102-4769.", "918204"),
             TestCase("EN", "Tata Neu Pay", "Use 849201 as your Tata Neu transaction OTP for order #TN-492018. Do not share with anyone.", "849201"),
+            TestCase("EN", "Chase 2FA Alert", "Security Alert: Use code 719284 to approve your Chase sign-in on iPhone 15. Ref: CHS-81920. Support: 1-800-935-9935.", "719284"),
+            TestCase("EN", "Bank of America", "Your Bank of America authorization code is 581920 for payment of $120.00 to Electric Co. Valid 10 mins.", "581920"),
+            TestCase("EN", "Wells Fargo Wire", "Wells Fargo: 491028 is your wire verification code. Transfer of $1,500.00 to John Doe. Call 1-800-869-3557 if fraudulent.", "491028"),
+            TestCase("EN", "Citibank Online", "OTP is 639102 for Citibank transaction of USD 450.00 at Apple Store. A/c ending 1049. Never disclose your OTP.", "639102"),
+            TestCase("EN", "PayPal One-Time", "Use one-time passcode 839104 to confirm PayPal transaction #PP-918204 for $89.00. Help: 1-888-221-1161.", "839104"),
+            TestCase("EN", "Microsoft Auth", "Microsoft authentication code: 592810. Device: Surface Pro. If you did not request this, secure your account.", "592810"),
+            TestCase("EN", "Steam Guard Mobile", "Steam Guard code: 7KM8P. Enter this code to complete trade offer #948201. Support: help.steampowered.com.", "7KM8P"),
+            TestCase("EN", "Google Workspace", "G-829104 is your Google Workspace admin verification code. Never share your Google verification code.", "829104"),
+            TestCase("EN", "LinkedIn Verification", "Use verification code 491820 to reset your LinkedIn password. Valid for 15 minutes. Support: 1-855-653-5346.", "491820"),
+            TestCase("EN", "Discord Login", "Your Discord verification code is: 739102. Please enter this code within 5 minutes. Do not share with staff.", "739102"),
+            TestCase("EN", "Uber Rider Login", "482910 is your Uber verification code. Never share this code. We will never call to ask for your code.", "482910"),
+            TestCase("EN", "Amazon Delivery Pass", "Share delivery OTP 281940 with your Amazon delivery driver for package #402-9182049. Amount to pay: $0.00.", "281940"),
+            TestCase("EN", "Canara Bank Credit Alert", "An amount of INR 10,000.00 has been CREDITED on 28/10/26 to your account XXXX9328 from ANUP KUMAR with Mobile Banking Ref No.: 630112888096. Total Available Balance INR 12,396.50. If you are not expecting this credit or suspect any fraudulent activity, please contact: 18001030.", "NONE"),
+            TestCase("EN", "SBI YONO Fund Transfer", "Thank you for using YONO SBI for Fund Transfer. Transaction Status Successful. Amount Rs. 10,000.00. Transaction Number 630112888096. Toll free number 18001234 / 18002100. Safe Banking Tip: Never share your Internet Banking User ID, Password, MPIN, OTP, Card Number, CVV with anyone.", "NONE"),
+            TestCase("EN", "HDFC Debit Notification", "Alert: INR 5,400.00 has been debited from A/C ending 4821 on 28-OCT-26. Info: POS SWIGGY. Clear Balance: INR 34,210.00. Contact customer care: 1800-202-6161 for dispute.", "NONE"),
+            TestCase("EN", "ICICI Account Credit", "Dear Customer, your Account XX9102 has been credited with INR 25,000.00 on 28-OCT-26 by NEFT-AXIS-91820194. Avl Bal: INR 65,492.00. Toll free: 1800-1080.", "NONE"),
+            TestCase("EN", "Axis Bank Statement", "Your monthly account statement for A/c ending 1029 is now available. Total available balance: INR 48,190.00. Reach us at 1860-419-5555.", "NONE"),
+            TestCase("EN", "Kotak Transaction Alert", "Transaction successful! INR 1,200.00 debited from A/C XX4918 via UPI Ref 829104820194. Total Available Balance: INR 15,200.00. Toll-free helpline: 1860-266-2666.", "NONE"),
+            TestCase("EN", "Payment Receipt", "Payment received of INR 3,500.00 for Invoice #INV-829104. Transaction completed successfully. Thank you for your business. Helpline: 1800-120-4455.", "NONE"),
+            TestCase("EN", "Customer Support Helpline", "Dear user, for inquiries regarding your account renewal, please contact our 24x7 toll free customer care at 18001030 or 18001234.", "NONE"),
         )
 
         for (c in cases) {
             val res = OtpExtractor.extractOtp(null, c.message, null, 0L)
-            assertNotNull("Extraction failed for [${c.lang}] ${c.service}: '${c.message}'", res)
-            assertEquals("Wrong OTP for [${c.lang}] ${c.service}", c.expected, res?.code)
+            if (c.expected.isEmpty() || c.expected == "NONE") {
+                org.junit.Assert.assertNull("Should NOT extract OTP for [${c.lang}] ${c.service}: '${c.message}' but got '${res?.code}'", res)
+            } else {
+                assertNotNull("Extraction failed for [${c.lang}] ${c.service}: '${c.message}'", res)
+                assertEquals("Wrong OTP for [${c.lang}] ${c.service}", c.expected, res?.code)
+            }
         }
     }
 
     // ========================================== 
-    // LANGUAGE: HI (30 PRODUCTION TEMPLATES)
+    // LANGUAGE: HI (50 PRODUCTION TEMPLATES)
     // ========================================== 
     @Test
     fun testLanguage_HI() {
@@ -93,17 +117,41 @@ class MultiLanguageRigorousOtpTest {
             TestCase("HI", "DigiLocker Hindi", "डिजिलॉकर दस्तावेज़ एक्सेस हेतु आपका ओटीपी 256587 है। सुरक्षा कारण से साझा न करें।", "256587"),
             TestCase("HI", "Cowin Hindi", "कोविन टीकाकरण प्रमाणपत्र डाउनलोड के लिए ओटीपी 591024 है। संदर्भ आईडी 928104.", "591024"),
             TestCase("HI", "Tata Neu Hindi", "टाटा न्यू रिवॉर्ड्स रिडीम करने के लिए आपका ओटीपी 491028 है। ऑर्डर #TN-492018.", "491028"),
+            TestCase("HI", "SBI NetBanking Hindi", "खाता XX9102 से रु 15,000 के एनईएफटी ट्रांसफर के लिए आपका ओटीपी 849201 है। संदर्भ सं 928104। कॉल 18001234.", "849201"),
+            TestCase("HI", "HDFC Cards Hindi", "एचडीएफसी क्रेडिट कार्ड XX4829 पर फ्लिपकार्ट पर रु 4,200 के भुगतान हेतु ओटीपी 582910 है। कभी किसी से साझा न करें।", "582910"),
+            TestCase("HI", "PNB NetBanking Hindi", "पीएनबी वन ऐप लॉगिन के लिए आपका सुरक्षा कोड 739104 है। वैधता 3 मिनट। कस्टमर केयर 18001802222.", "739104"),
+            TestCase("HI", "Bank of Baroda Hindi", "बॉब वर्ल्ड: रु 2,500 के त्वरित फंड ट्रांसफर के लिए ओटीपी 491028 है। संदर्भ सं BOB-918204।", "491028"),
+            TestCase("HI", "Canara Bank OTP Hindi", "केनरा बैंक: खाता XX9328 से यूपीआई रजिस्ट्रेशन के लिए आपका ओटीपी 618294 है। टोल फ्री 18001030.", "618294"),
+            TestCase("HI", "Paytm Payments Hindi", "पेटीएम पेमेंट्स बैंक: बचत खाता खोलने के लिए सत्यापन कोड 391048 है। किसी को अपना ओटीपी न बताएं।", "391048"),
+            TestCase("HI", "PhonePe Merchant Hindi", "फ़ोनपे मर्चेंट सेटलमेंट के लिए आपका प्रमाणीकरण कोड 918204 है। संदर्भ #PH-948201.", "918204"),
+            TestCase("HI", "Google Hindi", "G-492018 आपका गूगल सत्यापन कोड है। इसे किसी के साथ साझा न करें।", "492018"),
+            TestCase("HI", "WhatsApp Hindi", "व्हाट्सएप कोड: 829104। अपना कोड किसी को न दें।", "829104"),
+            TestCase("HI", "Amazon Delivery Hindi", "अमेज़न पैकेज डिलीवरी के लिए आपका डिलीवरी ओटीपी 382910 है। डिलीवरी पार्टनर को दें।", "382910"),
+            TestCase("HI", "Zomato Partner Hindi", "ज़ोमैटो ऑर्डर #948201 के लिए डिलीवरी ओटीपी 4829 है। बिल रु 450.", "4829"),
+            TestCase("HI", "IRCTC Tatkal Hindi", "आईआरसीटीसी तत्काल टिकट पीएनआर 4829104820 के लिए आपका ओटीपी 591024 है। हेल्पलाइन 139.", "591024"),
+            TestCase("HI", "Canara Bank Credit Hindi", "प्रिय ग्राहक, आपके खाते XXXX9328 में रु 10,000.00 जमा (has been credited) किए गए हैं। कुल उपलब्ध शेष (Total Available Balance) रु 12,396.50। किसी भी शिकायत के लिए संपर्क करें: 18001030.", "NONE"),
+            TestCase("HI", "SBI YONO Transfer Hindi", "योनो एसबीआई फंड ट्रांसफर विवरण: लेन-देन सफल (Transaction Status Successful)। राशि रु 10,000.00। खाता XX5975 से निकाला गया। टोल फ्री नंबर 18001234 / 18002100। सुरक्षा सलाह: कभी भी अपना पासवर्ड या ओटीपी साझा न करें।", "NONE"),
+            TestCase("HI", "HDFC Debit Alert Hindi", "सूचना: आपके खाते XX4821 से रु 5,400.00 डेबिट किए गए (has been debited)। उपलब्ध शेष रु 34,210.00। हेल्पलाइन 18002026161.", "NONE"),
+            TestCase("HI", "ICICI Credit Alert Hindi", "प्रिय ग्राहक, आपके खाते XX9102 में रु 25,000.00 जमा किए गए हैं। शेष राशि रु 65,492.00। टोल फ्री 18001080.", "NONE"),
+            TestCase("HI", "Axis Transaction Hindi", "लेन-देन सफल! खाता XX1029 से रु 1,200.00 निकाले गए। कुल उपलब्ध शेष रु 15,200.00। कस्टमर केयर 18604195555.", "NONE"),
+            TestCase("HI", "Kotak Balance Hindi", "कोटक महिंद्रा बैंक: खाता XX4918 की मासिक विवरणी तैयार है। उपलब्ध शेष रु 48,190.00। टोल फ्री 18602662666.", "NONE"),
+            TestCase("HI", "UPI Payment Hindi", "सफलतापूर्वक ट्रांसफर! यूपीआई संदर्भ सं 829104820194 के माध्यम से रु 3,500.00 प्राप्त हुए। कस्टमर केयर 18001204455.", "NONE"),
+            TestCase("HI", "Helpline Notice Hindi", "खाते से संबंधित किसी भी सहायता के लिए हमारी 24 घंटे हेल्पलाइन 18001030 अथवा 18001234 पर संपर्क करें।", "NONE"),
         )
 
         for (c in cases) {
             val res = OtpExtractor.extractOtp(null, c.message, null, 0L)
-            assertNotNull("Extraction failed for [${c.lang}] ${c.service}: '${c.message}'", res)
-            assertEquals("Wrong OTP for [${c.lang}] ${c.service}", c.expected, res?.code)
+            if (c.expected.isEmpty() || c.expected == "NONE") {
+                org.junit.Assert.assertNull("Should NOT extract OTP for [${c.lang}] ${c.service}: '${c.message}' but got '${res?.code}'", res)
+            } else {
+                assertNotNull("Extraction failed for [${c.lang}] ${c.service}: '${c.message}'", res)
+                assertEquals("Wrong OTP for [${c.lang}] ${c.service}", c.expected, res?.code)
+            }
         }
     }
 
     // ========================================== 
-    // LANGUAGE: ES (30 PRODUCTION TEMPLATES)
+    // LANGUAGE: ES (50 PRODUCTION TEMPLATES)
     // ========================================== 
     @Test
     fun testLanguage_ES() {
@@ -138,17 +186,41 @@ class MultiLanguageRigorousOtpTest {
             TestCase("ES", "Servicio 28", "Su codigo de verificacion es 321732 para la operacion #948229. Valido por 10 minutos. Atencion al cliente: 900 102 801.", "321732"),
             TestCase("ES", "Servicio 29", "Su codigo de verificacion es 329651 para la operacion #948230. Valido por 10 minutos. Atencion al cliente: 900 102 801.", "329651"),
             TestCase("ES", "Servicio 30", "Su codigo de verificacion es 337570 para la operacion #948231. Valido por 10 minutos. Atencion al cliente: 900 102 801.", "337570"),
+            TestCase("ES", "Bank 2FA ES", "Código de verificación: 491028. operación #948201. Atención al cliente: 1800-11-2211.", "491028"),
+            TestCase("ES", "Online Auth ES", "739104 is your código de verificación. Valid for 10 minutes. Atención al cliente: 1800-202-6161.", "739104"),
+            TestCase("ES", "Secure Login ES", "código de verificación: 582910. operación ID: TXN-819204. Do not disclose.", "582910"),
+            TestCase("ES", "Transfer Auth ES", "código de verificación: 849201 for fund transfer of 1,500.00. Atención al cliente: 1800-1080.", "849201"),
+            TestCase("ES", "Card Verification ES", "código de verificación is 618294 for card ending 4829. Valid 5 mins.", "618294"),
+            TestCase("ES", "Merchant Pay ES", "Use código de verificación 391048 to authorize payment of 850.00. Ref #849201.", "391048"),
+            TestCase("ES", "Platform 2FA ES", "G-918204 is your verification code. Atención al cliente: support@example.com.", "918204"),
+            TestCase("ES", "Mobile Code ES", "Telegram code: 482910. Never share this code with anyone.", "482910"),
+            TestCase("ES", "Service Code ES", "Your código de verificación is 256587 for account sign-in. Valid for 15 mins.", "256587"),
+            TestCase("ES", "Express Pay ES", "Use one-time code 749102 to complete your order. Atención al cliente: 18001030.", "749102"),
+            TestCase("ES", "Delivery Confirmation ES", "Delivery OTP: 391820 for package delivery. Total: 420.00.", "391820"),
+            TestCase("ES", "Account Access ES", "código de verificación: 591024. Device: Windows. Atención al cliente: 18001234.", "591024"),
+            TestCase("ES", "Credit Alert ES", "Account XX9328 ha sido acreditado INR 10,000.00 on 28/10/26. Total Available Balance: INR 12,396.50. Contact: 18001030.", "NONE"),
+            TestCase("ES", "Transfer Receipt ES", "transferencia exitosa! Amount INR 10,000.00. Transaction Number 630112888096. Toll free number 18001234 / 18002100. Safe banking: Never share your OTP.", "NONE"),
+            TestCase("ES", "Debit Alert ES", "Amount of INR 5,400.00 ha sido debitado from Account XX4821. Available balance: INR 34,210.00. Helpline: 1800-202-6161.", "NONE"),
+            TestCase("ES", "NEFT Deposit ES", "Account XX9102 ha sido acreditado with INR 25,000.00 by NEFT Ref 91820491. Avl Bal: INR 65,492.00. Call: 1800-1080.", "NONE"),
+            TestCase("ES", "Monthly Statement ES", "Your monthly account statement is available. Total available balance: INR 48,190.00. Helpline: 1860-419-5555.", "NONE"),
+            TestCase("ES", "UPI Alert ES", "transferencia exitosa! INR 1,200.00 debited from A/C XX4918 via UPI Ref 829104820194. Total Available Balance: INR 15,200.00. Toll-free: 1860-266-2666.", "NONE"),
+            TestCase("ES", "Payment Received ES", "Payment received of INR 3,500.00 for Invoice #829104. Transaction completed successfully. Support: 1800-120-4455.", "NONE"),
+            TestCase("ES", "Customer Service ES", "For inquiries regarding your bank account, please contact our toll-free customer care at 18001030 or 18001234.", "NONE"),
         )
 
         for (c in cases) {
             val res = OtpExtractor.extractOtp(null, c.message, null, 0L)
-            assertNotNull("Extraction failed for [${c.lang}] ${c.service}: '${c.message}'", res)
-            assertEquals("Wrong OTP for [${c.lang}] ${c.service}", c.expected, res?.code)
+            if (c.expected.isEmpty() || c.expected == "NONE") {
+                org.junit.Assert.assertNull("Should NOT extract OTP for [${c.lang}] ${c.service}: '${c.message}' but got '${res?.code}'", res)
+            } else {
+                assertNotNull("Extraction failed for [${c.lang}] ${c.service}: '${c.message}'", res)
+                assertEquals("Wrong OTP for [${c.lang}] ${c.service}", c.expected, res?.code)
+            }
         }
     }
 
     // ========================================== 
-    // LANGUAGE: FR (30 PRODUCTION TEMPLATES)
+    // LANGUAGE: FR (50 PRODUCTION TEMPLATES)
     // ========================================== 
     @Test
     fun testLanguage_FR() {
@@ -183,17 +255,41 @@ class MultiLanguageRigorousOtpTest {
             TestCase("FR", "Banque 28", "Votre code de confirmation est le 283316 pour le virement #849229 de 150,00 EUR. Service client au 3900.", "283316"),
             TestCase("FR", "Banque 29", "Votre code de confirmation est le 289863 pour le virement #849230 de 150,00 EUR. Service client au 3900.", "289863"),
             TestCase("FR", "Banque 30", "Votre code de confirmation est le 296410 pour le virement #849231 de 150,00 EUR. Service client au 3900.", "296410"),
+            TestCase("FR", "Bank 2FA FR", "Code de vérification: 491028. transaction #948201. Service client: 1800-11-2211.", "491028"),
+            TestCase("FR", "Online Auth FR", "739104 is your code de vérification. Valid for 10 minutes. Service client: 1800-202-6161.", "739104"),
+            TestCase("FR", "Secure Login FR", "code de vérification: 582910. transaction ID: TXN-819204. Do not disclose.", "582910"),
+            TestCase("FR", "Transfer Auth FR", "code de vérification: 849201 for fund transfer of 1,500.00. Service client: 1800-1080.", "849201"),
+            TestCase("FR", "Card Verification FR", "code de vérification is 618294 for card ending 4829. Valid 5 mins.", "618294"),
+            TestCase("FR", "Merchant Pay FR", "Use code de vérification 391048 to authorize payment of 850.00. Ref #849201.", "391048"),
+            TestCase("FR", "Platform 2FA FR", "G-918204 is your verification code. Service client: support@example.com.", "918204"),
+            TestCase("FR", "Mobile Code FR", "Telegram code: 482910. Never share this code with anyone.", "482910"),
+            TestCase("FR", "Service Code FR", "Your code de vérification is 256587 for account sign-in. Valid for 15 mins.", "256587"),
+            TestCase("FR", "Express Pay FR", "Use one-time code 749102 to complete your order. Service client: 18001030.", "749102"),
+            TestCase("FR", "Delivery Confirmation FR", "Delivery OTP: 391820 for package delivery. Total: 420.00.", "391820"),
+            TestCase("FR", "Account Access FR", "code de vérification: 591024. Device: Windows. Service client: 18001234.", "591024"),
+            TestCase("FR", "Credit Alert FR", "Account XX9328 a été crédité INR 10,000.00 on 28/10/26. Total Available Balance: INR 12,396.50. Contact: 18001030.", "NONE"),
+            TestCase("FR", "Transfer Receipt FR", "virement effectué! Amount INR 10,000.00. Transaction Number 630112888096. Toll free number 18001234 / 18002100. Safe banking: Never share your OTP.", "NONE"),
+            TestCase("FR", "Debit Alert FR", "Amount of INR 5,400.00 a été débité from Account XX4821. Available balance: INR 34,210.00. Helpline: 1800-202-6161.", "NONE"),
+            TestCase("FR", "NEFT Deposit FR", "Account XX9102 a été crédité with INR 25,000.00 by NEFT Ref 91820491. Avl Bal: INR 65,492.00. Call: 1800-1080.", "NONE"),
+            TestCase("FR", "Monthly Statement FR", "Your monthly account statement is available. Total available balance: INR 48,190.00. Helpline: 1860-419-5555.", "NONE"),
+            TestCase("FR", "UPI Alert FR", "virement effectué! INR 1,200.00 debited from A/C XX4918 via UPI Ref 829104820194. Total Available Balance: INR 15,200.00. Toll-free: 1860-266-2666.", "NONE"),
+            TestCase("FR", "Payment Received FR", "Payment received of INR 3,500.00 for Invoice #829104. Transaction completed successfully. Support: 1800-120-4455.", "NONE"),
+            TestCase("FR", "Customer Service FR", "For inquiries regarding your bank account, please contact our toll-free customer care at 18001030 or 18001234.", "NONE"),
         )
 
         for (c in cases) {
             val res = OtpExtractor.extractOtp(null, c.message, null, 0L)
-            assertNotNull("Extraction failed for [${c.lang}] ${c.service}: '${c.message}'", res)
-            assertEquals("Wrong OTP for [${c.lang}] ${c.service}", c.expected, res?.code)
+            if (c.expected.isEmpty() || c.expected == "NONE") {
+                org.junit.Assert.assertNull("Should NOT extract OTP for [${c.lang}] ${c.service}: '${c.message}' but got '${res?.code}'", res)
+            } else {
+                assertNotNull("Extraction failed for [${c.lang}] ${c.service}: '${c.message}'", res)
+                assertEquals("Wrong OTP for [${c.lang}] ${c.service}", c.expected, res?.code)
+            }
         }
     }
 
     // ========================================== 
-    // LANGUAGE: DE (30 PRODUCTION TEMPLATES)
+    // LANGUAGE: DE (50 PRODUCTION TEMPLATES)
     // ========================================== 
     @Test
     fun testLanguage_DE() {
@@ -228,17 +324,41 @@ class MultiLanguageRigorousOtpTest {
             TestCase("DE", "Dienst 28", "Ihr Bestatigungscode lautet 221156 fur Auftrag Nr. 739132. Bei Fragen: 0800 1234567.", "221156"),
             TestCase("DE", "Dienst 29", "Ihr Bestatigungscode lautet 225483 fur Auftrag Nr. 739133. Bei Fragen: 0800 1234567.", "225483"),
             TestCase("DE", "Dienst 30", "Ihr Bestatigungscode lautet 229810 fur Auftrag Nr. 739134. Bei Fragen: 0800 1234567.", "229810"),
+            TestCase("DE", "Bank 2FA DE", "Bestätigungscode: 491028. Vorgang #948201. Kundenservice: 1800-11-2211.", "491028"),
+            TestCase("DE", "Online Auth DE", "739104 is your Bestätigungscode. Valid for 10 minutes. Kundenservice: 1800-202-6161.", "739104"),
+            TestCase("DE", "Secure Login DE", "Bestätigungscode: 582910. Vorgang ID: TXN-819204. Do not disclose.", "582910"),
+            TestCase("DE", "Transfer Auth DE", "Bestätigungscode: 849201 for fund transfer of 1,500.00. Kundenservice: 1800-1080.", "849201"),
+            TestCase("DE", "Card Verification DE", "Bestätigungscode is 618294 for card ending 4829. Valid 5 mins.", "618294"),
+            TestCase("DE", "Merchant Pay DE", "Use Bestätigungscode 391048 to authorize payment of 850.00. Ref #849201.", "391048"),
+            TestCase("DE", "Platform 2FA DE", "G-918204 is your verification code. Kundenservice: support@example.com.", "918204"),
+            TestCase("DE", "Mobile Code DE", "Telegram code: 482910. Never share this code with anyone.", "482910"),
+            TestCase("DE", "Service Code DE", "Your Bestätigungscode is 256587 for account sign-in. Valid for 15 mins.", "256587"),
+            TestCase("DE", "Express Pay DE", "Use one-time code 749102 to complete your order. Kundenservice: 18001030.", "749102"),
+            TestCase("DE", "Delivery Confirmation DE", "Delivery OTP: 391820 for package delivery. Total: 420.00.", "391820"),
+            TestCase("DE", "Account Access DE", "Bestätigungscode: 591024. Device: Windows. Kundenservice: 18001234.", "591024"),
+            TestCase("DE", "Credit Alert DE", "Account XX9328 wurde gutgeschrieben INR 10,000.00 on 28/10/26. Total Available Balance: INR 12,396.50. Contact: 18001030.", "NONE"),
+            TestCase("DE", "Transfer Receipt DE", "überweisung erfolgreich! Amount INR 10,000.00. Transaction Number 630112888096. Toll free number 18001234 / 18002100. Safe banking: Never share your OTP.", "NONE"),
+            TestCase("DE", "Debit Alert DE", "Amount of INR 5,400.00 wurde abgebucht from Account XX4821. Available balance: INR 34,210.00. Helpline: 1800-202-6161.", "NONE"),
+            TestCase("DE", "NEFT Deposit DE", "Account XX9102 wurde gutgeschrieben with INR 25,000.00 by NEFT Ref 91820491. Avl Bal: INR 65,492.00. Call: 1800-1080.", "NONE"),
+            TestCase("DE", "Monthly Statement DE", "Your monthly account statement is available. Total available balance: INR 48,190.00. Helpline: 1860-419-5555.", "NONE"),
+            TestCase("DE", "UPI Alert DE", "überweisung erfolgreich! INR 1,200.00 debited from A/C XX4918 via UPI Ref 829104820194. Total Available Balance: INR 15,200.00. Toll-free: 1860-266-2666.", "NONE"),
+            TestCase("DE", "Payment Received DE", "Payment received of INR 3,500.00 for Invoice #829104. Transaction completed successfully. Support: 1800-120-4455.", "NONE"),
+            TestCase("DE", "Customer Service DE", "For inquiries regarding your bank account, please contact our toll-free customer care at 18001030 or 18001234.", "NONE"),
         )
 
         for (c in cases) {
             val res = OtpExtractor.extractOtp(null, c.message, null, 0L)
-            assertNotNull("Extraction failed for [${c.lang}] ${c.service}: '${c.message}'", res)
-            assertEquals("Wrong OTP for [${c.lang}] ${c.service}", c.expected, res?.code)
+            if (c.expected.isEmpty() || c.expected == "NONE") {
+                org.junit.Assert.assertNull("Should NOT extract OTP for [${c.lang}] ${c.service}: '${c.message}' but got '${res?.code}'", res)
+            } else {
+                assertNotNull("Extraction failed for [${c.lang}] ${c.service}: '${c.message}'", res)
+                assertEquals("Wrong OTP for [${c.lang}] ${c.service}", c.expected, res?.code)
+            }
         }
     }
 
     // ========================================== 
-    // LANGUAGE: PT (30 PRODUCTION TEMPLATES)
+    // LANGUAGE: PT (50 PRODUCTION TEMPLATES)
     // ========================================== 
     @Test
     fun testLanguage_PT() {
@@ -273,17 +393,41 @@ class MultiLanguageRigorousOtpTest {
             TestCase("PT", "Banco 28", "Seu codigo de verificacao e 206988 para confirmar o Pix no valor de R$ 250,00. Duvidas: 0800 728 0728.", "206988"),
             TestCase("PT", "Banco 29", "Seu codigo de verificacao e 210809 para confirmar o Pix no valor de R$ 250,00. Duvidas: 0800 728 0728.", "210809"),
             TestCase("PT", "Banco 30", "Seu codigo de verificacao e 214630 para confirmar o Pix no valor de R$ 250,00. Duvidas: 0800 728 0728.", "214630"),
+            TestCase("PT", "Bank 2FA PT", "Código de verificação: 491028. transação #948201. Atendimento: 1800-11-2211.", "491028"),
+            TestCase("PT", "Online Auth PT", "739104 is your código de verificação. Valid for 10 minutes. Atendimento: 1800-202-6161.", "739104"),
+            TestCase("PT", "Secure Login PT", "código de verificação: 582910. transação ID: TXN-819204. Do not disclose.", "582910"),
+            TestCase("PT", "Transfer Auth PT", "código de verificação: 849201 for fund transfer of 1,500.00. Atendimento: 1800-1080.", "849201"),
+            TestCase("PT", "Card Verification PT", "código de verificação is 618294 for card ending 4829. Valid 5 mins.", "618294"),
+            TestCase("PT", "Merchant Pay PT", "Use código de verificação 391048 to authorize payment of 850.00. Ref #849201.", "391048"),
+            TestCase("PT", "Platform 2FA PT", "G-918204 is your verification code. Atendimento: support@example.com.", "918204"),
+            TestCase("PT", "Mobile Code PT", "Telegram code: 482910. Never share this code with anyone.", "482910"),
+            TestCase("PT", "Service Code PT", "Your código de verificação is 256587 for account sign-in. Valid for 15 mins.", "256587"),
+            TestCase("PT", "Express Pay PT", "Use one-time code 749102 to complete your order. Atendimento: 18001030.", "749102"),
+            TestCase("PT", "Delivery Confirmation PT", "Delivery OTP: 391820 for package delivery. Total: 420.00.", "391820"),
+            TestCase("PT", "Account Access PT", "código de verificação: 591024. Device: Windows. Atendimento: 18001234.", "591024"),
+            TestCase("PT", "Credit Alert PT", "Account XX9328 foi creditado INR 10,000.00 on 28/10/26. Total Available Balance: INR 12,396.50. Contact: 18001030.", "NONE"),
+            TestCase("PT", "Transfer Receipt PT", "transferência concluída! Amount INR 10,000.00. Transaction Number 630112888096. Toll free number 18001234 / 18002100. Safe banking: Never share your OTP.", "NONE"),
+            TestCase("PT", "Debit Alert PT", "Amount of INR 5,400.00 foi debitado from Account XX4821. Available balance: INR 34,210.00. Helpline: 1800-202-6161.", "NONE"),
+            TestCase("PT", "NEFT Deposit PT", "Account XX9102 foi creditado with INR 25,000.00 by NEFT Ref 91820491. Avl Bal: INR 65,492.00. Call: 1800-1080.", "NONE"),
+            TestCase("PT", "Monthly Statement PT", "Your monthly account statement is available. Total available balance: INR 48,190.00. Helpline: 1860-419-5555.", "NONE"),
+            TestCase("PT", "UPI Alert PT", "transferência concluída! INR 1,200.00 debited from A/C XX4918 via UPI Ref 829104820194. Total Available Balance: INR 15,200.00. Toll-free: 1860-266-2666.", "NONE"),
+            TestCase("PT", "Payment Received PT", "Payment received of INR 3,500.00 for Invoice #829104. Transaction completed successfully. Support: 1800-120-4455.", "NONE"),
+            TestCase("PT", "Customer Service PT", "For inquiries regarding your bank account, please contact our toll-free customer care at 18001030 or 18001234.", "NONE"),
         )
 
         for (c in cases) {
             val res = OtpExtractor.extractOtp(null, c.message, null, 0L)
-            assertNotNull("Extraction failed for [${c.lang}] ${c.service}: '${c.message}'", res)
-            assertEquals("Wrong OTP for [${c.lang}] ${c.service}", c.expected, res?.code)
+            if (c.expected.isEmpty() || c.expected == "NONE") {
+                org.junit.Assert.assertNull("Should NOT extract OTP for [${c.lang}] ${c.service}: '${c.message}' but got '${res?.code}'", res)
+            } else {
+                assertNotNull("Extraction failed for [${c.lang}] ${c.service}: '${c.message}'", res)
+                assertEquals("Wrong OTP for [${c.lang}] ${c.service}", c.expected, res?.code)
+            }
         }
     }
 
     // ========================================== 
-    // LANGUAGE: RU (30 PRODUCTION TEMPLATES)
+    // LANGUAGE: RU (50 PRODUCTION TEMPLATES)
     // ========================================== 
     @Test
     fun testLanguage_RU() {
@@ -318,17 +462,41 @@ class MultiLanguageRigorousOtpTest {
             TestCase("RU", "Сервис 28", "Ваш проверочный код: 245012. Операция #918232 на сумму 1500 руб. Справка: 8 800 555-55-50.", "245012"),
             TestCase("RU", "Сервис 29", "Ваш проверочный код: 250191. Операция #918233 на сумму 1500 руб. Справка: 8 800 555-55-50.", "250191"),
             TestCase("RU", "Сервис 30", "Ваш проверочный код: 255370. Операция #918234 на сумму 1500 руб. Справка: 8 800 555-55-50.", "255370"),
+            TestCase("RU", "Bank 2FA RU", "Проверочный код: 491028. операции #948201. Служба поддержки: 1800-11-2211.", "491028"),
+            TestCase("RU", "Online Auth RU", "739104 is your проверочный код. Valid for 10 minutes. Служба поддержки: 1800-202-6161.", "739104"),
+            TestCase("RU", "Secure Login RU", "проверочный код: 582910. операции ID: TXN-819204. Do not disclose.", "582910"),
+            TestCase("RU", "Transfer Auth RU", "проверочный код: 849201 for fund transfer of 1,500.00. Служба поддержки: 1800-1080.", "849201"),
+            TestCase("RU", "Card Verification RU", "проверочный код is 618294 for card ending 4829. Valid 5 mins.", "618294"),
+            TestCase("RU", "Merchant Pay RU", "Use проверочный код 391048 to authorize payment of 850.00. Ref #849201.", "391048"),
+            TestCase("RU", "Platform 2FA RU", "G-918204 is your verification code. Служба поддержки: support@example.com.", "918204"),
+            TestCase("RU", "Mobile Code RU", "Telegram code: 482910. Never share this code with anyone.", "482910"),
+            TestCase("RU", "Service Code RU", "Your проверочный код is 256587 for account sign-in. Valid for 15 mins.", "256587"),
+            TestCase("RU", "Express Pay RU", "Use one-time code 749102 to complete your order. Служба поддержки: 18001030.", "749102"),
+            TestCase("RU", "Delivery Confirmation RU", "Delivery OTP: 391820 for package delivery. Total: 420.00.", "391820"),
+            TestCase("RU", "Account Access RU", "проверочный код: 591024. Device: Windows. Служба поддержки: 18001234.", "591024"),
+            TestCase("RU", "Credit Alert RU", "Account XX9328 было зачислено INR 10,000.00 on 28/10/26. Total Available Balance: INR 12,396.50. Contact: 18001030.", "NONE"),
+            TestCase("RU", "Transfer Receipt RU", "успешный перевод! Amount INR 10,000.00. Transaction Number 630112888096. Toll free number 18001234 / 18002100. Safe banking: Never share your OTP.", "NONE"),
+            TestCase("RU", "Debit Alert RU", "Amount of INR 5,400.00 было списано from Account XX4821. Available balance: INR 34,210.00. Helpline: 1800-202-6161.", "NONE"),
+            TestCase("RU", "NEFT Deposit RU", "Account XX9102 было зачислено with INR 25,000.00 by NEFT Ref 91820491. Avl Bal: INR 65,492.00. Call: 1800-1080.", "NONE"),
+            TestCase("RU", "Monthly Statement RU", "Your monthly account statement is available. Total available balance: INR 48,190.00. Helpline: 1860-419-5555.", "NONE"),
+            TestCase("RU", "UPI Alert RU", "успешный перевод! INR 1,200.00 debited from A/C XX4918 via UPI Ref 829104820194. Total Available Balance: INR 15,200.00. Toll-free: 1860-266-2666.", "NONE"),
+            TestCase("RU", "Payment Received RU", "Payment received of INR 3,500.00 for Invoice #829104. Transaction completed successfully. Support: 1800-120-4455.", "NONE"),
+            TestCase("RU", "Customer Service RU", "For inquiries regarding your bank account, please contact our toll-free customer care at 18001030 or 18001234.", "NONE"),
         )
 
         for (c in cases) {
             val res = OtpExtractor.extractOtp(null, c.message, null, 0L)
-            assertNotNull("Extraction failed for [${c.lang}] ${c.service}: '${c.message}'", res)
-            assertEquals("Wrong OTP for [${c.lang}] ${c.service}", c.expected, res?.code)
+            if (c.expected.isEmpty() || c.expected == "NONE") {
+                org.junit.Assert.assertNull("Should NOT extract OTP for [${c.lang}] ${c.service}: '${c.message}' but got '${res?.code}'", res)
+            } else {
+                assertNotNull("Extraction failed for [${c.lang}] ${c.service}: '${c.message}'", res)
+                assertEquals("Wrong OTP for [${c.lang}] ${c.service}", c.expected, res?.code)
+            }
         }
     }
 
     // ========================================== 
-    // LANGUAGE: JA (30 PRODUCTION TEMPLATES)
+    // LANGUAGE: JA (50 PRODUCTION TEMPLATES)
     // ========================================== 
     @Test
     fun testLanguage_JA() {
@@ -363,17 +531,41 @@ class MultiLanguageRigorousOtpTest {
             TestCase("JA", "サービス 28", "認証コードは 329348 です。注文番号 #492046。有効期限は10分です。お問い合わせ: 0120-123-456。", "329348"),
             TestCase("JA", "サービス 29", "認証コードは 337539 です。注文番号 #492047。有効期限は10分です。お問い合わせ: 0120-123-456。", "337539"),
             TestCase("JA", "サービス 30", "認証コードは 345730 です。注文番号 #492048。有効期限は10分です。お問い合わせ: 0120-123-456。", "345730"),
+            TestCase("JA", "Bank 2FA JA", "認証コード: 491028. お取引 #948201. サポート: 1800-11-2211.", "491028"),
+            TestCase("JA", "Online Auth JA", "739104 is your 認証コード. Valid for 10 minutes. サポート: 1800-202-6161.", "739104"),
+            TestCase("JA", "Secure Login JA", "認証コード: 582910. お取引 ID: TXN-819204. Do not disclose.", "582910"),
+            TestCase("JA", "Transfer Auth JA", "認証コード: 849201 for fund transfer of 1,500.00. サポート: 1800-1080.", "849201"),
+            TestCase("JA", "Card Verification JA", "認証コード is 618294 for card ending 4829. Valid 5 mins.", "618294"),
+            TestCase("JA", "Merchant Pay JA", "Use 認証コード 391048 to authorize payment of 850.00. Ref #849201.", "391048"),
+            TestCase("JA", "Platform 2FA JA", "G-918204 is your verification code. サポート: support@example.com.", "918204"),
+            TestCase("JA", "Mobile Code JA", "Telegram code: 482910. Never share this code with anyone.", "482910"),
+            TestCase("JA", "Service Code JA", "Your 認証コード is 256587 for account sign-in. Valid for 15 mins.", "256587"),
+            TestCase("JA", "Express Pay JA", "Use one-time code 749102 to complete your order. サポート: 18001030.", "749102"),
+            TestCase("JA", "Delivery Confirmation JA", "Delivery OTP: 391820 for package delivery. Total: 420.00.", "391820"),
+            TestCase("JA", "Account Access JA", "認証コード: 591024. Device: Windows. サポート: 18001234.", "591024"),
+            TestCase("JA", "Credit Alert JA", "Account XX9328 入金されました INR 10,000.00 on 28/10/26. Total Available Balance: INR 12,396.50. Contact: 18001030.", "NONE"),
+            TestCase("JA", "Transfer Receipt JA", "振込が完了しました! Amount INR 10,000.00. Transaction Number 630112888096. Toll free number 18001234 / 18002100. Safe banking: Never share your OTP.", "NONE"),
+            TestCase("JA", "Debit Alert JA", "Amount of INR 5,400.00 出金されました from Account XX4821. Available balance: INR 34,210.00. Helpline: 1800-202-6161.", "NONE"),
+            TestCase("JA", "NEFT Deposit JA", "Account XX9102 入金されました with INR 25,000.00 by NEFT Ref 91820491. Avl Bal: INR 65,492.00. Call: 1800-1080.", "NONE"),
+            TestCase("JA", "Monthly Statement JA", "Your monthly account statement is available. Total available balance: INR 48,190.00. Helpline: 1860-419-5555.", "NONE"),
+            TestCase("JA", "UPI Alert JA", "振込が完了しました! INR 1,200.00 debited from A/C XX4918 via UPI Ref 829104820194. Total Available Balance: INR 15,200.00. Toll-free: 1860-266-2666.", "NONE"),
+            TestCase("JA", "Payment Received JA", "Payment received of INR 3,500.00 for Invoice #829104. Transaction completed successfully. Support: 1800-120-4455.", "NONE"),
+            TestCase("JA", "Customer Service JA", "For inquiries regarding your bank account, please contact our toll-free customer care at 18001030 or 18001234.", "NONE"),
         )
 
         for (c in cases) {
             val res = OtpExtractor.extractOtp(null, c.message, null, 0L)
-            assertNotNull("Extraction failed for [${c.lang}] ${c.service}: '${c.message}'", res)
-            assertEquals("Wrong OTP for [${c.lang}] ${c.service}", c.expected, res?.code)
+            if (c.expected.isEmpty() || c.expected == "NONE") {
+                org.junit.Assert.assertNull("Should NOT extract OTP for [${c.lang}] ${c.service}: '${c.message}' but got '${res?.code}'", res)
+            } else {
+                assertNotNull("Extraction failed for [${c.lang}] ${c.service}: '${c.message}'", res)
+                assertEquals("Wrong OTP for [${c.lang}] ${c.service}", c.expected, res?.code)
+            }
         }
     }
 
     // ========================================== 
-    // LANGUAGE: ZH (30 PRODUCTION TEMPLATES)
+    // LANGUAGE: ZH (50 PRODUCTION TEMPLATES)
     // ========================================== 
     @Test
     fun testLanguage_ZH() {
@@ -408,17 +600,41 @@ class MultiLanguageRigorousOtpTest {
             TestCase("ZH", "应用 28", "您的验证码是 358188，用于订单 #829132 的支付验证。请勿泄露。客服热线: 95188。", "358188"),
             TestCase("ZH", "应用 29", "您的验证码是 367409，用于订单 #829133 的支付验证。请勿泄露。客服热线: 95188。", "367409"),
             TestCase("ZH", "应用 30", "您的验证码是 376630，用于订单 #829134 的支付验证。请勿泄露。客服热线: 95188。", "376630"),
+            TestCase("ZH", "Bank 2FA ZH", "验证码: 491028. 交易 #948201. 客户服务: 1800-11-2211.", "491028"),
+            TestCase("ZH", "Online Auth ZH", "739104 is your 验证码. Valid for 10 minutes. 客户服务: 1800-202-6161.", "739104"),
+            TestCase("ZH", "Secure Login ZH", "验证码: 582910. 交易 ID: TXN-819204. Do not disclose.", "582910"),
+            TestCase("ZH", "Transfer Auth ZH", "验证码: 849201 for fund transfer of 1,500.00. 客户服务: 1800-1080.", "849201"),
+            TestCase("ZH", "Card Verification ZH", "验证码 is 618294 for card ending 4829. Valid 5 mins.", "618294"),
+            TestCase("ZH", "Merchant Pay ZH", "Use 验证码 391048 to authorize payment of 850.00. Ref #849201.", "391048"),
+            TestCase("ZH", "Platform 2FA ZH", "G-918204 is your verification code. 客户服务: support@example.com.", "918204"),
+            TestCase("ZH", "Mobile Code ZH", "Telegram code: 482910. Never share this code with anyone.", "482910"),
+            TestCase("ZH", "Service Code ZH", "Your 验证码 is 256587 for account sign-in. Valid for 15 mins.", "256587"),
+            TestCase("ZH", "Express Pay ZH", "Use one-time code 749102 to complete your order. 客户服务: 18001030.", "749102"),
+            TestCase("ZH", "Delivery Confirmation ZH", "Delivery OTP: 391820 for package delivery. Total: 420.00.", "391820"),
+            TestCase("ZH", "Account Access ZH", "验证码: 591024. Device: Windows. 客户服务: 18001234.", "591024"),
+            TestCase("ZH", "Credit Alert ZH", "Account XX9328 已成功存入 INR 10,000.00 on 28/10/26. Total Available Balance: INR 12,396.50. Contact: 18001030.", "NONE"),
+            TestCase("ZH", "Transfer Receipt ZH", "转账成功! Amount INR 10,000.00. Transaction Number 630112888096. Toll free number 18001234 / 18002100. Safe banking: Never share your OTP.", "NONE"),
+            TestCase("ZH", "Debit Alert ZH", "Amount of INR 5,400.00 已成功扣除 from Account XX4821. Available balance: INR 34,210.00. Helpline: 1800-202-6161.", "NONE"),
+            TestCase("ZH", "NEFT Deposit ZH", "Account XX9102 已成功存入 with INR 25,000.00 by NEFT Ref 91820491. Avl Bal: INR 65,492.00. Call: 1800-1080.", "NONE"),
+            TestCase("ZH", "Monthly Statement ZH", "Your monthly account statement is available. Total available balance: INR 48,190.00. Helpline: 1860-419-5555.", "NONE"),
+            TestCase("ZH", "UPI Alert ZH", "转账成功! INR 1,200.00 debited from A/C XX4918 via UPI Ref 829104820194. Total Available Balance: INR 15,200.00. Toll-free: 1860-266-2666.", "NONE"),
+            TestCase("ZH", "Payment Received ZH", "Payment received of INR 3,500.00 for Invoice #829104. Transaction completed successfully. Support: 1800-120-4455.", "NONE"),
+            TestCase("ZH", "Customer Service ZH", "For inquiries regarding your bank account, please contact our toll-free customer care at 18001030 or 18001234.", "NONE"),
         )
 
         for (c in cases) {
             val res = OtpExtractor.extractOtp(null, c.message, null, 0L)
-            assertNotNull("Extraction failed for [${c.lang}] ${c.service}: '${c.message}'", res)
-            assertEquals("Wrong OTP for [${c.lang}] ${c.service}", c.expected, res?.code)
+            if (c.expected.isEmpty() || c.expected == "NONE") {
+                org.junit.Assert.assertNull("Should NOT extract OTP for [${c.lang}] ${c.service}: '${c.message}' but got '${res?.code}'", res)
+            } else {
+                assertNotNull("Extraction failed for [${c.lang}] ${c.service}: '${c.message}'", res)
+                assertEquals("Wrong OTP for [${c.lang}] ${c.service}", c.expected, res?.code)
+            }
         }
     }
 
     // ========================================== 
-    // LANGUAGE: AR (30 PRODUCTION TEMPLATES)
+    // LANGUAGE: AR (50 PRODUCTION TEMPLATES)
     // ========================================== 
     @Test
     fun testLanguage_AR() {
@@ -453,17 +669,41 @@ class MultiLanguageRigorousOtpTest {
             TestCase("AR", "خدمة 28", "رمز التحقق الخاص بك هو: 305268 لتأكيد العملية رقم 391056. الرقم المجاني: 8001244455.", "305268"),
             TestCase("AR", "خدمة 29", "رمز التحقق الخاص بك هو: 312599 لتأكيد العملية رقم 391057. الرقم المجاني: 8001244455.", "312599"),
             TestCase("AR", "خدمة 30", "رمز التحقق الخاص بك هو: 319930 لتأكيد العملية رقم 391058. الرقم المجاني: 8001244455.", "319930"),
+            TestCase("AR", "Bank 2FA AR", "رمز التحقق: 491028. العملية #948201. خدمة العملاء: 1800-11-2211.", "491028"),
+            TestCase("AR", "Online Auth AR", "739104 is your رمز التحقق. Valid for 10 minutes. خدمة العملاء: 1800-202-6161.", "739104"),
+            TestCase("AR", "Secure Login AR", "رمز التحقق: 582910. العملية ID: TXN-819204. Do not disclose.", "582910"),
+            TestCase("AR", "Transfer Auth AR", "رمز التحقق: 849201 for fund transfer of 1,500.00. خدمة العملاء: 1800-1080.", "849201"),
+            TestCase("AR", "Card Verification AR", "رمز التحقق is 618294 for card ending 4829. Valid 5 mins.", "618294"),
+            TestCase("AR", "Merchant Pay AR", "Use رمز التحقق 391048 to authorize payment of 850.00. Ref #849201.", "391048"),
+            TestCase("AR", "Platform 2FA AR", "G-918204 is your verification code. خدمة العملاء: support@example.com.", "918204"),
+            TestCase("AR", "Mobile Code AR", "Telegram code: 482910. Never share this code with anyone.", "482910"),
+            TestCase("AR", "Service Code AR", "Your رمز التحقق is 256587 for account sign-in. Valid for 15 mins.", "256587"),
+            TestCase("AR", "Express Pay AR", "Use one-time code 749102 to complete your order. خدمة العملاء: 18001030.", "749102"),
+            TestCase("AR", "Delivery Confirmation AR", "Delivery OTP: 391820 for package delivery. Total: 420.00.", "391820"),
+            TestCase("AR", "Account Access AR", "رمز التحقق: 591024. Device: Windows. خدمة العملاء: 18001234.", "591024"),
+            TestCase("AR", "Credit Alert AR", "Account XX9328 تم إيداع مبلغ INR 10,000.00 on 28/10/26. Total Available Balance: INR 12,396.50. Contact: 18001030.", "NONE"),
+            TestCase("AR", "Transfer Receipt AR", "تم تحويل الأموال بنجاح! Amount INR 10,000.00. Transaction Number 630112888096. Toll free number 18001234 / 18002100. Safe banking: Never share your OTP.", "NONE"),
+            TestCase("AR", "Debit Alert AR", "Amount of INR 5,400.00 تم خصم مبلغ from Account XX4821. Available balance: INR 34,210.00. Helpline: 1800-202-6161.", "NONE"),
+            TestCase("AR", "NEFT Deposit AR", "Account XX9102 تم إيداع مبلغ with INR 25,000.00 by NEFT Ref 91820491. Avl Bal: INR 65,492.00. Call: 1800-1080.", "NONE"),
+            TestCase("AR", "Monthly Statement AR", "Your monthly account statement is available. Total available balance: INR 48,190.00. Helpline: 1860-419-5555.", "NONE"),
+            TestCase("AR", "UPI Alert AR", "تم تحويل الأموال بنجاح! INR 1,200.00 debited from A/C XX4918 via UPI Ref 829104820194. Total Available Balance: INR 15,200.00. Toll-free: 1860-266-2666.", "NONE"),
+            TestCase("AR", "Payment Received AR", "Payment received of INR 3,500.00 for Invoice #829104. Transaction completed successfully. Support: 1800-120-4455.", "NONE"),
+            TestCase("AR", "Customer Service AR", "For inquiries regarding your bank account, please contact our toll-free customer care at 18001030 or 18001234.", "NONE"),
         )
 
         for (c in cases) {
             val res = OtpExtractor.extractOtp(null, c.message, null, 0L)
-            assertNotNull("Extraction failed for [${c.lang}] ${c.service}: '${c.message}'", res)
-            assertEquals("Wrong OTP for [${c.lang}] ${c.service}", c.expected, res?.code)
+            if (c.expected.isEmpty() || c.expected == "NONE") {
+                org.junit.Assert.assertNull("Should NOT extract OTP for [${c.lang}] ${c.service}: '${c.message}' but got '${res?.code}'", res)
+            } else {
+                assertNotNull("Extraction failed for [${c.lang}] ${c.service}: '${c.message}'", res)
+                assertEquals("Wrong OTP for [${c.lang}] ${c.service}", c.expected, res?.code)
+            }
         }
     }
 
     // ========================================== 
-    // LANGUAGE: IT (30 PRODUCTION TEMPLATES)
+    // LANGUAGE: IT (50 PRODUCTION TEMPLATES)
     // ========================================== 
     @Test
     fun testLanguage_IT() {
@@ -498,17 +738,41 @@ class MultiLanguageRigorousOtpTest {
             TestCase("IT", "Banca 28", "Il tuo codice di verifica e 273908 per autorizzare il bonifico #618322 di 85,00 EUR. Assistenza: 800 303 303.", "273908"),
             TestCase("IT", "Banca 29", "Il tuo codice di verifica e 280119 per autorizzare il bonifico #618323 di 85,00 EUR. Assistenza: 800 303 303.", "280119"),
             TestCase("IT", "Banca 30", "Il tuo codice di verifica e 286330 per autorizzare il bonifico #618324 di 85,00 EUR. Assistenza: 800 303 303.", "286330"),
+            TestCase("IT", "Bank 2FA IT", "Codice di verifica: 491028. operazione #948201. Assistenza clienti: 1800-11-2211.", "491028"),
+            TestCase("IT", "Online Auth IT", "739104 is your codice di verifica. Valid for 10 minutes. Assistenza clienti: 1800-202-6161.", "739104"),
+            TestCase("IT", "Secure Login IT", "codice di verifica: 582910. operazione ID: TXN-819204. Do not disclose.", "582910"),
+            TestCase("IT", "Transfer Auth IT", "codice di verifica: 849201 for fund transfer of 1,500.00. Assistenza clienti: 1800-1080.", "849201"),
+            TestCase("IT", "Card Verification IT", "codice di verifica is 618294 for card ending 4829. Valid 5 mins.", "618294"),
+            TestCase("IT", "Merchant Pay IT", "Use codice di verifica 391048 to authorize payment of 850.00. Ref #849201.", "391048"),
+            TestCase("IT", "Platform 2FA IT", "G-918204 is your verification code. Assistenza clienti: support@example.com.", "918204"),
+            TestCase("IT", "Mobile Code IT", "Telegram code: 482910. Never share this code with anyone.", "482910"),
+            TestCase("IT", "Service Code IT", "Your codice di verifica is 256587 for account sign-in. Valid for 15 mins.", "256587"),
+            TestCase("IT", "Express Pay IT", "Use one-time code 749102 to complete your order. Assistenza clienti: 18001030.", "749102"),
+            TestCase("IT", "Delivery Confirmation IT", "Delivery OTP: 391820 for package delivery. Total: 420.00.", "391820"),
+            TestCase("IT", "Account Access IT", "codice di verifica: 591024. Device: Windows. Assistenza clienti: 18001234.", "591024"),
+            TestCase("IT", "Credit Alert IT", "Account XX9328 è stato accreditato INR 10,000.00 on 28/10/26. Total Available Balance: INR 12,396.50. Contact: 18001030.", "NONE"),
+            TestCase("IT", "Transfer Receipt IT", "bonifico effettuato! Amount INR 10,000.00. Transaction Number 630112888096. Toll free number 18001234 / 18002100. Safe banking: Never share your OTP.", "NONE"),
+            TestCase("IT", "Debit Alert IT", "Amount of INR 5,400.00 è stato addebitato from Account XX4821. Available balance: INR 34,210.00. Helpline: 1800-202-6161.", "NONE"),
+            TestCase("IT", "NEFT Deposit IT", "Account XX9102 è stato accreditato with INR 25,000.00 by NEFT Ref 91820491. Avl Bal: INR 65,492.00. Call: 1800-1080.", "NONE"),
+            TestCase("IT", "Monthly Statement IT", "Your monthly account statement is available. Total available balance: INR 48,190.00. Helpline: 1860-419-5555.", "NONE"),
+            TestCase("IT", "UPI Alert IT", "bonifico effettuato! INR 1,200.00 debited from A/C XX4918 via UPI Ref 829104820194. Total Available Balance: INR 15,200.00. Toll-free: 1860-266-2666.", "NONE"),
+            TestCase("IT", "Payment Received IT", "Payment received of INR 3,500.00 for Invoice #829104. Transaction completed successfully. Support: 1800-120-4455.", "NONE"),
+            TestCase("IT", "Customer Service IT", "For inquiries regarding your bank account, please contact our toll-free customer care at 18001030 or 18001234.", "NONE"),
         )
 
         for (c in cases) {
             val res = OtpExtractor.extractOtp(null, c.message, null, 0L)
-            assertNotNull("Extraction failed for [${c.lang}] ${c.service}: '${c.message}'", res)
-            assertEquals("Wrong OTP for [${c.lang}] ${c.service}", c.expected, res?.code)
+            if (c.expected.isEmpty() || c.expected == "NONE") {
+                org.junit.Assert.assertNull("Should NOT extract OTP for [${c.lang}] ${c.service}: '${c.message}' but got '${res?.code}'", res)
+            } else {
+                assertNotNull("Extraction failed for [${c.lang}] ${c.service}: '${c.message}'", res)
+                assertEquals("Wrong OTP for [${c.lang}] ${c.service}", c.expected, res?.code)
+            }
         }
     }
 
     // ========================================== 
-    // LANGUAGE: ID (30 PRODUCTION TEMPLATES)
+    // LANGUAGE: ID (50 PRODUCTION TEMPLATES)
     // ========================================== 
     @Test
     fun testLanguage_ID() {
@@ -543,17 +807,41 @@ class MultiLanguageRigorousOtpTest {
             TestCase("ID", "Aplikasi 28", "Kode verifikasi Anda adalah 234092 untuk transaksi Rp 150.000 pada pesanan #482938. Call center: 1500720.", "234092"),
             TestCase("ID", "Aplikasi 29", "Kode verifikasi Anda adalah 238881 untuk transaksi Rp 150.000 pada pesanan #482939. Call center: 1500720.", "238881"),
             TestCase("ID", "Aplikasi 30", "Kode verifikasi Anda adalah 243670 untuk transaksi Rp 150.000 pada pesanan #482940. Call center: 1500720.", "243670"),
+            TestCase("ID", "Bank 2FA ID", "Kode verifikasi: 491028. transaksi #948201. Layanan pelanggan: 1800-11-2211.", "491028"),
+            TestCase("ID", "Online Auth ID", "739104 is your kode verifikasi. Valid for 10 minutes. Layanan pelanggan: 1800-202-6161.", "739104"),
+            TestCase("ID", "Secure Login ID", "kode verifikasi: 582910. transaksi ID: TXN-819204. Do not disclose.", "582910"),
+            TestCase("ID", "Transfer Auth ID", "kode verifikasi: 849201 for fund transfer of 1,500.00. Layanan pelanggan: 1800-1080.", "849201"),
+            TestCase("ID", "Card Verification ID", "kode verifikasi is 618294 for card ending 4829. Valid 5 mins.", "618294"),
+            TestCase("ID", "Merchant Pay ID", "Use kode verifikasi 391048 to authorize payment of 850.00. Ref #849201.", "391048"),
+            TestCase("ID", "Platform 2FA ID", "G-918204 is your verification code. Layanan pelanggan: support@example.com.", "918204"),
+            TestCase("ID", "Mobile Code ID", "Telegram code: 482910. Never share this code with anyone.", "482910"),
+            TestCase("ID", "Service Code ID", "Your kode verifikasi is 256587 for account sign-in. Valid for 15 mins.", "256587"),
+            TestCase("ID", "Express Pay ID", "Use one-time code 749102 to complete your order. Layanan pelanggan: 18001030.", "749102"),
+            TestCase("ID", "Delivery Confirmation ID", "Delivery OTP: 391820 for package delivery. Total: 420.00.", "391820"),
+            TestCase("ID", "Account Access ID", "kode verifikasi: 591024. Device: Windows. Layanan pelanggan: 18001234.", "591024"),
+            TestCase("ID", "Credit Alert ID", "Account XX9328 telah dikreditkan INR 10,000.00 on 28/10/26. Total Available Balance: INR 12,396.50. Contact: 18001030.", "NONE"),
+            TestCase("ID", "Transfer Receipt ID", "transfer berhasil! Amount INR 10,000.00. Transaction Number 630112888096. Toll free number 18001234 / 18002100. Safe banking: Never share your OTP.", "NONE"),
+            TestCase("ID", "Debit Alert ID", "Amount of INR 5,400.00 telah didebitkan from Account XX4821. Available balance: INR 34,210.00. Helpline: 1800-202-6161.", "NONE"),
+            TestCase("ID", "NEFT Deposit ID", "Account XX9102 telah dikreditkan with INR 25,000.00 by NEFT Ref 91820491. Avl Bal: INR 65,492.00. Call: 1800-1080.", "NONE"),
+            TestCase("ID", "Monthly Statement ID", "Your monthly account statement is available. Total available balance: INR 48,190.00. Helpline: 1860-419-5555.", "NONE"),
+            TestCase("ID", "UPI Alert ID", "transfer berhasil! INR 1,200.00 debited from A/C XX4918 via UPI Ref 829104820194. Total Available Balance: INR 15,200.00. Toll-free: 1860-266-2666.", "NONE"),
+            TestCase("ID", "Payment Received ID", "Payment received of INR 3,500.00 for Invoice #829104. Transaction completed successfully. Support: 1800-120-4455.", "NONE"),
+            TestCase("ID", "Customer Service ID", "For inquiries regarding your bank account, please contact our toll-free customer care at 18001030 or 18001234.", "NONE"),
         )
 
         for (c in cases) {
             val res = OtpExtractor.extractOtp(null, c.message, null, 0L)
-            assertNotNull("Extraction failed for [${c.lang}] ${c.service}: '${c.message}'", res)
-            assertEquals("Wrong OTP for [${c.lang}] ${c.service}", c.expected, res?.code)
+            if (c.expected.isEmpty() || c.expected == "NONE") {
+                org.junit.Assert.assertNull("Should NOT extract OTP for [${c.lang}] ${c.service}: '${c.message}' but got '${res?.code}'", res)
+            } else {
+                assertNotNull("Extraction failed for [${c.lang}] ${c.service}: '${c.message}'", res)
+                assertEquals("Wrong OTP for [${c.lang}] ${c.service}", c.expected, res?.code)
+            }
         }
     }
 
     // ========================================== 
-    // LANGUAGE: TR (30 PRODUCTION TEMPLATES)
+    // LANGUAGE: TR (50 PRODUCTION TEMPLATES)
     // ========================================== 
     @Test
     fun testLanguage_TR() {
@@ -588,17 +876,41 @@ class MultiLanguageRigorousOtpTest {
             TestCase("TR", "Banka 28", "Dogrulama kodunuz: 347268. 278 TL tutarindaki islem referansi #849229. Musteri Hizmetleri: 0850 222 0 444.", "347268"),
             TestCase("TR", "Banka 29", "Dogrulama kodunuz: 356099. 279 TL tutarindaki islem referansi #849230. Musteri Hizmetleri: 0850 222 0 444.", "356099"),
             TestCase("TR", "Banka 30", "Dogrulama kodunuz: 364930. 280 TL tutarindaki islem referansi #849231. Musteri Hizmetleri: 0850 222 0 444.", "364930"),
+            TestCase("TR", "Bank 2FA TR", "Doğrulama kodu: 491028. işlem #948201. Müşteri hizmetleri: 1800-11-2211.", "491028"),
+            TestCase("TR", "Online Auth TR", "739104 is your doğrulama kodu. Valid for 10 minutes. Müşteri hizmetleri: 1800-202-6161.", "739104"),
+            TestCase("TR", "Secure Login TR", "doğrulama kodu: 582910. işlem ID: TXN-819204. Do not disclose.", "582910"),
+            TestCase("TR", "Transfer Auth TR", "doğrulama kodu: 849201 for fund transfer of 1,500.00. Müşteri hizmetleri: 1800-1080.", "849201"),
+            TestCase("TR", "Card Verification TR", "doğrulama kodu is 618294 for card ending 4829. Valid 5 mins.", "618294"),
+            TestCase("TR", "Merchant Pay TR", "Use doğrulama kodu 391048 to authorize payment of 850.00. Ref #849201.", "391048"),
+            TestCase("TR", "Platform 2FA TR", "G-918204 is your verification code. Müşteri hizmetleri: support@example.com.", "918204"),
+            TestCase("TR", "Mobile Code TR", "Telegram code: 482910. Never share this code with anyone.", "482910"),
+            TestCase("TR", "Service Code TR", "Your doğrulama kodu is 256587 for account sign-in. Valid for 15 mins.", "256587"),
+            TestCase("TR", "Express Pay TR", "Use one-time code 749102 to complete your order. Müşteri hizmetleri: 18001030.", "749102"),
+            TestCase("TR", "Delivery Confirmation TR", "Delivery OTP: 391820 for package delivery. Total: 420.00.", "391820"),
+            TestCase("TR", "Account Access TR", "doğrulama kodu: 591024. Device: Windows. Müşteri hizmetleri: 18001234.", "591024"),
+            TestCase("TR", "Credit Alert TR", "Account XX9328 hesabınıza yatırıldı INR 10,000.00 on 28/10/26. Total Available Balance: INR 12,396.50. Contact: 18001030.", "NONE"),
+            TestCase("TR", "Transfer Receipt TR", "transfer başarılı! Amount INR 10,000.00. Transaction Number 630112888096. Toll free number 18001234 / 18002100. Safe banking: Never share your OTP.", "NONE"),
+            TestCase("TR", "Debit Alert TR", "Amount of INR 5,400.00 hesabınızdan çekildi from Account XX4821. Available balance: INR 34,210.00. Helpline: 1800-202-6161.", "NONE"),
+            TestCase("TR", "NEFT Deposit TR", "Account XX9102 hesabınıza yatırıldı with INR 25,000.00 by NEFT Ref 91820491. Avl Bal: INR 65,492.00. Call: 1800-1080.", "NONE"),
+            TestCase("TR", "Monthly Statement TR", "Your monthly account statement is available. Total available balance: INR 48,190.00. Helpline: 1860-419-5555.", "NONE"),
+            TestCase("TR", "UPI Alert TR", "transfer başarılı! INR 1,200.00 debited from A/C XX4918 via UPI Ref 829104820194. Total Available Balance: INR 15,200.00. Toll-free: 1860-266-2666.", "NONE"),
+            TestCase("TR", "Payment Received TR", "Payment received of INR 3,500.00 for Invoice #829104. Transaction completed successfully. Support: 1800-120-4455.", "NONE"),
+            TestCase("TR", "Customer Service TR", "For inquiries regarding your bank account, please contact our toll-free customer care at 18001030 or 18001234.", "NONE"),
         )
 
         for (c in cases) {
             val res = OtpExtractor.extractOtp(null, c.message, null, 0L)
-            assertNotNull("Extraction failed for [${c.lang}] ${c.service}: '${c.message}'", res)
-            assertEquals("Wrong OTP for [${c.lang}] ${c.service}", c.expected, res?.code)
+            if (c.expected.isEmpty() || c.expected == "NONE") {
+                org.junit.Assert.assertNull("Should NOT extract OTP for [${c.lang}] ${c.service}: '${c.message}' but got '${res?.code}'", res)
+            } else {
+                assertNotNull("Extraction failed for [${c.lang}] ${c.service}: '${c.message}'", res)
+                assertEquals("Wrong OTP for [${c.lang}] ${c.service}", c.expected, res?.code)
+            }
         }
     }
 
     // ========================================== 
-    // LANGUAGE: KO (30 PRODUCTION TEMPLATES)
+    // LANGUAGE: KO (50 PRODUCTION TEMPLATES)
     // ========================================== 
     @Test
     fun testLanguage_KO() {
@@ -633,17 +945,41 @@ class MultiLanguageRigorousOtpTest {
             TestCase("KO", "서비스 28", "인증번호: 265844 입니다. 결제금액 35,000원 주문 #291076. 고객센터: 1588-1234.", "265844"),
             TestCase("KO", "서비스 29", "인증번호: 271767 입니다. 결제금액 35,000원 주문 #291077. 고객센터: 1588-1234.", "271767"),
             TestCase("KO", "서비스 30", "인증번호: 277690 입니다. 결제금액 35,000원 주문 #291078. 고객센터: 1588-1234.", "277690"),
+            TestCase("KO", "Bank 2FA KO", "인증번호: 491028. 거래 #948201. 고객센터: 1800-11-2211.", "491028"),
+            TestCase("KO", "Online Auth KO", "739104 is your 인증번호. Valid for 10 minutes. 고객센터: 1800-202-6161.", "739104"),
+            TestCase("KO", "Secure Login KO", "인증번호: 582910. 거래 ID: TXN-819204. Do not disclose.", "582910"),
+            TestCase("KO", "Transfer Auth KO", "인증번호: 849201 for fund transfer of 1,500.00. 고객센터: 1800-1080.", "849201"),
+            TestCase("KO", "Card Verification KO", "인증번호 is 618294 for card ending 4829. Valid 5 mins.", "618294"),
+            TestCase("KO", "Merchant Pay KO", "Use 인증번호 391048 to authorize payment of 850.00. Ref #849201.", "391048"),
+            TestCase("KO", "Platform 2FA KO", "G-918204 is your verification code. 고객센터: support@example.com.", "918204"),
+            TestCase("KO", "Mobile Code KO", "Telegram code: 482910. Never share this code with anyone.", "482910"),
+            TestCase("KO", "Service Code KO", "Your 인증번호 is 256587 for account sign-in. Valid for 15 mins.", "256587"),
+            TestCase("KO", "Express Pay KO", "Use one-time code 749102 to complete your order. 고객센터: 18001030.", "749102"),
+            TestCase("KO", "Delivery Confirmation KO", "Delivery OTP: 391820 for package delivery. Total: 420.00.", "391820"),
+            TestCase("KO", "Account Access KO", "인증번호: 591024. Device: Windows. 고객센터: 18001234.", "591024"),
+            TestCase("KO", "Credit Alert KO", "Account XX9328 입금되었습니다 INR 10,000.00 on 28/10/26. Total Available Balance: INR 12,396.50. Contact: 18001030.", "NONE"),
+            TestCase("KO", "Transfer Receipt KO", "이체가 완료되었습니다! Amount INR 10,000.00. Transaction Number 630112888096. Toll free number 18001234 / 18002100. Safe banking: Never share your OTP.", "NONE"),
+            TestCase("KO", "Debit Alert KO", "Amount of INR 5,400.00 출금되었습니다 from Account XX4821. Available balance: INR 34,210.00. Helpline: 1800-202-6161.", "NONE"),
+            TestCase("KO", "NEFT Deposit KO", "Account XX9102 입금되었습니다 with INR 25,000.00 by NEFT Ref 91820491. Avl Bal: INR 65,492.00. Call: 1800-1080.", "NONE"),
+            TestCase("KO", "Monthly Statement KO", "Your monthly account statement is available. Total available balance: INR 48,190.00. Helpline: 1860-419-5555.", "NONE"),
+            TestCase("KO", "UPI Alert KO", "이체가 완료되었습니다! INR 1,200.00 debited from A/C XX4918 via UPI Ref 829104820194. Total Available Balance: INR 15,200.00. Toll-free: 1860-266-2666.", "NONE"),
+            TestCase("KO", "Payment Received KO", "Payment received of INR 3,500.00 for Invoice #829104. Transaction completed successfully. Support: 1800-120-4455.", "NONE"),
+            TestCase("KO", "Customer Service KO", "For inquiries regarding your bank account, please contact our toll-free customer care at 18001030 or 18001234.", "NONE"),
         )
 
         for (c in cases) {
             val res = OtpExtractor.extractOtp(null, c.message, null, 0L)
-            assertNotNull("Extraction failed for [${c.lang}] ${c.service}: '${c.message}'", res)
-            assertEquals("Wrong OTP for [${c.lang}] ${c.service}", c.expected, res?.code)
+            if (c.expected.isEmpty() || c.expected == "NONE") {
+                org.junit.Assert.assertNull("Should NOT extract OTP for [${c.lang}] ${c.service}: '${c.message}' but got '${res?.code}'", res)
+            } else {
+                assertNotNull("Extraction failed for [${c.lang}] ${c.service}: '${c.message}'", res)
+                assertEquals("Wrong OTP for [${c.lang}] ${c.service}", c.expected, res?.code)
+            }
         }
     }
 
     // ========================================== 
-    // LANGUAGE: BN (30 PRODUCTION TEMPLATES)
+    // LANGUAGE: BN (50 PRODUCTION TEMPLATES)
     // ========================================== 
     @Test
     fun testLanguage_BN() {
@@ -678,17 +1014,41 @@ class MultiLanguageRigorousOtpTest {
             TestCase("BN", "ব্যাংক 28", "আপনার যাচাইকরণ কোড হলো 299612। লেনদেন রেফারেন্স #591052 টাকা ৫০০। হেল্পলাইন ১৬২৪৭।", "299612"),
             TestCase("BN", "ব্যাংক 29", "আপনার যাচাইকরণ কোড হলো 306741। লেনদেন রেফারেন্স #591053 টাকা ৫০০। হেল্পলাইন ১৬২৪৭।", "306741"),
             TestCase("BN", "ব্যাংক 30", "আপনার যাচাইকরণ কোড হলো 313870। লেনদেন রেফারেন্স #591054 টাকা ৫০০। হেল্পলাইন ১৬২৪৭।", "313870"),
+            TestCase("BN", "Bank 2FA BN", "যাচাইকরণ কোড: 491028. লেনদেন #948201. হেল্পলাইন: 1800-11-2211.", "491028"),
+            TestCase("BN", "Online Auth BN", "739104 is your যাচাইকরণ কোড. Valid for 10 minutes. হেল্পলাইন: 1800-202-6161.", "739104"),
+            TestCase("BN", "Secure Login BN", "যাচাইকরণ কোড: 582910. লেনদেন ID: TXN-819204. Do not disclose.", "582910"),
+            TestCase("BN", "Transfer Auth BN", "যাচাইকরণ কোড: 849201 for fund transfer of 1,500.00. হেল্পলাইন: 1800-1080.", "849201"),
+            TestCase("BN", "Card Verification BN", "যাচাইকরণ কোড is 618294 for card ending 4829. Valid 5 mins.", "618294"),
+            TestCase("BN", "Merchant Pay BN", "Use যাচাইকরণ কোড 391048 to authorize payment of 850.00. Ref #849201.", "391048"),
+            TestCase("BN", "Platform 2FA BN", "G-918204 is your verification code. হেল্পলাইন: support@example.com.", "918204"),
+            TestCase("BN", "Mobile Code BN", "Telegram code: 482910. Never share this code with anyone.", "482910"),
+            TestCase("BN", "Service Code BN", "Your যাচাইকরণ কোড is 256587 for account sign-in. Valid for 15 mins.", "256587"),
+            TestCase("BN", "Express Pay BN", "Use one-time code 749102 to complete your order. হেল্পলাইন: 18001030.", "749102"),
+            TestCase("BN", "Delivery Confirmation BN", "Delivery OTP: 391820 for package delivery. Total: 420.00.", "391820"),
+            TestCase("BN", "Account Access BN", "যাচাইকরণ কোড: 591024. Device: Windows. হেল্পলাইন: 18001234.", "591024"),
+            TestCase("BN", "Credit Alert BN", "Account XX9328 জমা করা হয়েছে INR 10,000.00 on 28/10/26. Total Available Balance: INR 12,396.50. Contact: 18001030.", "NONE"),
+            TestCase("BN", "Transfer Receipt BN", "লেনদেন সফল হয়েছে! Amount INR 10,000.00. Transaction Number 630112888096. Toll free number 18001234 / 18002100. Safe banking: Never share your OTP.", "NONE"),
+            TestCase("BN", "Debit Alert BN", "Amount of INR 5,400.00 ডেবিট করা হয়েছে from Account XX4821. Available balance: INR 34,210.00. Helpline: 1800-202-6161.", "NONE"),
+            TestCase("BN", "NEFT Deposit BN", "Account XX9102 জমা করা হয়েছে with INR 25,000.00 by NEFT Ref 91820491. Avl Bal: INR 65,492.00. Call: 1800-1080.", "NONE"),
+            TestCase("BN", "Monthly Statement BN", "Your monthly account statement is available. Total available balance: INR 48,190.00. Helpline: 1860-419-5555.", "NONE"),
+            TestCase("BN", "UPI Alert BN", "লেনদেন সফল হয়েছে! INR 1,200.00 debited from A/C XX4918 via UPI Ref 829104820194. Total Available Balance: INR 15,200.00. Toll-free: 1860-266-2666.", "NONE"),
+            TestCase("BN", "Payment Received BN", "Payment received of INR 3,500.00 for Invoice #829104. Transaction completed successfully. Support: 1800-120-4455.", "NONE"),
+            TestCase("BN", "Customer Service BN", "For inquiries regarding your bank account, please contact our toll-free customer care at 18001030 or 18001234.", "NONE"),
         )
 
         for (c in cases) {
             val res = OtpExtractor.extractOtp(null, c.message, null, 0L)
-            assertNotNull("Extraction failed for [${c.lang}] ${c.service}: '${c.message}'", res)
-            assertEquals("Wrong OTP for [${c.lang}] ${c.service}", c.expected, res?.code)
+            if (c.expected.isEmpty() || c.expected == "NONE") {
+                org.junit.Assert.assertNull("Should NOT extract OTP for [${c.lang}] ${c.service}: '${c.message}' but got '${res?.code}'", res)
+            } else {
+                assertNotNull("Extraction failed for [${c.lang}] ${c.service}: '${c.message}'", res)
+                assertEquals("Wrong OTP for [${c.lang}] ${c.service}", c.expected, res?.code)
+            }
         }
     }
 
     // ========================================== 
-    // LANGUAGE: MR (30 PRODUCTION TEMPLATES)
+    // LANGUAGE: MR (50 PRODUCTION TEMPLATES)
     // ========================================== 
     @Test
     fun testLanguage_MR() {
@@ -723,17 +1083,41 @@ class MultiLanguageRigorousOtpTest {
             TestCase("MR", "सेवा 28", "तुमचा लॉगिन ओटीपी 225468 आहे. संदर्भ क्र #256615. रु २,५०० च्या व्यवहारासाठी. मदत: 1800-222-444.", "225468"),
             TestCase("MR", "सेवा 29", "तुमचा लॉगिन ओटीपी 229949 आहे. संदर्भ क्र #256616. रु २,५०० च्या व्यवहारासाठी. मदत: 1800-222-444.", "229949"),
             TestCase("MR", "सेवा 30", "तुमचा लॉगिन ओटीपी 234430 आहे. संदर्भ क्र #256617. रु २,५०० च्या व्यवहारासाठी. मदत: 1800-222-444.", "234430"),
+            TestCase("MR", "Bank 2FA MR", "सत्यापन कोड: 491028. व्यवहार #948201. ग्राहक सेवा: 1800-11-2211.", "491028"),
+            TestCase("MR", "Online Auth MR", "739104 is your सत्यापन कोड. Valid for 10 minutes. ग्राहक सेवा: 1800-202-6161.", "739104"),
+            TestCase("MR", "Secure Login MR", "सत्यापन कोड: 582910. व्यवहार ID: TXN-819204. Do not disclose.", "582910"),
+            TestCase("MR", "Transfer Auth MR", "सत्यापन कोड: 849201 for fund transfer of 1,500.00. ग्राहक सेवा: 1800-1080.", "849201"),
+            TestCase("MR", "Card Verification MR", "सत्यापन कोड is 618294 for card ending 4829. Valid 5 mins.", "618294"),
+            TestCase("MR", "Merchant Pay MR", "Use सत्यापन कोड 391048 to authorize payment of 850.00. Ref #849201.", "391048"),
+            TestCase("MR", "Platform 2FA MR", "G-918204 is your verification code. ग्राहक सेवा: support@example.com.", "918204"),
+            TestCase("MR", "Mobile Code MR", "Telegram code: 482910. Never share this code with anyone.", "482910"),
+            TestCase("MR", "Service Code MR", "Your सत्यापन कोड is 256587 for account sign-in. Valid for 15 mins.", "256587"),
+            TestCase("MR", "Express Pay MR", "Use one-time code 749102 to complete your order. ग्राहक सेवा: 18001030.", "749102"),
+            TestCase("MR", "Delivery Confirmation MR", "Delivery OTP: 391820 for package delivery. Total: 420.00.", "391820"),
+            TestCase("MR", "Account Access MR", "सत्यापन कोड: 591024. Device: Windows. ग्राहक सेवा: 18001234.", "591024"),
+            TestCase("MR", "Credit Alert MR", "Account XX9328 खात्यात जमा केले INR 10,000.00 on 28/10/26. Total Available Balance: INR 12,396.50. Contact: 18001030.", "NONE"),
+            TestCase("MR", "Transfer Receipt MR", "व्यवहार यशस्वी झाला! Amount INR 10,000.00. Transaction Number 630112888096. Toll free number 18001234 / 18002100. Safe banking: Never share your OTP.", "NONE"),
+            TestCase("MR", "Debit Alert MR", "Amount of INR 5,400.00 खात्यातून वजा केले from Account XX4821. Available balance: INR 34,210.00. Helpline: 1800-202-6161.", "NONE"),
+            TestCase("MR", "NEFT Deposit MR", "Account XX9102 खात्यात जमा केले with INR 25,000.00 by NEFT Ref 91820491. Avl Bal: INR 65,492.00. Call: 1800-1080.", "NONE"),
+            TestCase("MR", "Monthly Statement MR", "Your monthly account statement is available. Total available balance: INR 48,190.00. Helpline: 1860-419-5555.", "NONE"),
+            TestCase("MR", "UPI Alert MR", "व्यवहार यशस्वी झाला! INR 1,200.00 debited from A/C XX4918 via UPI Ref 829104820194. Total Available Balance: INR 15,200.00. Toll-free: 1860-266-2666.", "NONE"),
+            TestCase("MR", "Payment Received MR", "Payment received of INR 3,500.00 for Invoice #829104. Transaction completed successfully. Support: 1800-120-4455.", "NONE"),
+            TestCase("MR", "Customer Service MR", "For inquiries regarding your bank account, please contact our toll-free customer care at 18001030 or 18001234.", "NONE"),
         )
 
         for (c in cases) {
             val res = OtpExtractor.extractOtp(null, c.message, null, 0L)
-            assertNotNull("Extraction failed for [${c.lang}] ${c.service}: '${c.message}'", res)
-            assertEquals("Wrong OTP for [${c.lang}] ${c.service}", c.expected, res?.code)
+            if (c.expected.isEmpty() || c.expected == "NONE") {
+                org.junit.Assert.assertNull("Should NOT extract OTP for [${c.lang}] ${c.service}: '${c.message}' but got '${res?.code}'", res)
+            } else {
+                assertNotNull("Extraction failed for [${c.lang}] ${c.service}: '${c.message}'", res)
+                assertEquals("Wrong OTP for [${c.lang}] ${c.service}", c.expected, res?.code)
+            }
         }
     }
 
     // ========================================== 
-    // LANGUAGE: TE (30 PRODUCTION TEMPLATES)
+    // LANGUAGE: TE (50 PRODUCTION TEMPLATES)
     // ========================================== 
     @Test
     fun testLanguage_TE() {
@@ -768,17 +1152,41 @@ class MultiLanguageRigorousOtpTest {
             TestCase("TE", "సేవ 28", "మీ ధృవీకరణ కోడ్ 331644. లావాదేవీ సంఖ్య #491056 మొత్తం రూ. 1,500. హెల్ప్‌లైన్: 1800-425-1515.", "331644"),
             TestCase("TE", "సేవ 29", "మీ ధృవీకరణ కోడ్ 339917. లావాదేవీ సంఖ్య #491057 మొత్తం రూ. 1,500. హెల్ప్‌లైన్: 1800-425-1515.", "339917"),
             TestCase("TE", "సేవ 30", "మీ ధృవీకరణ కోడ్ 348190. లావాదేవీ సంఖ్య #491058 మొత్తం రూ. 1,500. హెల్ప్‌లైన్: 1800-425-1515.", "348190"),
+            TestCase("TE", "Bank 2FA TE", "ధృవీకరణ కోడ్: 491028. లావాదేవీ #948201. హెల్ప్‌లైన్: 1800-11-2211.", "491028"),
+            TestCase("TE", "Online Auth TE", "739104 is your ధృవీకరణ కోడ్. Valid for 10 minutes. హెల్ప్‌లైన్: 1800-202-6161.", "739104"),
+            TestCase("TE", "Secure Login TE", "ధృవీకరణ కోడ్: 582910. లావాదేవీ ID: TXN-819204. Do not disclose.", "582910"),
+            TestCase("TE", "Transfer Auth TE", "ధృవీకరణ కోడ్: 849201 for fund transfer of 1,500.00. హెల్ప్‌లైన్: 1800-1080.", "849201"),
+            TestCase("TE", "Card Verification TE", "ధృవీకరణ కోడ్ is 618294 for card ending 4829. Valid 5 mins.", "618294"),
+            TestCase("TE", "Merchant Pay TE", "Use ధృవీకరణ కోడ్ 391048 to authorize payment of 850.00. Ref #849201.", "391048"),
+            TestCase("TE", "Platform 2FA TE", "G-918204 is your verification code. హెల్ప్‌లైన్: support@example.com.", "918204"),
+            TestCase("TE", "Mobile Code TE", "Telegram code: 482910. Never share this code with anyone.", "482910"),
+            TestCase("TE", "Service Code TE", "Your ధృవీకరణ కోడ్ is 256587 for account sign-in. Valid for 15 mins.", "256587"),
+            TestCase("TE", "Express Pay TE", "Use one-time code 749102 to complete your order. హెల్ప్‌లైన్: 18001030.", "749102"),
+            TestCase("TE", "Delivery Confirmation TE", "Delivery OTP: 391820 for package delivery. Total: 420.00.", "391820"),
+            TestCase("TE", "Account Access TE", "ధృవీకరణ కోడ్: 591024. Device: Windows. హెల్ప్‌లైన్: 18001234.", "591024"),
+            TestCase("TE", "Credit Alert TE", "Account XX9328 ఖాతాలో జమ చేయబడింది INR 10,000.00 on 28/10/26. Total Available Balance: INR 12,396.50. Contact: 18001030.", "NONE"),
+            TestCase("TE", "Transfer Receipt TE", "లావాదేవీ విజయవంతమైంది! Amount INR 10,000.00. Transaction Number 630112888096. Toll free number 18001234 / 18002100. Safe banking: Never share your OTP.", "NONE"),
+            TestCase("TE", "Debit Alert TE", "Amount of INR 5,400.00 ఖాతా నుండి డెబిట్ చేయబడింది from Account XX4821. Available balance: INR 34,210.00. Helpline: 1800-202-6161.", "NONE"),
+            TestCase("TE", "NEFT Deposit TE", "Account XX9102 ఖాతాలో జమ చేయబడింది with INR 25,000.00 by NEFT Ref 91820491. Avl Bal: INR 65,492.00. Call: 1800-1080.", "NONE"),
+            TestCase("TE", "Monthly Statement TE", "Your monthly account statement is available. Total available balance: INR 48,190.00. Helpline: 1860-419-5555.", "NONE"),
+            TestCase("TE", "UPI Alert TE", "లావాదేవీ విజయవంతమైంది! INR 1,200.00 debited from A/C XX4918 via UPI Ref 829104820194. Total Available Balance: INR 15,200.00. Toll-free: 1860-266-2666.", "NONE"),
+            TestCase("TE", "Payment Received TE", "Payment received of INR 3,500.00 for Invoice #829104. Transaction completed successfully. Support: 1800-120-4455.", "NONE"),
+            TestCase("TE", "Customer Service TE", "For inquiries regarding your bank account, please contact our toll-free customer care at 18001030 or 18001234.", "NONE"),
         )
 
         for (c in cases) {
             val res = OtpExtractor.extractOtp(null, c.message, null, 0L)
-            assertNotNull("Extraction failed for [${c.lang}] ${c.service}: '${c.message}'", res)
-            assertEquals("Wrong OTP for [${c.lang}] ${c.service}", c.expected, res?.code)
+            if (c.expected.isEmpty() || c.expected == "NONE") {
+                org.junit.Assert.assertNull("Should NOT extract OTP for [${c.lang}] ${c.service}: '${c.message}' but got '${res?.code}'", res)
+            } else {
+                assertNotNull("Extraction failed for [${c.lang}] ${c.service}: '${c.message}'", res)
+                assertEquals("Wrong OTP for [${c.lang}] ${c.service}", c.expected, res?.code)
+            }
         }
     }
 
     // ========================================== 
-    // LANGUAGE: TA (30 PRODUCTION TEMPLATES)
+    // LANGUAGE: TA (50 PRODUCTION TEMPLATES)
     // ========================================== 
     @Test
     fun testLanguage_TA() {
@@ -813,17 +1221,41 @@ class MultiLanguageRigorousOtpTest {
             TestCase("TA", "சேவை 28", "உங்கள் சரிபார்ப்புக் குறியீடு 293676. பரிவர்த்தனை எண் #829132 தொகை ரூ 2,000. உதவிக்கு: 1800-425-0018.", "293676"),
             TestCase("TA", "சேவை 29", "உங்கள் சரிபார்ப்புக் குறியீடு 300593. பரிவர்த்தனை எண் #829133 தொகை ரூ 2,000. உதவிக்கு: 1800-425-0018.", "300593"),
             TestCase("TA", "சேவை 30", "உங்கள் சரிபார்ப்புக் குறியீடு 307510. பரிவர்த்தனை எண் #829134 தொகை ரூ 2,000. உதவிக்கு: 1800-425-0018.", "307510"),
+            TestCase("TA", "Bank 2FA TA", "சரிபார்ப்புக் குறியீடு: 491028. பரிவர்த்தனை #948201. உதவிக்கு: 1800-11-2211.", "491028"),
+            TestCase("TA", "Online Auth TA", "739104 is your சரிபார்ப்புக் குறியீடு. Valid for 10 minutes. உதவிக்கு: 1800-202-6161.", "739104"),
+            TestCase("TA", "Secure Login TA", "சரிபார்ப்புக் குறியீடு: 582910. பரிவர்த்தனை ID: TXN-819204. Do not disclose.", "582910"),
+            TestCase("TA", "Transfer Auth TA", "சரிபார்ப்புக் குறியீடு: 849201 for fund transfer of 1,500.00. உதவிக்கு: 1800-1080.", "849201"),
+            TestCase("TA", "Card Verification TA", "சரிபார்ப்புக் குறியீடு is 618294 for card ending 4829. Valid 5 mins.", "618294"),
+            TestCase("TA", "Merchant Pay TA", "Use சரிபார்ப்புக் குறியீடு 391048 to authorize payment of 850.00. Ref #849201.", "391048"),
+            TestCase("TA", "Platform 2FA TA", "G-918204 is your verification code. உதவிக்கு: support@example.com.", "918204"),
+            TestCase("TA", "Mobile Code TA", "Telegram code: 482910. Never share this code with anyone.", "482910"),
+            TestCase("TA", "Service Code TA", "Your சரிபார்ப்புக் குறியீடு is 256587 for account sign-in. Valid for 15 mins.", "256587"),
+            TestCase("TA", "Express Pay TA", "Use one-time code 749102 to complete your order. உதவிக்கு: 18001030.", "749102"),
+            TestCase("TA", "Delivery Confirmation TA", "Delivery OTP: 391820 for package delivery. Total: 420.00.", "391820"),
+            TestCase("TA", "Account Access TA", "சரிபார்ப்புக் குறியீடு: 591024. Device: Windows. உதவிக்கு: 18001234.", "591024"),
+            TestCase("TA", "Credit Alert TA", "Account XX9328 கணக்கில் வரவு வைக்கப்பட்டது INR 10,000.00 on 28/10/26. Total Available Balance: INR 12,396.50. Contact: 18001030.", "NONE"),
+            TestCase("TA", "Transfer Receipt TA", "பரிவர்த்தனை வெற்றிகரமானது! Amount INR 10,000.00. Transaction Number 630112888096. Toll free number 18001234 / 18002100. Safe banking: Never share your OTP.", "NONE"),
+            TestCase("TA", "Debit Alert TA", "Amount of INR 5,400.00 கணக்கிலிருந்து எடுக்கப்பட்டது from Account XX4821. Available balance: INR 34,210.00. Helpline: 1800-202-6161.", "NONE"),
+            TestCase("TA", "NEFT Deposit TA", "Account XX9102 கணக்கில் வரவு வைக்கப்பட்டது with INR 25,000.00 by NEFT Ref 91820491. Avl Bal: INR 65,492.00. Call: 1800-1080.", "NONE"),
+            TestCase("TA", "Monthly Statement TA", "Your monthly account statement is available. Total available balance: INR 48,190.00. Helpline: 1860-419-5555.", "NONE"),
+            TestCase("TA", "UPI Alert TA", "பரிவர்த்தனை வெற்றிகரமானது! INR 1,200.00 debited from A/C XX4918 via UPI Ref 829104820194. Total Available Balance: INR 15,200.00. Toll-free: 1860-266-2666.", "NONE"),
+            TestCase("TA", "Payment Received TA", "Payment received of INR 3,500.00 for Invoice #829104. Transaction completed successfully. Support: 1800-120-4455.", "NONE"),
+            TestCase("TA", "Customer Service TA", "For inquiries regarding your bank account, please contact our toll-free customer care at 18001030 or 18001234.", "NONE"),
         )
 
         for (c in cases) {
             val res = OtpExtractor.extractOtp(null, c.message, null, 0L)
-            assertNotNull("Extraction failed for [${c.lang}] ${c.service}: '${c.message}'", res)
-            assertEquals("Wrong OTP for [${c.lang}] ${c.service}", c.expected, res?.code)
+            if (c.expected.isEmpty() || c.expected == "NONE") {
+                org.junit.Assert.assertNull("Should NOT extract OTP for [${c.lang}] ${c.service}: '${c.message}' but got '${res?.code}'", res)
+            } else {
+                assertNotNull("Extraction failed for [${c.lang}] ${c.service}: '${c.message}'", res)
+                assertEquals("Wrong OTP for [${c.lang}] ${c.service}", c.expected, res?.code)
+            }
         }
     }
 
     // ========================================== 
-    // LANGUAGE: GU (30 PRODUCTION TEMPLATES)
+    // LANGUAGE: GU (50 PRODUCTION TEMPLATES)
     // ========================================== 
     @Test
     fun testLanguage_GU() {
@@ -858,12 +1290,36 @@ class MultiLanguageRigorousOtpTest {
             TestCase("GU", "સેવા 28", "તમારો ચકાસણી કોડ 254588 છે. વ્યવહાર સંદર્ભ #391056 રકમ રૂ ૧,૨૦૦. હેલ્પલાઇન: 1800-223-344.", "254588"),
             TestCase("GU", "સેવા 29", "તમારો ચકાસણી કોડ 260109 છે. વ્યવહાર સંદર્ભ #391057 રકમ રૂ ૧,૨૦૦. હેલ્પલાઇન: 1800-223-344.", "260109"),
             TestCase("GU", "સેવા 30", "તમારો ચકાસણી કોડ 265630 છે. વ્યવહાર સંદર્ભ #391058 રકમ રૂ ૧,૨૦૦. હેલ્પલાઇન: 1800-223-344.", "265630"),
+            TestCase("GU", "Bank 2FA GU", "ચકાસણી કોડ: 491028. વ્યવહાર #948201. હેલ્પલાઇન: 1800-11-2211.", "491028"),
+            TestCase("GU", "Online Auth GU", "739104 is your ચકાસણી કોડ. Valid for 10 minutes. હેલ્પલાઇન: 1800-202-6161.", "739104"),
+            TestCase("GU", "Secure Login GU", "ચકાસણી કોડ: 582910. વ્યવહાર ID: TXN-819204. Do not disclose.", "582910"),
+            TestCase("GU", "Transfer Auth GU", "ચકાસણી કોડ: 849201 for fund transfer of 1,500.00. હેલ્પલાઇન: 1800-1080.", "849201"),
+            TestCase("GU", "Card Verification GU", "ચકાસણી કોડ is 618294 for card ending 4829. Valid 5 mins.", "618294"),
+            TestCase("GU", "Merchant Pay GU", "Use ચકાસણી કોડ 391048 to authorize payment of 850.00. Ref #849201.", "391048"),
+            TestCase("GU", "Platform 2FA GU", "G-918204 is your verification code. હેલ્પલાઇન: support@example.com.", "918204"),
+            TestCase("GU", "Mobile Code GU", "Telegram code: 482910. Never share this code with anyone.", "482910"),
+            TestCase("GU", "Service Code GU", "Your ચકાસણી કોડ is 256587 for account sign-in. Valid for 15 mins.", "256587"),
+            TestCase("GU", "Express Pay GU", "Use one-time code 749102 to complete your order. હેલ્પલાઇન: 18001030.", "749102"),
+            TestCase("GU", "Delivery Confirmation GU", "Delivery OTP: 391820 for package delivery. Total: 420.00.", "391820"),
+            TestCase("GU", "Account Access GU", "ચકાસણી કોડ: 591024. Device: Windows. હેલ્પલાઇન: 18001234.", "591024"),
+            TestCase("GU", "Credit Alert GU", "Account XX9328 ખાતામાં જમા કરવામાં આવ્યા INR 10,000.00 on 28/10/26. Total Available Balance: INR 12,396.50. Contact: 18001030.", "NONE"),
+            TestCase("GU", "Transfer Receipt GU", "વ્યવહાર સફળ થયો! Amount INR 10,000.00. Transaction Number 630112888096. Toll free number 18001234 / 18002100. Safe banking: Never share your OTP.", "NONE"),
+            TestCase("GU", "Debit Alert GU", "Amount of INR 5,400.00 ખાતામાંથી ઉપાડવામાં આવ્યા from Account XX4821. Available balance: INR 34,210.00. Helpline: 1800-202-6161.", "NONE"),
+            TestCase("GU", "NEFT Deposit GU", "Account XX9102 ખાતામાં જમા કરવામાં આવ્યા with INR 25,000.00 by NEFT Ref 91820491. Avl Bal: INR 65,492.00. Call: 1800-1080.", "NONE"),
+            TestCase("GU", "Monthly Statement GU", "Your monthly account statement is available. Total available balance: INR 48,190.00. Helpline: 1860-419-5555.", "NONE"),
+            TestCase("GU", "UPI Alert GU", "વ્યવહાર સફળ થયો! INR 1,200.00 debited from A/C XX4918 via UPI Ref 829104820194. Total Available Balance: INR 15,200.00. Toll-free: 1860-266-2666.", "NONE"),
+            TestCase("GU", "Payment Received GU", "Payment received of INR 3,500.00 for Invoice #829104. Transaction completed successfully. Support: 1800-120-4455.", "NONE"),
+            TestCase("GU", "Customer Service GU", "For inquiries regarding your bank account, please contact our toll-free customer care at 18001030 or 18001234.", "NONE"),
         )
 
         for (c in cases) {
             val res = OtpExtractor.extractOtp(null, c.message, null, 0L)
-            assertNotNull("Extraction failed for [${c.lang}] ${c.service}: '${c.message}'", res)
-            assertEquals("Wrong OTP for [${c.lang}] ${c.service}", c.expected, res?.code)
+            if (c.expected.isEmpty() || c.expected == "NONE") {
+                org.junit.Assert.assertNull("Should NOT extract OTP for [${c.lang}] ${c.service}: '${c.message}' but got '${res?.code}'", res)
+            } else {
+                assertNotNull("Extraction failed for [${c.lang}] ${c.service}: '${c.message}'", res)
+                assertEquals("Wrong OTP for [${c.lang}] ${c.service}", c.expected, res?.code)
+            }
         }
     }
 

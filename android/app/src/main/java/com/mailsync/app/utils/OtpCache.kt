@@ -32,8 +32,14 @@ object OtpCache {
             recentOtps.add(CachedOtpRecord(sanitized, sender, "SMS", now))
             OtpArrivalStatus.NEW
         } else {
-            existing.timestamp = now
-            OtpArrivalStatus.RESENT_SAME_CODE
+            val elapsed = now - existing.timestamp
+            if (!existing.source.equals("SMS", ignoreCase = true) && elapsed < SIMULTANEOUS_BURST_MS) {
+                existing.timestamp = now
+                OtpArrivalStatus.SIMULTANEOUS_BURST
+            } else {
+                existing.timestamp = now
+                OtpArrivalStatus.RESENT_SAME_CODE
+            }
         }
     }
 
@@ -45,10 +51,11 @@ object OtpCache {
         recentOtps.removeAll { now - it.timestamp > 180_000L }
 
         val isSmsApp = sourcePackage.contains("messaging") || sourcePackage.contains("mms") || sourcePackage.contains(".sms")
+        val currentChannel = if (isSmsApp) "SMS" else if (accountName.contains("gmail", ignoreCase = true) || sourcePackage.contains("android.gm")) "Gmail" else accountName
         val existing = recentOtps.find { it.code == sanitized }
 
         if (existing == null) {
-            recentOtps.add(CachedOtpRecord(sanitized, sender, accountName, now))
+            recentOtps.add(CachedOtpRecord(sanitized, sender, currentChannel, now))
             return OtpArrivalStatus.NEW
         }
 
@@ -59,13 +66,18 @@ object OtpCache {
             return OtpArrivalStatus.SAME_SMS_DUPLICATE
         }
 
-        // 2. Dual channel arrival (e.g. Gmail notification for OTP already received on SMS) within 45s:
-        if (elapsed < SIMULTANEOUS_BURST_MS) {
+        // 2. Notification from the EXACT SAME channel within 45s (e.g. Gmail notification refreshed or re-fired for the same email):
+        if (existing.source.equals(currentChannel, ignoreCase = true) && elapsed < SIMULTANEOUS_BURST_MS) {
+            return OtpArrivalStatus.SAME_SMS_DUPLICATE
+        }
+
+        // 3. True cross-channel arrival (e.g. OTP received on SMS first, now arrives on Gmail, or vice-versa) within 45s:
+        if (!existing.source.equals(currentChannel, ignoreCase = true) && elapsed < SIMULTANEOUS_BURST_MS) {
             existing.timestamp = now
             return OtpArrivalStatus.SIMULTANEOUS_BURST
         }
 
-        // 3. Re-sent code (> 45s)
+        // 4. Re-sent code (> 45s)
         existing.timestamp = now
         return OtpArrivalStatus.RESENT_SAME_CODE
     }

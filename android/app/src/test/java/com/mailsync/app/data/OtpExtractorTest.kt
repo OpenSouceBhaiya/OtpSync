@@ -519,5 +519,51 @@ class OtpExtractorTest {
         val result = OtpExtractor.extractOtp(null, text, null, 0L)
         assertEquals("4A8K9M2P", result?.code)
     }
+
+    @Test
+    fun testCanaraBankCreditAlertRejectedAsNonOtp() {
+        val text = """
+            Dear Customer,
+            Thanking you for banking with Canara Bank.
+            An amount of INR 10,000.00 has been CREDITED on 28/10/26 to your account XXXX9328 from ANUP KUMAR with Mobile Banking Ref No.: 630112888096. Total Available Balance INR 12,396.50. If you are not expecting this credit or suspect any fraudulent activity, please contact: 18001030.
+            This is an auto generated mail.
+            With Regards,
+            Canara Bank
+            Toll Free No: 1800 1030.
+        """.trimIndent()
+        val result = OtpExtractor.extractOtp(null, "UPI/IMPS/MB Transaction Alert", text, 0L)
+        assertNull("Completed Canara Bank credit alert must NOT extract an OTP", result)
+    }
+
+    @Test
+    fun testSbiYonoFundTransferReceiptRejectedAsNonOtp() {
+        val text = """
+            Dear ANUP KUMAR
+            
+            Thank you for using YONO SBI for Fund Transfer
+            
+            The transaction details are as follows:
+            
+            Description Details
+            Transaction Status Successful
+            Amount Rs.10,000.00
+            Transaction Number 630112888096
+            Date of Transaction 28.10.26
+            Debit account x5975
+            Beneficiary Name ANUP KUMAR
+            Beneficiary Account Number x9328
+            
+            Reach Us at:
+            In App/Web feedback: Navigate to Landing Page > Hamburger Menu > Get Support
+            Call Us: Toll free number 16001234 / 18002100 / 1800111101
+            
+            Safe Banking Tip: Never share your Internet Banking User ID, Password, MPIN, OTP, Card Number, CVV, Card PIN or URN with anyone, even if the caller claims to be a bank employee. Sharing these details can lead to unauthorized access to your account.
+            
+            Warm regards,
+            YONO SBI
+        """.trimIndent()
+        val result = OtpExtractor.extractOtp(null, "Transaction success", text, 0L)
+        assertNull("Completed SBI YONO fund transfer receipt must NOT extract an OTP", result)
+    }
 }
 

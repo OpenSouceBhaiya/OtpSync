@@ -55,6 +55,15 @@ class SmsReceiver : BroadcastReceiver() {
                 Log.d("SmsReceiver", "Found OTP: $otpCode from $sender")
 
                 val status = com.mailsync.app.utils.OtpCache.recordSmsArrival(otpCode, sender)
+                if (status == com.mailsync.app.utils.OtpArrivalStatus.SAME_SMS_DUPLICATE) {
+                    FileLogger.log(context, "SMS duplicate burst for $otpCode suppressed.")
+                    return
+                }
+                if (status == com.mailsync.app.utils.OtpArrivalStatus.SIMULTANEOUS_BURST) {
+                    FileLogger.log(context, "Dual arrival OTP $otpCode already captured via email.")
+                    com.mailsync.app.utils.ToastManager.show(context, "Same OTP also arrived on SMS", android.widget.Toast.LENGTH_SHORT)
+                    return
+                }
                 val isResentDuplicate = (status == com.mailsync.app.utils.OtpArrivalStatus.RESENT_SAME_CODE)
                 if (isResentDuplicate) {
                     FileLogger.log(context, "Re-sent identical SMS OTP $otpCode from $sender detected. Re-copying and broadcasting.")
