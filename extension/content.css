@@ -101,4 +101,13 @@
     margin-top: 2px;
 }
 
+/* Thanos Particle Canvases */
+.dust-canvas {
+    position: fixed !important;
+    pointer-events: none !important;
+    z-index: 2147483648 !important;
+    transition: transform 1.5s ease-out, opacity 1.5s ease-out, filter 1.5s ease-out !important;
+}
+
+
 

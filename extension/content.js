@@ -113,14 +113,7 @@ function dismissToast() {
     const existing = document.getElementById('otpsync-toast');
     if (existing && !isDismissing) {
         isDismissing = true;
-        existing.classList.remove('show');
-        existing.classList.add('hide');
-        setTimeout(() => {
-            if (existing.parentNode) {
-                existing.remove();
-            }
-            isDismissing = false;
-        }, 320);
+        snapThanos(existing);
     }
 }
 
@@ -131,10 +124,24 @@ function showToast(otp, sender, isCarryForward = false, timeRemaining = 6000, sh
         return;
     }
 
+    // Clean up any lingering Thanos dust canvases immediately
+    document.querySelectorAll('.dust-canvas').forEach(c => c.remove());
+
+    const displaySender = sender && sender.length > 25 ? sender.substring(0, 23) + '…' : (sender || 'OTP Sync');
+    const toastTitle = isDuplicate ? '✓ Same OTP already copied' : '✓ OTP Copied';
+    const toastSender = isDuplicate ? `from ${displaySender} · Already on Clipboard` : `from ${displaySender}`;
+
     let existing = document.getElementById('otpsync-toast');
     if (existing) {
-        if (existing.dataset.otp === otp && !isDuplicate) {
-            // Already showing this exact OTP on this tab!
+        // If the exact same OTP arrives again:
+        if (existing.dataset.otp === otp) {
+            const titleEl = existing.querySelector('.mailsync-toast-title');
+            if (titleEl) titleEl.textContent = toastTitle;
+            const senderEl = existing.querySelector('.mailsync-toast-sender');
+            if (senderEl) senderEl.textContent = toastSender;
+            if (isDuplicate) existing.dataset.duplicate = 'true';
+            if (showUntil) existing.dataset.showUntil = showUntil.toString();
+
             // Synchronize the single dismissal timer strictly with calculatedRemaining
             if (currentToastTimer) clearTimeout(currentToastTimer);
             currentToastTimer = setTimeout(() => {
@@ -142,6 +149,11 @@ function showToast(otp, sender, isCarryForward = false, timeRemaining = 6000, sh
             }, calculatedRemaining);
             return;
         }
+
+        // A new/different OTP arrived within seconds:
+        // Immediately remove the previous toast without exit animation
+        if (currentToastTimer) clearTimeout(currentToastTimer);
+        currentToastTimer = null;
         existing.remove();
     }
 
@@ -159,10 +171,7 @@ function showToast(otp, sender, isCarryForward = false, timeRemaining = 6000, sh
     if (isDuplicate) toast.dataset.duplicate = 'true';
     if (showUntil) toast.dataset.showUntil = showUntil.toString();
 
-    const displaySender = sender && sender.length > 25 ? sender.substring(0, 23) + '…' : (sender || 'OTP Sync');
     const iconUrl = chrome.runtime.getURL('icon48.png');
-    const toastTitle = isDuplicate ? '✓ Same OTP · Already on Clipboard' : '✓ OTP Copied';
-    const toastSender = isDuplicate ? `from ${displaySender} · Re-sent code` : `from ${displaySender}`;
 
     toast.innerHTML = `
         <div class="mailsync-toast-icon">
@@ -219,6 +228,166 @@ function showToast(otp, sender, isCarryForward = false, timeRemaining = 6000, sh
     currentToastTimer = setTimeout(() => {
         dismissToast();
     }, calculatedRemaining);
+}
+
+function snapThanos(element) {
+    if (!element || !element.parentNode) {
+        isDismissing = false;
+        return;
+    }
+    const LAYER_COUNT = 32;
+    const rect = element.getBoundingClientRect();
+    if (rect.width === 0 || rect.height === 0) {
+        if (element.parentNode) element.remove();
+        isDismissing = false;
+        return;
+    }
+
+    // Native Canvas Recreation of the Toast
+    // 100% CSP compliance and zero external dependencies
+    const canvas = document.createElement('canvas');
+    const scale = window.devicePixelRatio || 1;
+    const cw = Math.floor(rect.width * scale);
+    const ch = Math.floor(rect.height * scale);
+    canvas.width = cw;
+    canvas.height = ch;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) {
+        if (element.parentNode) element.remove();
+        isDismissing = false;
+        return;
+    }
+    ctx.scale(scale, scale);
+
+    // Draw Background
+    ctx.fillStyle = '#16161c';
+    ctx.beginPath();
+    if (ctx.roundRect) {
+        ctx.roundRect(0, 0, rect.width, rect.height, 16);
+    } else {
+        ctx.rect(0, 0, rect.width, rect.height);
+    }
+    ctx.fill();
+
+    // Draw Border
+    ctx.strokeStyle = 'rgba(0, 255, 163, 0.3)';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // Draw Icon Box
+    ctx.fillStyle = 'rgba(0,255,163,0.12)';
+    ctx.beginPath();
+    if (ctx.roundRect) {
+        ctx.roundRect(16, 14, 40, 40, 10);
+    } else {
+        ctx.rect(16, 14, 40, 40);
+    }
+    ctx.fill();
+    ctx.strokeStyle = 'rgba(0,255,163,0.2)';
+    ctx.stroke();
+
+    // Draw Icon Image
+    const iconImg = element.querySelector('.mailsync-toast-icon img');
+    if (iconImg && iconImg.complete && iconImg.naturalWidth > 0) {
+        try {
+            ctx.drawImage(iconImg, 16 + 8, 14 + 8, 24, 24);
+        } catch (_) {}
+    }
+
+    // Draw Texts
+    const titleEl = element.querySelector('.mailsync-toast-title');
+    const titleText = titleEl ? titleEl.innerText : '✓ OTP Copied';
+    ctx.fillStyle = '#00FFA3';
+    ctx.font = '700 11px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.fillText(titleText, 70, 26);
+
+    const codeEl = element.querySelector('.mailsync-toast-code');
+    const otpText = codeEl ? codeEl.innerText : '';
+    ctx.fillStyle = '#FFFFFF';
+    ctx.font = '800 22px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    if (ctx.letterSpacing !== undefined) {
+        ctx.letterSpacing = '3px';
+    }
+    ctx.fillText(otpText, 70, 50);
+
+    const senderEl = element.querySelector('.mailsync-toast-sender');
+    const senderText = senderEl ? senderEl.innerText : '';
+    ctx.fillStyle = '#9CA3AF';
+    ctx.font = '400 11px -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif';
+    ctx.fillText(senderText, 70, 68);
+
+    let originalData;
+    try {
+        originalData = ctx.getImageData(0, 0, cw, ch);
+    } catch (e) {
+        if (element.parentNode) element.remove();
+        isDismissing = false;
+        return;
+    }
+
+    const canvases = [];
+    const imageDataList = [];
+
+    for (let i = 0; i < LAYER_COUNT; i++) {
+        const c = document.createElement('canvas');
+        c.width = cw;
+        c.height = ch;
+        c.className = 'dust-canvas';
+        c.style.width = rect.width + 'px';
+        c.style.height = rect.height + 'px';
+        c.style.top = rect.top + 'px';
+        c.style.left = rect.left + 'px';
+        (document.body || document.documentElement).appendChild(c);
+        canvases.push(c);
+
+        const layerCtx = c.getContext('2d');
+        imageDataList.push(layerCtx.createImageData(cw, ch));
+    }
+
+    // Distribute pixels across 32 layers
+    for (let x = 0; x < cw; x++) {
+        for (let y = 0; y < ch; y++) {
+            const pixelIndex = (y * cw + x) * 4;
+            if (originalData.data[pixelIndex + 3] > 0) {
+                const layerIndex = Math.floor((LAYER_COUNT * (Math.random() + 2 * x / cw)) / 3);
+                const safeLayer = Math.min(LAYER_COUNT - 1, Math.max(0, layerIndex));
+
+                imageDataList[safeLayer].data[pixelIndex] = originalData.data[pixelIndex];
+                imageDataList[safeLayer].data[pixelIndex + 1] = originalData.data[pixelIndex + 1];
+                imageDataList[safeLayer].data[pixelIndex + 2] = originalData.data[pixelIndex + 2];
+                imageDataList[safeLayer].data[pixelIndex + 3] = originalData.data[pixelIndex + 3];
+            }
+        }
+    }
+
+    for (let i = 0; i < LAYER_COUNT; i++) {
+        canvases[i].getContext('2d').putImageData(imageDataList[i], 0, 0);
+    }
+
+    // Hide original element immediately
+    element.style.visibility = 'hidden';
+
+    canvases.forEach((c, i) => {
+        setTimeout(() => {
+            const randomAngle = (Math.random() * 60 - 30) * Math.PI / 180;
+            const randomDistance = 150 + Math.random() * 150;
+            const tx = Math.cos(randomAngle) * randomDistance;
+            const ty = Math.sin(randomAngle) * randomDistance - 50;
+            const rotate = (Math.random() - 0.5) * 45;
+
+            c.style.transform = `translate(${tx}px, ${ty}px) rotate(${rotate}deg)`;
+            c.style.opacity = '0';
+            c.style.filter = 'blur(2px)';
+
+            setTimeout(() => {
+                if (c.parentNode) c.remove();
+                if (i === LAYER_COUNT - 1) {
+                    if (element.parentNode) element.remove();
+                    isDismissing = false;
+                }
+            }, 1500);
+        }, i * 35);
+    });
 }
 
     // ─── Smart Login Detection ────────────────────────────────────────────────────
