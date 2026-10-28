@@ -515,7 +515,7 @@ async function handleEncryptedOtp(ivBase64, dataBase64, cryptoKey) {
 
         if (matchedIndex !== -1) {
             const elapsed = now - recentList[matchedIndex].time;
-            if (elapsed <= 700) {
+            if (elapsed <= 2500) {
                 console.log(`[MailSync] Simultaneous burst of ${otpCode} from ${sender} suppressed (${elapsed}ms).`);
                 return;
             } else {
