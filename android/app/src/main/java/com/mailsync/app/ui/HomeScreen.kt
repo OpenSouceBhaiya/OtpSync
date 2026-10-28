@@ -728,108 +728,161 @@ fun OtpListItemFeed(otp: OtpEntity, context: Context, currentLang: com.mailsync.
         shape = RoundedCornerShape(16.dp),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
     ) {
-        Row(
-            modifier = Modifier.padding(16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            // Generic Letter Icon
-            val firstLetter = otp.sender.take(1).uppercase()
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(CircleShape)
-                    .background(Color(0xFF3B2A6E)),
-                contentAlignment = Alignment.Center
+        Column(modifier = Modifier.padding(14.dp)) {
+            // Row 1: Header (Avatar + Sender Name + Time on Left, Expiry Tag on Right)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
-                Text(firstLetter, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 20.sp)
-            }
-            
-            Spacer(modifier = Modifier.width(16.dp))
-            
-            Column(modifier = Modifier.weight(1f)) {
-                val tagRegex = Regex("(?i)(\\[|\\()\\s*(backend|instant)\\s*(\\]|\\))")
-                val cleanSender = otp.sender.replace(tagRegex, "").trim()
-                Text(cleanSender, fontWeight = FontWeight.Bold, color = Color.White, fontSize = 16.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
-                Text(otp.code, fontSize = 22.sp, fontWeight = FontWeight.ExtraBold, color = MaterialTheme.colorScheme.primary, letterSpacing = 2.sp)
-                
-                val cleanAccount = otp.account.replace(tagRegex, "").trim()
-                if (cleanAccount.isNotEmpty()) {
-                    Text(
-                        text = cleanAccount,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontSize = 11.sp,
-                        softWrap = true,
-                        maxLines = 3,
-                        modifier = Modifier.padding(top = 2.dp)
-                    )
-                }
-
-                if (!otp.sentToDevices.isNullOrBlank()) {
-                    val prefix = com.mailsync.app.data.AppStrings.get("sent_to_prefix", currentLang).ifEmpty { "Sent to" }
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        modifier = Modifier.padding(top = 2.dp)
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.weight(1f).padding(end = 8.dp)
+                ) {
+                    val firstLetter = otp.sender.take(1).uppercase()
+                    Box(
+                        modifier = Modifier
+                            .size(32.dp)
+                            .clip(CircleShape)
+                            .background(Color(0xFF3B2A6E)),
+                        contentAlignment = Alignment.Center
                     ) {
-                        Icon(
-                            imageVector = Icons.Default.Computer,
-                            contentDescription = null,
-                            tint = Color(0xFF00FFA3),
-                            modifier = Modifier.size(13.dp)
-                        )
-                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(firstLetter, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    }
+
+                    Spacer(modifier = Modifier.width(10.dp))
+
+                    Column {
+                        val tagRegex = Regex("(?i)(\\[|\\()\\s*(backend|instant)\\s*(\\]|\\))")
+                        val cleanSender = otp.sender.replace(tagRegex, "").trim()
                         Text(
-                            text = "$prefix ${otp.sentToDevices}",
-                            color = Color(0xFF00FFA3),
-                            fontSize = 11.sp,
-                            fontWeight = FontWeight.SemiBold,
-                            softWrap = true,
-                            maxLines = 2
+                            text = cleanSender,
+                            fontWeight = FontWeight.Bold,
+                            color = Color.White,
+                            fontSize = 15.sp,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                        val timeString = SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date(otp.receivedAt))
+                        Text(
+                            text = timeString,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f),
+                            fontSize = 11.sp
                         )
                     }
                 }
-                
-                // 12-hour format time string
-                val timeString = SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date(otp.receivedAt))
-                Text(timeString, color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.8f), fontSize = 10.sp, modifier = Modifier.padding(top = 2.dp))
+
+                // Expiry timer pill
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .background(timerColor.copy(alpha = 0.12f))
+                        .padding(horizontal = 8.dp, vertical = 3.dp)
+                ) {
+                    Text(
+                        text = "⏱ $timerText",
+                        color = timerColor,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.SemiBold
+                    )
+                }
             }
-            
-            Spacer(modifier = Modifier.width(8.dp))
-            
-            // Action Column: Copy Button on top, Timer Pill directly below
-            Column(
-                horizontalAlignment = Alignment.End,
-                verticalArrangement = Arrangement.Center
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            // Row 2: Code (Prominent) + Copy Button
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
             ) {
+                Text(
+                    text = otp.code,
+                    fontSize = 24.sp,
+                    fontWeight = FontWeight.ExtraBold,
+                    color = MaterialTheme.colorScheme.primary,
+                    letterSpacing = 2.sp
+                )
+
                 TextButton(
                     onClick = {
                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                         val clip = ClipData.newPlainText("OTP", otp.code)
                         clipboard.setPrimaryClip(clip)
-                        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.TIRAMISU) { com.mailsync.app.utils.ToastManager.show(context, "OTP Copied", android.widget.Toast.LENGTH_SHORT) }
+                        if (android.os.Build.VERSION.SDK_INT < android.os.Build.VERSION_CODES.TIRAMISU) {
+                            com.mailsync.app.utils.ToastManager.show(context, "OTP Copied", android.widget.Toast.LENGTH_SHORT)
+                        }
                         haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
                     },
                     modifier = Modifier
-                        .clip(RoundedCornerShape(12.dp))
+                        .clip(RoundedCornerShape(10.dp))
                         .background(MaterialTheme.colorScheme.surface)
                 ) {
-                    Text(com.mailsync.app.data.AppStrings.get("copy_action", currentLang), color = MaterialTheme.colorScheme.primary, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                }
-                
-                Spacer(modifier = Modifier.height(6.dp))
-                
-                // Expiry timer pill placed cleanly beneath Copy button
-                Box(
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(timerColor.copy(alpha = 0.12f))
-                        .padding(horizontal = 6.dp, vertical = 2.dp)
-                ) {
                     Text(
-                        text = "⏱ $timerText",
-                        color = timerColor,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.SemiBold
+                        text = com.mailsync.app.data.AppStrings.get("copy_action", currentLang),
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.sp
                     )
+                }
+            }
+
+            // Row 3: Metadata Badges (Source + Sent To Device)
+            val compactSource = com.mailsync.app.data.formatCompactSource(otp.account)
+            val hasSource = compactSource.isNotBlank()
+            val hasDevice = !otp.sentToDevices.isNullOrBlank()
+
+            if (hasSource || hasDevice) {
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    if (hasSource) {
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(Color(0xFF261F33))
+                                .padding(horizontal = 8.dp, vertical = 3.dp)
+                        ) {
+                            Text(
+                                text = compactSource,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                fontSize = 11.sp,
+                                fontWeight = FontWeight.Medium
+                            )
+                        }
+                    }
+
+                    if (hasDevice) {
+                        val prefix = com.mailsync.app.data.AppStrings.get("sent_to_prefix", currentLang).ifEmpty { "Sent to" }
+                        Box(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .background(Color(0xFF00382B))
+                                .border(1.dp, Color(0xFF00FFA3).copy(alpha = 0.35f), RoundedCornerShape(6.dp))
+                            .padding(horizontal = 8.dp, vertical = 3.dp)
+                        ) {
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Icon(
+                                    imageVector = Icons.Default.Computer,
+                                    contentDescription = null,
+                                    tint = Color(0xFF00FFA3),
+                                    modifier = Modifier.size(12.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = "$prefix ${otp.sentToDevices}",
+                                    color = Color(0xFF00FFA3),
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.SemiBold,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis
+                                )
+                            }
+                        }
+                    }
                 }
             }
         }

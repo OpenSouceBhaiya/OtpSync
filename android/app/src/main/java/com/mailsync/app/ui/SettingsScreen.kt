@@ -45,16 +45,20 @@ import com.mailsync.app.ui.theme.*
 
 import androidx.compose.material.icons.filled.Computer
 
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import com.google.api.services.gmail.GmailScopes
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun SettingsScreen(viewModel: SettingsViewModel, highlight: String? = null, onNavigateToDevices: () -> Unit) {
     val currentLang by viewModel.appLanguage.collectAsState()
     var expandedLanguageDropdown by remember { mutableStateOf(false) }
     val languageMenuScrollState = rememberScrollState()
+    val languageBringIntoViewRequester = remember { BringIntoViewRequester() }
 
     LaunchedEffect(expandedLanguageDropdown) {
         if (expandedLanguageDropdown) {
@@ -424,11 +428,16 @@ fun SettingsScreen(viewModel: SettingsViewModel, highlight: String? = null, onNa
             LaunchedEffect(highlightLanguage) {
                 if (highlightLanguage) {
                     kotlinx.coroutines.delay(200)
-                    scrollState.animateScrollTo(minOf(scrollState.maxValue, 650))
+                    try {
+                        languageBringIntoViewRequester.bringIntoView()
+                    } catch (_: Exception) {}
+                    if (scrollState.value < 1400) {
+                        scrollState.animateScrollTo(minOf(scrollState.maxValue, 1800))
+                    }
                     languageHighlightActive = true
-                    kotlinx.coroutines.delay(400)
+                    kotlinx.coroutines.delay(600)
                     languageHighlightActive = false
-                    kotlinx.coroutines.delay(1600)
+                    kotlinx.coroutines.delay(2000)
                     viewModel.clearHighlightLanguage()
                 }
             }
@@ -446,7 +455,7 @@ fun SettingsScreen(viewModel: SettingsViewModel, highlight: String? = null, onNa
             )
 
             val languageSurfaceBg by animateColorAsState(
-                targetValue = if (languageHighlightActive) Color(0xFF252033) else DarkSurface,
+                targetValue = if (languageHighlightActive) Color(0xFF2E2442) else DarkSurface,
                 animationSpec = tween(durationMillis = 400),
                 label = "lang_bg"
             )
@@ -454,6 +463,7 @@ fun SettingsScreen(viewModel: SettingsViewModel, highlight: String? = null, onNa
             Surface(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .bringIntoViewRequester(languageBringIntoViewRequester)
                     .graphicsLayer(scaleX = pulseLanguageScale, scaleY = pulseLanguageScale),
                 color = languageSurfaceBg,
                 shape = RoundedCornerShape(14.dp),

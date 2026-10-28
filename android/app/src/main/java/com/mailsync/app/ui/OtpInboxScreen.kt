@@ -2,6 +2,7 @@ package com.mailsync.app.ui
 
 import android.content.Intent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -268,39 +269,60 @@ fun InboxOtpCard(otp: OtpEntity, viewModel: OtpHistoryViewModel, currentLang: co
                     val cleanSender = otp.sender.replace(tagRegex, "").trim()
                     Text(cleanSender, fontWeight = FontWeight.Bold, fontSize = 16.sp, color = MaterialTheme.colorScheme.onSurface, maxLines = 2, overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis)
                     
-                    val cleanAccount = otp.account.replace(tagRegex, "").trim()
-                    if (cleanAccount.isNotEmpty()) {
-                        Text(
-                            text = cleanAccount,
-                            fontSize = 11.sp,
-                            color = MaterialTheme.colorScheme.primary,
-                            softWrap = true,
-                            maxLines = 3,
-                            modifier = Modifier.padding(top = 3.dp)
-                        )
-                    }
+                    val compactSource = com.mailsync.app.data.formatCompactSource(otp.account)
+                    val hasSource = compactSource.isNotBlank()
+                    val hasDevice = !otp.sentToDevices.isNullOrBlank()
 
-                    if (!otp.sentToDevices.isNullOrBlank()) {
-                        val prefix = com.mailsync.app.data.AppStrings.get("sent_to_prefix", currentLang).ifEmpty { "Sent to" }
+                    if (hasSource || hasDevice) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(top = 3.dp)
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            modifier = Modifier.padding(top = 4.dp)
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.Computer,
-                                contentDescription = null,
-                                tint = Color(0xFF00FFA3),
-                                modifier = Modifier.size(13.dp)
-                            )
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text(
-                                text = "$prefix ${otp.sentToDevices}",
-                                color = Color(0xFF00FFA3),
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.SemiBold,
-                                softWrap = true,
-                                maxLines = 2
-                            )
+                            if (hasSource) {
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(Color(0xFF261F33))
+                                        .padding(horizontal = 8.dp, vertical = 3.dp)
+                                ) {
+                                    Text(
+                                        text = compactSource,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Medium
+                                    )
+                                }
+                            }
+
+                            if (hasDevice) {
+                                val prefix = com.mailsync.app.data.AppStrings.get("sent_to_prefix", currentLang).ifEmpty { "Sent to" }
+                                Box(
+                                    modifier = Modifier
+                                        .clip(RoundedCornerShape(6.dp))
+                                        .background(Color(0xFF00382B))
+                                        .border(1.dp, Color(0xFF00FFA3).copy(alpha = 0.35f), RoundedCornerShape(6.dp))
+                                        .padding(horizontal = 8.dp, vertical = 3.dp)
+                                ) {
+                                    Row(verticalAlignment = Alignment.CenterVertically) {
+                                        Icon(
+                                            imageVector = Icons.Default.Computer,
+                                            contentDescription = null,
+                                            tint = Color(0xFF00FFA3),
+                                            modifier = Modifier.size(12.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(
+                                            text = "$prefix ${otp.sentToDevices}",
+                                            color = Color(0xFF00FFA3),
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.SemiBold,
+                                            maxLines = 1,
+                                            overflow = androidx.compose.ui.text.style.TextOverflow.Ellipsis
+                                        )
+                                    }
+                                }
+                            }
                         }
                     }
                 }

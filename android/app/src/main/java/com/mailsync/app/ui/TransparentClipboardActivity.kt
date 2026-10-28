@@ -77,7 +77,7 @@ class TransparentClipboardActivity : Activity() {
             Log.d("TransparentClipboard", "Successfully copied OTP to clipboard: $code (isDuplicate: $isDuplicate)")
 
             if (isDuplicate) {
-                com.mailsync.app.utils.ToastManager.show(this, "Same OTP: $code · Already on clipboard ✓", android.widget.Toast.LENGTH_SHORT)
+                com.mailsync.app.utils.ToastManager.show(this, "Same OTP already copied: $code", android.widget.Toast.LENGTH_SHORT)
             } else if (Build.VERSION.SDK_INT <= 32) {
                 com.mailsync.app.utils.ToastManager.show(this, "MailSync: OTP Copied ✔️", android.widget.Toast.LENGTH_SHORT)
             }

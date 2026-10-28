@@ -181,10 +181,15 @@ class FirebaseManager {
                 val targetTag = if (targetsToSend.size == 1) uuid else "ALL"
                 val encryptedData = encryptAesGcm(otpCode, sender, timestamp, expiresAt, keyBase64, targetTag)
                 otpsRef.child(uuid).setValue(encryptedData).await()
-                // Ensure device status is active so extension never falsely shows offline
-                devicesRef.child(uuid).child("status").setValue("active")
-                sentDeviceUuids.add(uuid)
-                Log.d("FirebaseManager", "OTP sent to target device $uuid (tier: ${candidate.tier})")
+                
+                // Only count device as sent recipient if it is genuinely ACTIVE (Tiers 1..3)
+                // Inactive / cold devices (Tier 4) are queued in mailbox but never reported as sent to UI
+                if (candidate.tier in 1..3) {
+                    sentDeviceUuids.add(uuid)
+                    Log.d("FirebaseManager", "OTP sent to active target device $uuid (tier: ${candidate.tier})")
+                } else {
+                    Log.d("FirebaseManager", "OTP queued in mailbox for inactive device $uuid (tier: 4)")
+                }
 
                 // Self-destruct the OTP from Firebase after 30 seconds.
                 managerScope.launch {
@@ -216,9 +221,9 @@ class FirebaseManager {
                         withTimeoutOrNull(800) {
                             val snapshot = devicesRef.child(uuid).get().await()
                             parseDeviceCandidate(uuid, key, snapshot, now)
-                        } ?: DeviceTargetCandidate(uuid, key, 3, 0L)
+                        } ?: DeviceTargetCandidate(uuid, key, 4, 0L)
                     } catch (e: Exception) {
-                        DeviceTargetCandidate(uuid, key, 3, 0L)
+                        DeviceTargetCandidate(uuid, key, 4, 0L)
                     }
                 }
             }
@@ -238,7 +243,13 @@ class FirebaseManager {
             return DeviceTargetCandidate(uuid, key, 4, 0L)
         }
 
+        val status = snapshot.child("status").getValue(String::class.java)
         val lastSeen = (snapshot.child("lastSeen").value as? Number)?.toLong() ?: 0L
+
+        // If explicitly inactive, paused, or no heartbeat for over 3 minutes, it is Tier 4 (Inactive)
+        if (status == "inactive" || status == "paused" || (lastSeen > 0 && now - lastSeen > 180000L)) {
+            return DeviceTargetCandidate(uuid, key, 4, lastSeen)
+        }
         val lastActive = (snapshot.child("lastActive").value as? Number)?.toLong() ?: 0L
         val isFocused = snapshot.child("isFocused").getValue(Boolean::class.java) ?: false
 

@@ -17,4 +17,33 @@ data class OtpEntity(
     var sentToDevices: String? = null
 )
 
+fun formatCompactSource(account: String): String {
+    val tagRegex = Regex("(?i)(\\[|\\()\\s*(backend|instant)\\s*(\\]|\\))")
+    val clean = account.replace(tagRegex, "").trim()
+    if (clean.isBlank()) return ""
+
+    if (clean.contains("+")) {
+        val parts = clean.split("+").map { it.trim() }
+        val shortParts = parts.map { part ->
+            when {
+                part.contains("gmail", ignoreCase = true) -> "Gmail"
+                part.contains("sms", ignoreCase = true) -> "SMS"
+                part.contains("whatsapp", ignoreCase = true) -> "WhatsApp"
+                part.contains("telegram", ignoreCase = true) -> "Telegram"
+                part.contains("@") -> "Gmail"
+                else -> part.take(12)
+            }
+        }.distinct()
+        return shortParts.joinToString(" + ")
+    }
+
+    return when {
+        clean.contains("gmail", ignoreCase = true) || clean.contains("@") -> "Gmail"
+        clean.contains("sms", ignoreCase = true) -> "SMS"
+        clean.contains("whatsapp", ignoreCase = true) -> "WhatsApp"
+        clean.contains("telegram", ignoreCase = true) -> "Telegram"
+        else -> clean.take(16)
+    }
+}
+
 

@@ -16,8 +16,8 @@ enum class OtpArrivalStatus {
 object OtpCache {
     private val recentOtps = mutableListOf<CachedOtpRecord>()
     private const val DEDUP_WINDOW_MS = 120_000L // 2-minute debounce window for matching brands/senders
-    private const val STRICT_IDENTICAL_WINDOW_MS = 60_000L // 60 seconds strict window for exact same OTP code
-    private const val SIMULTANEOUS_BURST_MS = 2_500L // Dual SMS + Email burst window
+    private const val STRICT_IDENTICAL_WINDOW_MS = 120_000L // 2-minute window for exact same OTP code
+    private const val SIMULTANEOUS_BURST_MS = 45_000L // 45s window: captures SMS-to-Notification delays, dual SMS+Email, and notification updates without re-copying
 
     @Synchronized
     fun checkStatus(code: String, sender: String, source: String): OtpArrivalStatus {
@@ -34,12 +34,12 @@ object OtpCache {
             if (item.code == sanitizedCode) {
                 val elapsed = now - item.timestamp
                 
-                // 1. Exact same OTP code within 2.5 seconds is a concurrent dual arrival (e.g. SMS + Email)
+                // 1. Exact same OTP code within 45 seconds is a concurrent dual arrival / system notification update (e.g. SMS -> Google Messages notification, SMS + Email)
                 if (elapsed <= SIMULTANEOUS_BURST_MS) {
                     return OtpArrivalStatus.SIMULTANEOUS_BURST
                 }
                 
-                // 2. Re-sent OTP: exact same code within 60s, or matching brand within 2 minutes
+                // 2. Re-sent OTP: exact same code resent after 45s (e.g. user requested resend), or matching brand within 2 minutes
                 val isMatchingSender = if (elapsed <= STRICT_IDENTICAL_WINDOW_MS) {
                     true
                 } else if (elapsed <= DEDUP_WINDOW_MS) {
