@@ -242,13 +242,22 @@ class OtpNotificationListenerService : NotificationListenerService() {
 
     private fun handleExtractedOtp(extractedOtp: com.mailsync.app.data.ExtractionResult, senderName: String, finalAccountName: String, packageName: String) {
         val otpCode = extractedOtp.code
-        val status = com.mailsync.app.utils.OtpCache.checkStatus(otpCode, senderName, finalAccountName)
+        val status = com.mailsync.app.utils.OtpCache.checkNotificationArrival(otpCode, senderName, packageName, finalAccountName)
+
+        if (status == com.mailsync.app.utils.OtpArrivalStatus.SAME_SMS_DUPLICATE) {
+            com.mailsync.app.utils.FileLogger.log(this, "SMS app notification for already-captured SMS OTP $otpCode suppressed.")
+            Log.d("OtpNotification", "SMS app notification for already-captured SMS OTP $otpCode suppressed.")
+            return
+        }
 
         if (status == com.mailsync.app.utils.OtpArrivalStatus.SIMULTANEOUS_BURST) {
-            com.mailsync.app.utils.FileLogger.log(this, "Simultaneous burst OTP $otpCode from $senderName suppressed (arrived concurrently).")
-            Log.d("OtpNotification", "Simultaneous burst OTP $otpCode from $senderName suppressed.")
+            com.mailsync.app.utils.FileLogger.log(this, "Dual arrival OTP $otpCode from $finalAccountName merged.")
+            Log.d("OtpNotification", "Dual arrival OTP $otpCode from $finalAccountName merged.")
             
-            // Still update Room Database to merge account labels (e.g. "SMS" -> "SMS + Gmail")
+            val channel = if (finalAccountName.contains("gmail", ignoreCase = true)) "Gmail" else resolveSourceLabel(packageName)
+            com.mailsync.app.utils.ToastManager.show(this, "Same OTP also arrived on $channel", android.widget.Toast.LENGTH_SHORT)
+
+            // Update Room Database to merge account labels (e.g. "SMS" -> "SMS + Gmail")
             scope.launch {
                 try {
                     val db = AppDatabase.getDatabase(this@OtpNotificationListenerService)

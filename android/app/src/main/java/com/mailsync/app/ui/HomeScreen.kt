@@ -827,61 +827,50 @@ fun OtpListItemFeed(otp: OtpEntity, context: Context, currentLang: com.mailsync.
                 }
             }
 
-            // Row 3: Metadata Badges (Source + Sent To Device)
-            val compactSource = com.mailsync.app.data.formatCompactSource(otp.account)
-            val hasSource = compactSource.isNotBlank()
-            val hasDevice = !otp.sentToDevices.isNullOrBlank()
+            // Row 3: Account / Email Details (Shows full Gmail ID)
+            val tagRegex = Regex("(?i)(\\[|\\()\\s*(backend|instant)\\s*(\\]|\\))")
+            val cleanAccount = otp.account.replace(tagRegex, "").trim()
+            if (cleanAccount.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = cleanAccount,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 11.sp,
+                    fontWeight = FontWeight.Medium,
+                    maxLines = 2,
+                    softWrap = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
 
-            if (hasSource || hasDevice) {
-                Spacer(modifier = Modifier.height(8.dp))
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+            // Row 4: Sent To Device Pill (Dedicated row with full width to prevent truncation)
+            if (!otp.sentToDevices.isNullOrBlank()) {
+                val prefix = com.mailsync.app.data.AppStrings.get("sent_to_prefix", currentLang).ifEmpty { "Sent to" }
+                Spacer(modifier = Modifier.height(6.dp))
+                Box(
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(6.dp))
+                        .background(Color(0xFF00382B))
+                        .border(1.dp, Color(0xFF00FFA3).copy(alpha = 0.35f), RoundedCornerShape(6.dp))
+                        .padding(horizontal = 8.dp, vertical = 3.dp)
                 ) {
-                    if (hasSource) {
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(Color(0xFF261F33))
-                                .padding(horizontal = 8.dp, vertical = 3.dp)
-                        ) {
-                            Text(
-                                text = compactSource,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                fontSize = 11.sp,
-                                fontWeight = FontWeight.Medium
-                            )
-                        }
-                    }
-
-                    if (hasDevice) {
-                        val prefix = com.mailsync.app.data.AppStrings.get("sent_to_prefix", currentLang).ifEmpty { "Sent to" }
-                        Box(
-                            modifier = Modifier
-                                .clip(RoundedCornerShape(6.dp))
-                                .background(Color(0xFF00382B))
-                                .border(1.dp, Color(0xFF00FFA3).copy(alpha = 0.35f), RoundedCornerShape(6.dp))
-                            .padding(horizontal = 8.dp, vertical = 3.dp)
-                        ) {
-                            Row(verticalAlignment = Alignment.CenterVertically) {
-                                Icon(
-                                    imageVector = Icons.Default.Computer,
-                                    contentDescription = null,
-                                    tint = Color(0xFF00FFA3),
-                                    modifier = Modifier.size(12.dp)
-                                )
-                                Spacer(modifier = Modifier.width(4.dp))
-                                Text(
-                                    text = "$prefix ${otp.sentToDevices}",
-                                    color = Color(0xFF00FFA3),
-                                    fontSize = 11.sp,
-                                    fontWeight = FontWeight.SemiBold,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis
-                                )
-                            }
-                        }
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Computer,
+                            contentDescription = null,
+                            tint = Color(0xFF00FFA3),
+                            modifier = Modifier.size(13.dp)
+                        )
+                        Spacer(modifier = Modifier.width(5.dp))
+                        Text(
+                            text = "$prefix ${otp.sentToDevices}",
+                            color = Color(0xFF00FFA3),
+                            fontSize = 11.sp,
+                            fontWeight = FontWeight.SemiBold,
+                            softWrap = true
+                        )
                     }
                 }
             }

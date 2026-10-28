@@ -9,8 +9,9 @@ data class CachedOtpRecord(
 
 enum class OtpArrivalStatus {
     NEW,                   // Brand new OTP
-    SIMULTANEOUS_BURST,    // Received within <= 2.5s (concurrent dual dispatch e.g. SMS + Gmail notification)
-    RESENT_SAME_CODE       // Exact same code resent between 2.5s and 120s
+    SIMULTANEOUS_BURST,    // Received within <= 45s (concurrent dual dispatch e.g. SMS + Gmail notification)
+    SAME_SMS_DUPLICATE,    // Notification from SMS app for SMS already handled by SmsReceiver within 30s
+    RESENT_SAME_CODE       // Exact same code resent (e.g. user requested resend)
 }
 
 object OtpCache {
@@ -18,6 +19,56 @@ object OtpCache {
     private const val DEDUP_WINDOW_MS = 120_000L // 2-minute debounce window for matching brands/senders
     private const val STRICT_IDENTICAL_WINDOW_MS = 120_000L // 2-minute window for exact same OTP code
     private const val SIMULTANEOUS_BURST_MS = 45_000L // 45s window: captures SMS-to-Notification delays, dual SMS+Email, and notification updates without re-copying
+
+    @Synchronized
+    fun recordSmsArrival(code: String, sender: String): OtpArrivalStatus {
+        val sanitized = code.replace("\\s".toRegex(), "")
+        if (sanitized.isBlank()) return OtpArrivalStatus.NEW
+        val now = System.currentTimeMillis()
+        recentOtps.removeAll { now - it.timestamp > 180_000L }
+
+        val existing = recentOtps.find { it.code == sanitized }
+        return if (existing == null) {
+            recentOtps.add(CachedOtpRecord(sanitized, sender, "SMS", now))
+            OtpArrivalStatus.NEW
+        } else {
+            existing.timestamp = now
+            OtpArrivalStatus.RESENT_SAME_CODE
+        }
+    }
+
+    @Synchronized
+    fun checkNotificationArrival(code: String, sender: String, sourcePackage: String, accountName: String): OtpArrivalStatus {
+        val sanitized = code.replace("\\s".toRegex(), "")
+        if (sanitized.isBlank()) return OtpArrivalStatus.NEW
+        val now = System.currentTimeMillis()
+        recentOtps.removeAll { now - it.timestamp > 180_000L }
+
+        val isSmsApp = sourcePackage.contains("messaging") || sourcePackage.contains("mms") || sourcePackage.contains(".sms")
+        val existing = recentOtps.find { it.code == sanitized }
+
+        if (existing == null) {
+            recentOtps.add(CachedOtpRecord(sanitized, sender, accountName, now))
+            return OtpArrivalStatus.NEW
+        }
+
+        val elapsed = now - existing.timestamp
+
+        // 1. If this is an SMS notification (e.g. Google Messages) and we already handled this OTP via SMS within 30s:
+        if (isSmsApp && existing.source.equals("SMS", ignoreCase = true) && elapsed < 30_000L) {
+            return OtpArrivalStatus.SAME_SMS_DUPLICATE
+        }
+
+        // 2. Dual channel arrival (e.g. Gmail notification for OTP already received on SMS) within 45s:
+        if (elapsed < SIMULTANEOUS_BURST_MS) {
+            existing.timestamp = now
+            return OtpArrivalStatus.SIMULTANEOUS_BURST
+        }
+
+        // 3. Re-sent code (> 45s)
+        existing.timestamp = now
+        return OtpArrivalStatus.RESENT_SAME_CODE
+    }
 
     @Synchronized
     fun checkStatus(code: String, sender: String, source: String): OtpArrivalStatus {

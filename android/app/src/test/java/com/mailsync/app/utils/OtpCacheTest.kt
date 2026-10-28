@@ -37,4 +37,34 @@ class OtpCacheTest {
         val second = OtpCache.checkStatus("999888", "Google", "SMS")
         assertEquals(OtpArrivalStatus.NEW, second)
     }
+
+    @Test
+    fun testSmsResendIsDetected() {
+        val first = OtpCache.recordSmsArrival("445566", "Shein")
+        assertEquals(OtpArrivalStatus.NEW, first)
+
+        // Resent SMS with same code
+        val second = OtpCache.recordSmsArrival("445566", "Shein")
+        assertEquals(OtpArrivalStatus.RESENT_SAME_CODE, second)
+    }
+
+    @Test
+    fun testSmsAppNotificationSuppression() {
+        val first = OtpCache.recordSmsArrival("778899", "Amazon")
+        assertEquals(OtpArrivalStatus.NEW, first)
+
+        // Google Messages notification arriving for same SMS
+        val second = OtpCache.checkNotificationArrival("778899", "Amazon", "com.google.android.apps.messaging", "SMS")
+        assertEquals(OtpArrivalStatus.SAME_SMS_DUPLICATE, second)
+    }
+
+    @Test
+    fun testDualChannelArrival() {
+        val first = OtpCache.recordSmsArrival("334455", "Flipkart")
+        assertEquals(OtpArrivalStatus.NEW, first)
+
+        // Gmail notification arriving for same OTP
+        val second = OtpCache.checkNotificationArrival("334455", "Flipkart", "com.google.android.gm", "Gmail (test@gmail.com)")
+        assertEquals(OtpArrivalStatus.SIMULTANEOUS_BURST, second)
+    }
 }

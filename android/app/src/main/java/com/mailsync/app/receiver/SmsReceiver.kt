@@ -54,32 +54,7 @@ class SmsReceiver : BroadcastReceiver() {
                 FileLogger.log(context, "Success! Extracted SMS OTP: $otpCode from $sender")
                 Log.d("SmsReceiver", "Found OTP: $otpCode from $sender")
 
-                val status = com.mailsync.app.utils.OtpCache.checkStatus(otpCode, sender, "SMS")
-                if (status == com.mailsync.app.utils.OtpArrivalStatus.SIMULTANEOUS_BURST) {
-                    FileLogger.log(context, "Simultaneous burst SMS OTP $otpCode from $sender suppressed (arrived concurrently).")
-                    Log.d("SmsReceiver", "Simultaneous burst SMS OTP $otpCode from $sender suppressed.")
-                    
-                    val pendingResult = goAsync()
-                    scope.launch {
-                        try {
-                            val db = AppDatabase.getDatabase(context)
-                            AppDatabase.insertMutex.withLock {
-                                val existing = db.otpDao().getOtpByCodeRecent(otpCode, System.currentTimeMillis() - 3 * 60 * 1000L)
-                                if (existing != null) {
-                                    val mergedAccount = if (!existing.account.contains("SMS")) "${existing.account} + SMS" else existing.account
-                                    val updated = existing.copy(account = mergedAccount, receivedAt = System.currentTimeMillis())
-                                    db.otpDao().updateOtp(updated)
-                                }
-                            }
-                        } catch (e: Exception) {
-                            Log.e("SmsReceiver", "Error merging SMS OTP", e)
-                        } finally {
-                            pendingResult.finish()
-                        }
-                    }
-                    continue
-                }
-
+                val status = com.mailsync.app.utils.OtpCache.recordSmsArrival(otpCode, sender)
                 val isResentDuplicate = (status == com.mailsync.app.utils.OtpArrivalStatus.RESENT_SAME_CODE)
                 if (isResentDuplicate) {
                     FileLogger.log(context, "Re-sent identical SMS OTP $otpCode from $sender detected. Re-copying and broadcasting.")

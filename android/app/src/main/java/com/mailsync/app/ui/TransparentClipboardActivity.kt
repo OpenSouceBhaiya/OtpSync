@@ -72,13 +72,23 @@ class TransparentClipboardActivity : Activity() {
 
         try {
             val clipboard = getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-            val clip = ClipData.newPlainText("OTP", code)
-            clipboard.setPrimaryClip(clip)
-            Log.d("TransparentClipboard", "Successfully copied OTP to clipboard: $code (isDuplicate: $isDuplicate)")
+            val currentClip = try {
+                clipboard.primaryClip?.getItemAt(0)?.text?.toString()
+            } catch (e: Exception) { null }
+
+            val alreadyOnClipboard = (currentClip == code)
+
+            // Only invoke setPrimaryClip if the code isn't already on the clipboard,
+            // preventing Android 13+ OS from displaying a secondary 'Copied' overlay over our toast
+            if (!alreadyOnClipboard) {
+                val clip = ClipData.newPlainText("OTP", code)
+                clipboard.setPrimaryClip(clip)
+            }
+            Log.d("TransparentClipboard", "Copied OTP status: $code (isDuplicate: $isDuplicate, alreadyOnClipboard: $alreadyOnClipboard)")
 
             if (isDuplicate) {
                 com.mailsync.app.utils.ToastManager.show(this, "Same OTP already copied: $code", android.widget.Toast.LENGTH_SHORT)
-            } else if (Build.VERSION.SDK_INT <= 32) {
+            } else if (!alreadyOnClipboard && Build.VERSION.SDK_INT <= 32) {
                 com.mailsync.app.utils.ToastManager.show(this, "MailSync: OTP Copied ✔️", android.widget.Toast.LENGTH_SHORT)
             }
 
