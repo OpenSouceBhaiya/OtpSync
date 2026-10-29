@@ -741,10 +741,33 @@ fun SettingsScreen(viewModel: SettingsViewModel, highlight: String? = null, onNa
                       )
                   }
                   Spacer(modifier = Modifier.height(4.dp))
+                  var developerTapCount by remember { mutableStateOf(0) }
+                  var isDeveloperUnlocked by remember { mutableStateOf(false) }
+
                   Text(
                       text = "OTP Sync v${com.mailsync.app.BuildConfig.VERSION_NAME}",
                       style = MaterialTheme.typography.bodySmall,
-                      color = TextSecondary
+                      color = TextSecondary,
+                      modifier = Modifier
+                          .clip(RoundedCornerShape(8.dp))
+                          .clickable {
+                              if (isDeveloperUnlocked) {
+                                  val quote = com.mailsync.app.utils.DeveloperEasterEgg.getNextFunnyQuote()
+                                  com.mailsync.app.utils.ToastManager.show(context, quote)
+                              } else {
+                                  developerTapCount++
+                                  if (developerTapCount in 3..6) {
+                                      val remaining = 7 - developerTapCount
+                                      val stepWord = if (remaining == 1) "step" else "steps"
+                                      com.mailsync.app.utils.ToastManager.show(context, "You are now $remaining $stepWord away from developer mode...")
+                                  } else if (developerTapCount >= 7) {
+                                      isDeveloperUnlocked = true
+                                      val quote = com.mailsync.app.utils.DeveloperEasterEgg.getNextFunnyQuote()
+                                      com.mailsync.app.utils.ToastManager.show(context, quote)
+                                  }
+                              }
+                          }
+                          .padding(horizontal = 12.dp, vertical = 6.dp)
                   )
               }
             

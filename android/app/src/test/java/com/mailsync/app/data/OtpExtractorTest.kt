@@ -565,5 +565,31 @@ class OtpExtractorTest {
         val result = OtpExtractor.extractOtp(null, "Transaction success", text, 0L)
         assertNull("Completed SBI YONO fund transfer receipt must NOT extract an OTP", result)
     }
+
+    @Test
+    fun testSheinIndia() {
+        val text = "To access/edit your SHEININDIA account use One Time Password 859878 (valid for 10 mins). Make sure you do not share it with anyone for security reasons. 281z5M+dN9a"
+        val result = OtpExtractor.extractOtp(context = null, subject = "JD-SHEINI-S", bodyText = text, bodyHtml = null, receivedTimeMs = 0L)
+        assertEquals("859878", result?.code)
+    }
+
+    @Test
+    fun testSheinIndiaThreadedNotification() {
+        val fullThreadText = """
+            JD-SHEINI-S
+            SH20057105340 is out for delivery. Pay Rs. 903.15 for the order. Track your shipment by logging into your SHEININDIA account.
+            Hey Piyush! Part of your SHEININDIA order SH2199706778 has been successfully delivered. For details, kindly login to your SHEININDIA account.
+            To access/edit your SHEININDIA account use One Time Password 859878 (valid for 10 mins). Make sure you do not share it with anyone for security reasons. 281z5M+dN9a
+        """.trimIndent()
+        val result = OtpExtractor.extractOtp(context = null, subject = "JD-SHEINI-S", bodyText = fullThreadText, bodyHtml = null, receivedTimeMs = 0L)
+        assertEquals("859878", result?.code)
+    }
+
+    @Test
+    fun testSheinIndiaSecondOtp() {
+        val text = "To access/edit your SHEININDIA account use One Time Password 776690 (valid for 10 mins). Make sure you do not share it with anyone for security reasons. 281z5M+dN9a"
+        val result = OtpExtractor.extractOtp(context = null, subject = "JD-SHEINI-S", bodyText = text, bodyHtml = null, receivedTimeMs = 0L)
+        assertEquals("776690", result?.code)
+    }
 }
 
