@@ -1,0 +1,4 @@
+{
+  "gradle.nestedProjects": true,
+  "java.import.gradle.enabled": true
+}

@@ -58,7 +58,6 @@ fun SettingsScreen(viewModel: SettingsViewModel, highlight: String? = null, onNa
     val currentLang by viewModel.appLanguage.collectAsState()
     var expandedLanguageDropdown by remember { mutableStateOf(false) }
     val languageMenuScrollState = rememberScrollState()
-    val languageBringIntoViewRequester = remember { BringIntoViewRequester() }
 
     LaunchedEffect(expandedLanguageDropdown) {
         if (expandedLanguageDropdown) {
@@ -431,13 +430,7 @@ fun SettingsScreen(viewModel: SettingsViewModel, highlight: String? = null, onNa
 
             LaunchedEffect(highlightLanguage) {
                 if (highlightLanguage) {
-                    kotlinx.coroutines.delay(200)
-                    try {
-                        languageBringIntoViewRequester.bringIntoView()
-                    } catch (_: Exception) {}
-                    if (scrollState.value < 1400) {
-                        scrollState.animateScrollTo(minOf(scrollState.maxValue, 1800))
-                    }
+                    scrollState.animateScrollTo(10000)
                     highlightLanguageTriggered = true
                     kotlinx.coroutines.delay(400)
                     highlightLanguageTriggered = false
@@ -466,7 +459,6 @@ fun SettingsScreen(viewModel: SettingsViewModel, highlight: String? = null, onNa
                     Row(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .bringIntoViewRequester(languageBringIntoViewRequester)
                             .graphicsLayer(scaleX = pulseLanguageScale, scaleY = pulseLanguageScale)
                             .background(highlightLanguageColor, shape = RoundedCornerShape(8.dp))
                             .padding(horizontal = 8.dp, vertical = 6.dp),
