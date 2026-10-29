@@ -17,7 +17,7 @@ android {
     compileSdk = 34
 
     defaultConfig {
-        applicationId  = "com.mailsync.app"
+        applicationId  = "com.opensourcebhaiya.otpsync"
         minSdk         = 26    // EncryptedSharedPreferences requires API 26+
         targetSdk      = 34
         versionCode = 1

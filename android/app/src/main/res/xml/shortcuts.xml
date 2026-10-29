@@ -8,7 +8,7 @@
         android:shortcutLongLabel="@string/shortcut_contact_long">
         <intent
             android:action="android.intent.action.VIEW"
-            android:targetPackage="com.mailsync.app"
+            android:targetPackage="com.opensourcebhaiya.otpsync"
             android:targetClass="com.mailsync.app.MainActivity"
             android:data="gmailotpsyncer://contact" />
     </shortcut>
@@ -21,7 +21,7 @@
         android:shortcutLongLabel="@string/shortcut_bug_long">
         <intent
             android:action="android.intent.action.VIEW"
-            android:targetPackage="com.mailsync.app"
+            android:targetPackage="com.opensourcebhaiya.otpsync"
             android:targetClass="com.mailsync.app.MainActivity"
             android:data="gmailotpsyncer://bug_report" />
     </shortcut>
@@ -34,7 +34,7 @@
         android:shortcutLongLabel="@string/shortcut_language_long">
         <intent
             android:action="android.intent.action.VIEW"
-            android:targetPackage="com.mailsync.app"
+            android:targetPackage="com.opensourcebhaiya.otpsync"
             android:targetClass="com.mailsync.app.MainActivity"
             android:data="gmailotpsyncer://language" />
     </shortcut>
