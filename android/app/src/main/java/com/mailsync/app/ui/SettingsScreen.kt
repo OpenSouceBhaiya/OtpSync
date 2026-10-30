@@ -48,7 +48,6 @@ import androidx.compose.material.icons.filled.Computer
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
-import com.google.api.services.gmail.GmailScopes
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.delay
 
@@ -68,9 +67,17 @@ fun SettingsScreen(viewModel: SettingsViewModel, highlight: String? = null, onNa
     val context = LocalContext.current
     val scrollState = rememberScrollState()
 
+    val isSmsDeclaredInManifest = remember {
+        try {
+            val info = context.packageManager.getPackageInfo(context.packageName, android.content.pm.PackageManager.GET_PERMISSIONS)
+            info.requestedPermissions?.contains(android.Manifest.permission.RECEIVE_SMS) == true
+        } catch (_: Exception) {
+            false
+        }
+    }
     var isNotificationAccessGranted = NotificationManagerCompat.getEnabledListenerPackages(context).contains(context.packageName)
     var canDrawOverlays = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) android.provider.Settings.canDrawOverlays(context) else true
-    var isSmsPermissionGranted = androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.RECEIVE_SMS) == android.content.pm.PackageManager.PERMISSION_GRANTED
+    var isSmsPermissionGranted = if (isSmsDeclaredInManifest) androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.RECEIVE_SMS) == android.content.pm.PackageManager.PERMISSION_GRANTED else true
 
     val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
     var lifecycleTrigger by remember { mutableStateOf(0) }
@@ -96,12 +103,12 @@ fun SettingsScreen(viewModel: SettingsViewModel, highlight: String? = null, onNa
     val _trigger = lifecycleTrigger
     isNotificationAccessGranted = NotificationManagerCompat.getEnabledListenerPackages(context).contains(context.packageName)
     canDrawOverlays = if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.M) android.provider.Settings.canDrawOverlays(context) else true
-    isSmsPermissionGranted = androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.RECEIVE_SMS) == android.content.pm.PackageManager.PERMISSION_GRANTED
+    isSmsPermissionGranted = if (isSmsDeclaredInManifest) androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.RECEIVE_SMS) == android.content.pm.PackageManager.PERMISSION_GRANTED else true
 
     val smsPermissionLauncher = androidx.activity.compose.rememberLauncherForActivityResult(
         contract = androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions(),
         onResult = { _ ->
-            isSmsPermissionGranted = androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.RECEIVE_SMS) == android.content.pm.PackageManager.PERMISSION_GRANTED
+            isSmsPermissionGranted = if (isSmsDeclaredInManifest) androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.RECEIVE_SMS) == android.content.pm.PackageManager.PERMISSION_GRANTED else true
         }
     )
 
@@ -299,38 +306,40 @@ fun SettingsScreen(viewModel: SettingsViewModel, highlight: String? = null, onNa
                     )
                 }
                 
-                // SMS Permission
-                val smsBg = if (isHighlightSms) Color(0xFFE53935).copy(alpha = (0.35f + (highlightAlpha * 0.4f)).coerceIn(0f, 1f)) else Color.Transparent
-                val smsBorder = if (isHighlightSms) BorderStroke(1.5.dp, Color(0xFFFF5252).copy(alpha = (0.5f + highlightAlpha).coerceIn(0f, 1f))) else null
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clip(RoundedCornerShape(8.dp))
-                        .background(smsBg)
-                        .then(if (smsBorder != null) Modifier.border(smsBorder, RoundedCornerShape(8.dp)) else Modifier)
-                        .clickable {
-                            if (!isSmsPermissionGranted) {
-                                smsPermissionLauncher.launch(arrayOf(android.Manifest.permission.RECEIVE_SMS, android.Manifest.permission.READ_SMS))
-                            } else {
-                                val intent = Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:${context.packageName}"))
-                                context.startActivity(intent)
+                // SMS Permission (only visible in distributions that declare SMS permissions like GitHub)
+                if (isSmsDeclaredInManifest) {
+                    val smsBg = if (isHighlightSms) Color(0xFFE53935).copy(alpha = (0.35f + (highlightAlpha * 0.4f)).coerceIn(0f, 1f)) else Color.Transparent
+                    val smsBorder = if (isHighlightSms) BorderStroke(1.5.dp, Color(0xFFFF5252).copy(alpha = (0.5f + highlightAlpha).coerceIn(0f, 1f))) else null
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clip(RoundedCornerShape(8.dp))
+                            .background(smsBg)
+                            .then(if (smsBorder != null) Modifier.border(smsBorder, RoundedCornerShape(8.dp)) else Modifier)
+                            .clickable {
+                                if (!isSmsPermissionGranted) {
+                                    smsPermissionLauncher.launch(arrayOf(android.Manifest.permission.RECEIVE_SMS, android.Manifest.permission.READ_SMS))
+                                } else {
+                                    val intent = Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:${context.packageName}"))
+                                    context.startActivity(intent)
+                                }
                             }
-                        }
-                        .padding(horizontal = 8.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(com.mailsync.app.data.AppStrings.get("sms_extraction_title", currentLang), color = TextPrimary, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
-                    Switch(
-                        checked = isSmsPermissionGranted,
-                        onCheckedChange = null,
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = Color.White,
-                            checkedTrackColor = MaterialTheme.colorScheme.primary,
-                            uncheckedThumbColor = Color.Gray,
-                            uncheckedTrackColor = Color.DarkGray
-                        ),
-                        modifier = Modifier.scale(0.8f)
-                    )
+                            .padding(horizontal = 8.dp, vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(com.mailsync.app.data.AppStrings.get("sms_extraction_title", currentLang), color = TextPrimary, style = MaterialTheme.typography.bodyMedium, modifier = Modifier.weight(1f))
+                        Switch(
+                            checked = isSmsPermissionGranted,
+                            onCheckedChange = null,
+                            colors = SwitchDefaults.colors(
+                                checkedThumbColor = Color.White,
+                                checkedTrackColor = MaterialTheme.colorScheme.primary,
+                                uncheckedThumbColor = Color.Gray,
+                                uncheckedTrackColor = Color.DarkGray
+                            ),
+                            modifier = Modifier.scale(0.8f)
+                        )
+                    }
                 }
                 
                 // Overlay Permission

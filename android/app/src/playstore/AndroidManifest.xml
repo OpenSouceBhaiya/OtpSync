@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:tools="http://schemas.android.com/tools">
+
+    <!-- 
+      Google Play Store Policy Compliance:
+      Google Play prohibits RECEIVE_SMS and READ_SMS unless the app is the default SMS handler.
+      The Play Store distribution uses NotificationListenerService (100% compliant & approved)
+      to extract OTPs from notifications without restricted SMS permissions.
+    -->
+    <uses-permission android:name="android.permission.RECEIVE_SMS" tools:node="remove" />
+    <uses-permission android:name="android.permission.READ_SMS" tools:node="remove" />
+
+    <application>
+        <!-- Remove standalone SMS broadcast receiver in Play Store distribution -->
+        <receiver
+            android:name=".receiver.SmsReceiver"
+            tools:node="remove" />
+    </application>
+</manifest>

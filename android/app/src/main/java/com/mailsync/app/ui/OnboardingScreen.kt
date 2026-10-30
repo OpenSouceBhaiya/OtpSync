@@ -24,9 +24,6 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Computer
 import androidx.compose.material.icons.filled.AccountCircle
 import androidx.compose.material3.*
-import com.google.android.gms.auth.api.signin.GoogleSignIn
-import com.google.android.gms.auth.api.signin.GoogleSignInOptions
-import com.google.api.services.gmail.GmailScopes
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
@@ -325,9 +322,17 @@ fun OnboardingScreen(
                                 // Optional logic here if needed when granted
                             }
                         )
+                        val isSmsDeclaredInManifest = androidx.compose.runtime.remember {
+                            try {
+                                val info = context.packageManager.getPackageInfo(context.packageName, android.content.pm.PackageManager.GET_PERMISSIONS)
+                                info.requestedPermissions?.contains(android.Manifest.permission.RECEIVE_SMS) == true
+                            } catch (_: Exception) {
+                                false
+                            }
+                        }
                         var isSmsPermissionGranted by androidx.compose.runtime.remember { 
                             androidx.compose.runtime.mutableStateOf(
-                                androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.RECEIVE_SMS) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                                if (isSmsDeclaredInManifest) androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.RECEIVE_SMS) == android.content.pm.PackageManager.PERMISSION_GRANTED else true
                             )
                         }
 
@@ -338,7 +343,7 @@ fun OnboardingScreen(
                                 if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
                                     canDrawOverlays = android.provider.Settings.canDrawOverlays(context)
                                     isNotificationAccessGranted = androidx.core.app.NotificationManagerCompat.getEnabledListenerPackages(context).contains(context.packageName)
-                                    isSmsPermissionGranted = androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.RECEIVE_SMS) == android.content.pm.PackageManager.PERMISSION_GRANTED
+                                    isSmsPermissionGranted = if (isSmsDeclaredInManifest) androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.RECEIVE_SMS) == android.content.pm.PackageManager.PERMISSION_GRANTED else true
                                     // Just update the states to reflect OS reality
                                     if (!isNotificationAccessGranted && settingsViewModel.isSyncEnabled.value) {
                                         settingsViewModel.setSyncEnabled(false)
@@ -446,42 +451,46 @@ fun OnboardingScreen(
                             )
                         }
 
-                        Spacer(modifier = Modifier.height(16.dp))
+                        if (isSmsDeclaredInManifest) {
+                            Spacer(modifier = Modifier.height(16.dp))
 
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth(0.9f)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(MaterialTheme.colorScheme.surfaceVariant)
-                                .padding(16.dp),
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Column(modifier = Modifier.weight(1f, fill = false)) {
-                                Text(com.mailsync.app.data.AppStrings.get("sms_extraction_title", currentLang), fontWeight = FontWeight.Bold, color = TextPrimary, fontSize = 16.sp)
-                                Text(com.mailsync.app.data.AppStrings.get("engine_running_sub", currentLang), color = TextSecondary, fontSize = 12.sp)
-                            }
-                            Spacer(modifier = Modifier.width(4.dp))
-                            CustomToggle(
-                                checked = isSmsPermissionGranted,
-                                onCheckedChange = { isChecked ->
-                                    if (isChecked) {
-                                        smsPermissionLauncher.launch(arrayOf(android.Manifest.permission.RECEIVE_SMS, android.Manifest.permission.READ_SMS))
-                                    } else {
-                                        val intent = Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:${context.packageName}"))
-                                        context.startActivity(intent)
-                                    }
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth(0.9f)
+                                    .clip(RoundedCornerShape(12.dp))
+                                    .background(MaterialTheme.colorScheme.surfaceVariant)
+                                    .padding(16.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Column(modifier = Modifier.weight(1f, fill = false)) {
+                                    Text(com.mailsync.app.data.AppStrings.get("sms_extraction_title", currentLang), fontWeight = FontWeight.Bold, color = TextPrimary, fontSize = 16.sp)
+                                    Text(com.mailsync.app.data.AppStrings.get("engine_running_sub", currentLang), color = TextSecondary, fontSize = 12.sp)
                                 }
-                            )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                CustomToggle(
+                                    checked = isSmsPermissionGranted,
+                                    onCheckedChange = { isChecked ->
+                                        if (isChecked) {
+                                            smsPermissionLauncher.launch(arrayOf(android.Manifest.permission.RECEIVE_SMS, android.Manifest.permission.READ_SMS))
+                                        } else {
+                                            val intent = Intent(android.provider.Settings.ACTION_APPLICATION_DETAILS_SETTINGS, android.net.Uri.parse("package:${context.packageName}"))
+                                            context.startActivity(intent)
+                                        }
+                                    }
+                                )
+                            }
                         }
                         
+                        val isAllPermissionsGranted = isSyncEnabled && canDrawOverlays && (!isSmsDeclaredInManifest || isSmsPermissionGranted)
+
                         val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
-                        androidx.compose.runtime.LaunchedEffect(isSyncEnabled, canDrawOverlays, isSmsPermissionGranted) {
-                            if (isSyncEnabled && canDrawOverlays && isSmsPermissionGranted) {
+                        androidx.compose.runtime.LaunchedEffect(isAllPermissionsGranted) {
+                            if (isAllPermissionsGranted) {
                                 haptic.performHapticFeedback(androidx.compose.ui.hapticfeedback.HapticFeedbackType.LongPress)
                             }
                         }
 
-                        androidx.compose.animation.AnimatedVisibility(visible = isSyncEnabled && canDrawOverlays && isSmsPermissionGranted) {
+                        androidx.compose.animation.AnimatedVisibility(visible = isAllPermissionsGranted) {
                             Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth().padding(top = 16.dp)) {
                                 Icon(Icons.Default.CheckCircle, contentDescription = "Ready", tint = Color(0xFF10B981), modifier = Modifier.size(48.dp))
                                 Spacer(modifier = Modifier.height(8.dp))

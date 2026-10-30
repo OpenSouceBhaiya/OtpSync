@@ -27,12 +27,16 @@ android {
         vectorDrawables {
             useSupportLibrary = true
         }
+    }
 
-        // Inject Web Client ID and Secret into strings.xml securely
-        val webClientId = localProps.getProperty("WEB_CLIENT_ID") ?: "YOUR_WEB_CLIENT_ID"
-        val webClientSecret = localProps.getProperty("WEB_CLIENT_SECRET") ?: "YOUR_WEB_CLIENT_SECRET"
-        resValue("string", "web_client_id", webClientId)
-        resValue("string", "web_client_secret", webClientSecret)
+    flavorDimensions += "distribution"
+    productFlavors {
+        create("playstore") {
+            dimension = "distribution"
+        }
+        create("github") {
+            dimension = "distribution"
+        }
     }
 
     signingConfigs {
@@ -155,17 +159,6 @@ dependencies {
     // and battery optimization. The right tool for periodic sync tasks.
     implementation("androidx.work:work-runtime-ktx:2.9.0")
 
-    // ── Google Sign-In & Gmail API ────────────────────────────────────────────
-    // Native Android Google Sign-In
-    implementation("com.google.android.gms:play-services-auth:21.1.1")
-    
-    // Google API Client for Android
-    implementation("com.google.api-client:google-api-client-android:1.33.0")
-    
-    // Gmail API
-    implementation("com.google.apis:google-api-services-gmail:v1-rev20220404-1.32.1") {
-        exclude(group = "org.apache.httpcomponents")
-    }
 
     // ── Autofill ─────────────────────────────────────────────────────────────
     implementation("androidx.autofill:autofill:1.1.0")

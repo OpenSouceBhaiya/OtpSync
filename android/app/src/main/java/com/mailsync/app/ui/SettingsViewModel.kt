@@ -343,61 +343,12 @@ class SettingsViewModel(
 
     fun addAccountEmail(email: String, displayName: String?, serverAuthCode: String?, context: android.content.Context) {
         viewModelScope.launch {
-            if (serverAuthCode != null) {
-                val authHelper = com.mailsync.app.data.GoogleAuthHelper(context)
-                val tokens = authHelper.exchangeAuthCodeForTokens(serverAuthCode)
-                val existingRefreshToken = settingsManager.getRefreshToken(email)
-                
-                if (tokens?.accessToken != null) {
-                    // Save the fresh access token
-                    settingsManager.setAccessToken(email, tokens.accessToken, tokens.expiresInSeconds)
-                    if (tokens.refreshToken != null) {
-                        settingsManager.setRefreshToken(email, tokens.refreshToken)
-                    }
-                } else if (existingRefreshToken == null) {
-                    // Token exchange failed completely and no refresh token exists
-                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-                        com.mailsync.app.utils.ToastManager.show(context, "Google rejected authentication. Please try again.", android.widget.Toast.LENGTH_LONG)
-                    }
-                    com.mailsync.app.utils.ErrorReporter.reportError(context, Exception("Auth Code Exchange Failed. No access token returned for $email."), "SettingsViewModel")
-                    return@launch
-                }
-            } else {
-                val existingRefreshToken = settingsManager.getRefreshToken(email)
-                val existingAccessToken = settingsManager.getAccessToken(email)
-                if (existingRefreshToken == null && existingAccessToken == null) {
-                    kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-                        com.mailsync.app.utils.ToastManager.show(context, "No server auth code provided by Google Play Services.", android.widget.Toast.LENGTH_LONG)
-                    }
-                    return@launch
-                }
-            }
-            
-            // ONLY switch to Ultimate Speed if this is the very first account being added
-            // and the user was in Notification-only mode (they had no Gmail account before).
-            // If the user already had accounts and chose a specific mode, PRESERVE it.
-            val wasFirstAccount = settingsManager.getConnectedAccounts().isEmpty()
-            
             settingsManager.addAccountEmail(email)
             settingsManager.setAccountName(email, displayName)
             _accounts.value = settingsManager.getConnectedAccounts()
             _isConfigured.value = true
-            
-            // Remove from revoked list if re-added
-            val revoked = otpPrefs.getStringSet("revoked_accounts", mutableSetOf())?.toMutableSet() ?: mutableSetOf()
-            if (revoked.remove(email)) {
-                otpPrefs.edit().putStringSet("revoked_accounts", revoked).apply()
-            }
-            
-            // Show success toast NOW — after exchange confirmed, account saved, revoked list cleaned
-            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Main) {
-                com.mailsync.app.utils.ToastManager.show(context, "Account added successfully!", android.widget.Toast.LENGTH_SHORT)
-            }
-            
             setSyncEnabled(true)
             setAccountSyncEnabled(email, true)
-            
-
             updateFirebaseAccountName()
         }
     }
@@ -408,28 +359,12 @@ class SettingsViewModel(
     
     fun removeAccountEmail(email: String) {
         settingsManager.removeAccountEmail(email)
-        // Also remove from disabled list if it was there
         settingsManager.setAccountSyncEnabled(email, true)
-
-        // Clear from revoked list
         val revoked = otpPrefs.getStringSet("revoked_accounts", mutableSetOf())?.toMutableSet() ?: mutableSetOf()
         if (revoked.remove(email)) {
             otpPrefs.edit().putStringSet("revoked_accounts", revoked).apply()
         }
         _revokedAccounts.value = revoked.toSet()
-
-        // Explicitly revoke Google Play Services access so the next sign-in forces a prompt
-        try {
-            val gso = com.google.android.gms.auth.api.signin.GoogleSignInOptions.Builder(com.google.android.gms.auth.api.signin.GoogleSignInOptions.DEFAULT_SIGN_IN)
-                .requestEmail()
-                .build()
-            val client = com.google.android.gms.auth.api.signin.GoogleSignIn.getClient(context, gso)
-            client.signOut().addOnCompleteListener {
-                client.revokeAccess()
-            }
-        } catch (e: Exception) {
-            e.printStackTrace()
-        }
 
         _accounts.value = settingsManager.getConnectedAccounts()
         _disabledSyncAccounts.value = settingsManager.getDisabledSyncAccounts()
