@@ -620,9 +620,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             new QRious({
                 element: canvas,
                 value: qrData,
-                size: 236,
+                size: 200,
                 level: 'M',
-                padding: 10,
+                padding: 12,
                 background: '#FFFFFF',
                 foreground: '#000000'
             });
