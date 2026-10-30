@@ -1,5 +1,16 @@
 // background.js — OTP Sync Chrome Extension
 
+self.addEventListener('unhandledrejection', (event) => {
+    if (event.reason && event.reason.message && (
+        event.reason.message.includes('No SW') ||
+        event.reason.message.includes('Receiving end does not exist') ||
+        event.reason.message.includes('Could not establish connection') ||
+        event.reason.message.includes('Extension context invalidated')
+    )) {
+        event.preventDefault();
+    }
+});
+
 self.addEventListener('offline', () => {
     setToolbarIcon('warning');
 });
@@ -30,6 +41,8 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
                 } else {
                     fetchOtpImmediately(data.uuid, data.aesKey);
                 }
+            }).catch(() => {
+                startListening(data.uuid, data.aesKey, true);
             });
         }
     } catch(e) { /* silent */ }
