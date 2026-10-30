@@ -29,5 +29,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "GmailOtpSyncer"
+rootProject.name = "OtpSync"
 include(":app")

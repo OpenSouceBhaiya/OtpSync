@@ -13,7 +13,7 @@ val localPropsFile = rootProject.file("local.properties")
 if (localPropsFile.exists()) localProps.load(localPropsFile.inputStream())
 
 android {
-    namespace  = "com.mailsync.app"
+    namespace = "com.opensourcebhaiya.otpsync"
     compileSdk = 34
 
     defaultConfig {

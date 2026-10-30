@@ -9,7 +9,7 @@
         <intent
             android:action="android.intent.action.VIEW"
             android:targetPackage="com.opensourcebhaiya.otpsync"
-            android:targetClass="com.mailsync.app.MainActivity"
+            android:targetClass="com.opensourcebhaiya.otpsync.MainActivity"
             android:data="gmailotpsyncer://contact" />
     </shortcut>
 
@@ -22,7 +22,7 @@
         <intent
             android:action="android.intent.action.VIEW"
             android:targetPackage="com.opensourcebhaiya.otpsync"
-            android:targetClass="com.mailsync.app.MainActivity"
+            android:targetClass="com.opensourcebhaiya.otpsync.MainActivity"
             android:data="gmailotpsyncer://bug_report" />
     </shortcut>
 
@@ -35,7 +35,7 @@
         <intent
             android:action="android.intent.action.VIEW"
             android:targetPackage="com.opensourcebhaiya.otpsync"
-            android:targetClass="com.mailsync.app.MainActivity"
+            android:targetClass="com.opensourcebhaiya.otpsync.MainActivity"
             android:data="gmailotpsyncer://language" />
     </shortcut>
 </shortcuts>
