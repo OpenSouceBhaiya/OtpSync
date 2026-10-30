@@ -49,13 +49,19 @@ class SmsReceiver : BroadcastReceiver() {
             val fullText = bodyBuilder.toString()
             FileLogger.log(context, "SMS Received - Sender: $sender, Text: $fullText")
 
-            val extractedOtp = OtpExtractor.extractOtp(
-                context = context,
-                subject = sender,
-                bodyText = fullText,
-                bodyHtml = null,
-                receivedTimeMs = System.currentTimeMillis()
-            )
+            val extractedOtp = try {
+                OtpExtractor.extractOtp(
+                    context = context,
+                    subject = sender,
+                    bodyText = fullText,
+                    bodyHtml = null,
+                    receivedTimeMs = System.currentTimeMillis()
+                )
+            } catch (t: Throwable) {
+                FileLogger.log(context, "SmsReceiver: Error extracting OTP from SMS: ${t.message}")
+                Log.e("SmsReceiver", "Error extracting OTP from SMS", t)
+                null
+            }
 
             if (extractedOtp != null) {
                 val otpCode = extractedOtp.code
