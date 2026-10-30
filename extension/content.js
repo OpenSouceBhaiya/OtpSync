@@ -420,7 +420,7 @@ function snapThanos(element) {
                     e.message.includes("Receiving end does not exist") ||
                     e.message.includes("Could not establish connection")
                 )) return;
-                console.warn("MailSync sendMessage failed:", e);
+                console.warn("OTP Sync sendMessage failed:", e);
             });
         } catch (e) {
             if (e && e.message && (
@@ -429,7 +429,7 @@ function snapThanos(element) {
                 e.message.includes("Receiving end does not exist") ||
                 e.message.includes("Could not establish connection")
             )) return;
-            console.warn("MailSync sendMessage failed:", e);
+            console.warn("OTP Sync sendMessage failed:", e);
         }
     }
 

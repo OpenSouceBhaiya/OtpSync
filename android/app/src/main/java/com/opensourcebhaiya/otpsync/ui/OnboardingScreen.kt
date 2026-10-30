@@ -371,11 +371,11 @@ fun OnboardingScreen(
                                 .padding(16.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column(modifier = Modifier.weight(1f, fill = false)) {
+                            Column(modifier = Modifier.weight(1f)) {
                                 Text(com.opensourcebhaiya.otpsync.data.AppStrings.get("instant_sync", currentLang), fontWeight = FontWeight.Bold, color = TextPrimary, fontSize = 16.sp)
                                 Text(com.opensourcebhaiya.otpsync.data.AppStrings.get("engine_running_sub", currentLang), color = TextSecondary, fontSize = 12.sp)
                             }
-                            Spacer(modifier = Modifier.width(4.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
                             CustomToggle(
                                 checked = isSyncEnabled && isNotificationAccessGranted,
                                 onCheckedChange = { isChecked ->
@@ -416,11 +416,11 @@ fun OnboardingScreen(
                                 .padding(16.dp),
                             verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Column(modifier = Modifier.weight(1f, fill = false)) {
+                            Column(modifier = Modifier.weight(1f)) {
                                 Text(com.opensourcebhaiya.otpsync.data.AppStrings.get("clipboard_auto_copy", currentLang), fontWeight = FontWeight.Bold, color = TextPrimary, fontSize = 16.sp)
                                 Text(com.opensourcebhaiya.otpsync.data.AppStrings.get("appear_on_top_title", currentLang), color = TextSecondary, fontSize = 12.sp)
                             }
-                            Spacer(modifier = Modifier.width(4.dp))
+                            Spacer(modifier = Modifier.width(8.dp))
                             CustomToggle(
                                 checked = canDrawOverlays,
                                 onCheckedChange = { isChecked ->
@@ -462,11 +462,11 @@ fun OnboardingScreen(
                                     .padding(16.dp),
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
-                                Column(modifier = Modifier.weight(1f, fill = false)) {
+                                Column(modifier = Modifier.weight(1f)) {
                                     Text(com.opensourcebhaiya.otpsync.data.AppStrings.get("sms_extraction_title", currentLang), fontWeight = FontWeight.Bold, color = TextPrimary, fontSize = 16.sp)
                                     Text(com.opensourcebhaiya.otpsync.data.AppStrings.get("engine_running_sub", currentLang), color = TextSecondary, fontSize = 12.sp)
                                 }
-                                Spacer(modifier = Modifier.width(4.dp))
+                                Spacer(modifier = Modifier.width(8.dp))
                                 CustomToggle(
                                     checked = isSmsPermissionGranted,
                                     onCheckedChange = { isChecked ->

@@ -208,6 +208,7 @@ dependencies {
     implementation("net.zetetic:android-database-sqlcipher:4.5.4")
     implementation("androidx.sqlite:sqlite:2.4.0")
 
-    // ── Biometric Authentication ──────────────────────────────────────────────
+    // ── Biometric Authentication & Modern Fragment ─────────────────────────
     implementation("androidx.biometric:biometric-ktx:1.2.0-alpha05")
+    implementation("androidx.fragment:fragment-ktx:1.8.1")
 }

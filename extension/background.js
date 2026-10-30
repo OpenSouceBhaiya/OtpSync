@@ -1,4 +1,4 @@
-// background.js — MailSync Chrome Extension
+// background.js — OTP Sync Chrome Extension
 
 self.addEventListener('offline', () => {
     setToolbarIcon('warning');
@@ -353,7 +353,7 @@ async function startListening(uuid, aesKeyBase64, force = false) {
             chrome.storage.local.get(['lastLoggedStatus'], (data) => {
                 if (chrome.runtime.lastError || !data) return;
                 if (data.lastLoggedStatus !== statusData.status) {
-                    console.log(`[MailSync] Status transition: ${data.lastLoggedStatus} -> ${statusData.status}`);
+                    console.log(`[OTP Sync] Status transition: ${data.lastLoggedStatus} -> ${statusData.status}`);
                     chrome.storage.local.set({ lastLoggedStatus: statusData.status });
                 }
             });
@@ -516,7 +516,7 @@ async function handleEncryptedOtp(ivBase64, dataBase64, cryptoKey) {
         if (matchedIndex !== -1) {
             const elapsed = now - recentList[matchedIndex].time;
             if (elapsed <= 2500) {
-                console.log(`[MailSync] Simultaneous burst of ${otpCode} from ${sender} suppressed (${elapsed}ms).`);
+                console.log(`[OTP Sync] Simultaneous burst of ${otpCode} from ${sender} suppressed (${elapsed}ms).`);
                 return;
             } else {
                 isResentDuplicate = true;
@@ -537,7 +537,7 @@ async function handleEncryptedOtp(ivBase64, dataBase64, cryptoKey) {
         const targetUuid = parts.length >= 5 ? parts[4].trim() : null;
         const currentData = await chrome.storage.local.get(['uuid']);
         if (targetUuid && targetUuid !== 'ALL' && currentData.uuid && targetUuid !== currentData.uuid) {
-            console.log(`[MailSync] OTP targeted to ${targetUuid}, ignoring on this device ${currentData.uuid}`);
+            console.log(`[OTP Sync] OTP targeted to ${targetUuid}, ignoring on this device ${currentData.uuid}`);
             return;
         }
 
