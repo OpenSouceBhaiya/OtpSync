@@ -125,9 +125,8 @@ h2 { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
 /* ── QR Code ── */
 .qr-wrapper {
     position: relative;
-    padding: 12px;
     background: #FFFFFF;
-    border-radius: 16px;
+    border-radius: 20px;
     margin: 0 auto 20px auto;
     box-shadow: 0 8px 32px rgba(0,0,0,0.4);
     display: flex;
@@ -136,29 +135,28 @@ h2 { font-size: 18px; font-weight: 600; margin-bottom: 8px; }
     width: 256px;
     height: 256px;
     flex-shrink: 0;
-    overflow: hidden;
     box-sizing: border-box;
     align-self: center;
+    overflow: hidden;
 }
 
 .qr-glow {
     position: absolute;
     top: -4px; left: -4px; right: -4px; bottom: -4px;
     background: linear-gradient(45deg, transparent, var(--accent-glow), transparent);
-    border-radius: 20px;
-    z-index: -1;
+    border-radius: 24px;
+    z-index: 0;
     animation: pulse 2s infinite;
 }
 
 #qr-code {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    width: 232px !important;
-    height: 232px !important;
-    max-width: 232px;
-    max-height: 232px;
+    display: block;
+    width: 236px !important;
+    height: 236px !important;
+    max-width: 236px;
+    max-height: 236px;
+    border-radius: 12px;
+    position: relative;
     z-index: 1;
 }
 
