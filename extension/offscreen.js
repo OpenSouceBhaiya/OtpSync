@@ -14,8 +14,8 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
     if (message.type === 'start-sse') {
         const uuid = message.uuid;
-        const otpUrl = `https://mailsync-osb-default-rtdb.asia-southeast1.firebasedatabase.app/otps/${uuid}.json`;
-        const deviceUrl = `https://mailsync-osb-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${uuid}.json`;
+        const otpUrl = `https://otpsync-adf52-default-rtdb.asia-southeast1.firebasedatabase.app/otps/${uuid}.json`;
+        const deviceUrl = `https://otpsync-adf52-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${uuid}.json`;
 
         function setupOtp() {
             if (otpSse) {

@@ -15,7 +15,7 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
         const data = await chrome.storage.local.get(['linked', 'uuid', 'aesKey']);
         if (!data.linked || !data.uuid || !data.aesKey) return;
         // Send Heartbeat to Firebase so Android knows the device is alive
-        fetch(`https://mailsync-osb-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${data.uuid}/lastSeen.json`, {
+        fetch(`https://otpsync-adf52-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${data.uuid}/lastSeen.json`, {
             method: 'PUT',
             body: Date.now().toString()
         }).catch(() => {});
@@ -50,7 +50,7 @@ chrome.runtime.onStartup.addListener(() => {
 chrome.storage.local.get(['linked', 'uuid', 'aesKey'], async (data) => {
     if (data.linked && data.uuid && data.aesKey) {
         // Ping firebase to tell Android this is a v2 extension that supports pcLoginActive
-        fetch(`https://mailsync-osb-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${data.uuid}/extVersion.json`, {
+        fetch(`https://otpsync-adf52-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${data.uuid}/extVersion.json`, {
             method: 'PUT',
             body: '2'
         }).catch(() => {});
@@ -68,7 +68,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         setToolbarIcon(message.state);
         if (message.state === 'active' && currentUuid) {
             // Immediately attempt to fetch the latest state since internet is back
-            fetch(`https://mailsync-osb-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${currentUuid}.json`, { cache: 'no-store' })
+            fetch(`https://otpsync-adf52-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${currentUuid}.json`, { cache: 'no-store' })
                 .then(r => r.json())
                 .then(statusData => {
                     if (statusData && (statusData.syncEnabled === false || statusData.status === 'paused')) {
@@ -95,7 +95,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     } else if (message.action === "pc_login_detected") {
         chrome.storage.local.get(['uuid'], (data) => {
             if (!data.uuid) return;
-            fetch(`https://mailsync-osb-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${data.uuid}/pcLoginActive.json`, {
+            fetch(`https://otpsync-adf52-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${data.uuid}/pcLoginActive.json`, {
                 method: 'PUT',
                 body: JSON.stringify({ active: true, host: message.url, ts: Date.now() })
             }).catch(() => {});
@@ -103,18 +103,18 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     } else if (message.action === "pc_login_cleared") {
         chrome.storage.local.get(['uuid'], (data) => {
             if (!data.uuid) return;
-            fetch(`https://mailsync-osb-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${data.uuid}/pcLoginActive.json`, {
+            fetch(`https://otpsync-adf52-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${data.uuid}/pcLoginActive.json`, {
                 method: 'DELETE'
             }).catch(() => {});
         });
     } else if (message.action === "otp_intent") {
         chrome.storage.local.get(['uuid'], (data) => {
             if (!data.uuid) return;
-            fetch(`https://mailsync-osb-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${data.uuid}/otpIntent.json`, {
+            fetch(`https://otpsync-adf52-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${data.uuid}/otpIntent.json`, {
                 method: 'PUT',
                 body: JSON.stringify({ active: true, host: message.host || '', ts: Date.now() })
             }).catch(() => {});
-            fetch(`https://mailsync-osb-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${data.uuid}/lastActive.json`, {
+            fetch(`https://otpsync-adf52-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${data.uuid}/lastActive.json`, {
                 method: 'PUT',
                 body: Date.now().toString()
             }).catch(() => {});
@@ -122,7 +122,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     } else if (message.action === "user_activity") {
         chrome.storage.local.get(['uuid'], (data) => {
             if (!data.uuid) return;
-            fetch(`https://mailsync-osb-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${data.uuid}/lastActive.json`, {
+            fetch(`https://otpsync-adf52-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${data.uuid}/lastActive.json`, {
                 method: 'PUT',
                 body: Date.now().toString()
             }).catch(() => {});
@@ -135,7 +135,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     } else if (message.action === "sse_device") {
         chrome.storage.local.get(['uuid'], (data) => {
             if (data.uuid) {
-                fetch(`https://mailsync-osb-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${data.uuid}.json`, { cache: 'no-store' })
+                fetch(`https://otpsync-adf52-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${data.uuid}.json`, { cache: 'no-store' })
                     .then(r => r.json())
                     .then(statusData => {
                         if (statusData) {
@@ -160,12 +160,12 @@ chrome.windows.onFocusChanged.addListener((windowId) => {
     chrome.storage.local.get(['uuid'], (data) => {
         if (!data.uuid) return;
         const isFocused = windowId !== chrome.windows.WINDOW_ID_NONE;
-        fetch(`https://mailsync-osb-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${data.uuid}/isFocused.json`, {
+        fetch(`https://otpsync-adf52-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${data.uuid}/isFocused.json`, {
             method: 'PUT',
             body: isFocused ? 'true' : 'false'
         }).catch(() => {});
         if (isFocused) {
-            fetch(`https://mailsync-osb-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${data.uuid}/lastActive.json`, {
+            fetch(`https://otpsync-adf52-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${data.uuid}/lastActive.json`, {
                 method: 'PUT',
                 body: Date.now().toString()
             }).catch(() => {});
@@ -287,7 +287,7 @@ async function startListening(uuid, aesKeyBase64, force = false) {
     }
     currentUuid = uuid;
 
-    const dbBaseUrl = `https://mailsync-osb-default-rtdb.asia-southeast1.firebasedatabase.app`;
+    const dbBaseUrl = `https://otpsync-adf52-default-rtdb.asia-southeast1.firebasedatabase.app`;
 
     const rawKey = Uint8Array.from(atob(aesKeyBase64), c => c.charCodeAt(0));
     const cryptoKey = await crypto.subtle.importKey(
@@ -405,7 +405,7 @@ async function fetchOtpImmediately(uuid, aesKeyBase64, providedCryptoKey = null)
             false, ['decrypt']
         );
 
-        const dbBaseUrl = `https://mailsync-osb-default-rtdb.asia-southeast1.firebasedatabase.app`;
+        const dbBaseUrl = `https://otpsync-adf52-default-rtdb.asia-southeast1.firebasedatabase.app`;
         const otpsUrl = `${dbBaseUrl}/otps/${uuid}.json`;
         const otpRes = await fetch(otpsUrl, { cache: 'no-store' });
         const otpData = await otpRes.json();
@@ -543,7 +543,7 @@ async function handleEncryptedOtp(ivBase64, dataBase64, cryptoKey) {
 
         // Clean up any pending otpIntent now that the code has arrived
         if (currentData.uuid) {
-            fetch(`https://mailsync-osb-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${currentData.uuid}/otpIntent.json`, {
+            fetch(`https://otpsync-adf52-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${currentData.uuid}/otpIntent.json`, {
                 method: 'DELETE'
             }).catch(() => {});
         }
@@ -598,7 +598,7 @@ async function handleEncryptedOtp(ivBase64, dataBase64, cryptoKey) {
                 const dateOpts = { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true };
                 let dateStr = new Date().toLocaleString('en-US', dateOpts);
                 dateStr = dateStr.replace(',', ' at');
-                fetch(`https://mailsync-osb-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${data.uuid}/lastOtpCapturedTime.json`, {
+                fetch(`https://otpsync-adf52-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${data.uuid}/lastOtpCapturedTime.json`, {
                     method: 'PUT',
                     body: JSON.stringify(dateStr)
                 }).catch(() => {});

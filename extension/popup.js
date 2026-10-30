@@ -294,7 +294,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     }
                     chrome.storage.local.get(['uuid'], (res) => {
                         if (res && res.uuid) {
-                            fetch(`https://mailsync-osb-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${res.uuid}.json`, {
+                            fetch(`https://otpsync-adf52-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${res.uuid}.json`, {
                                 method: 'PATCH',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({ language: newLang })
@@ -415,7 +415,7 @@ document.addEventListener('DOMContentLoaded', async () => {
                     const data = await chrome.storage.local.get(['uuid']);
                     if (data.uuid) {
                         try {
-                            await fetch(`https://mailsync-osb-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${data.uuid}.json`, {
+                            await fetch(`https://otpsync-adf52-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${data.uuid}.json`, {
                                 method: 'PATCH',
                                 headers: { 'Content-Type': 'application/json' },
                                 body: JSON.stringify({ status: "terminated", syncEnabled: false })
@@ -454,7 +454,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     async function checkDeviceStatus(uuid) {
         if (!window.statusLoopActive) return; // stopped
         try {
-            const res = await fetch(`https://mailsync-osb-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${uuid}.json`, { cache: 'no-store' });
+            const res = await fetch(`https://otpsync-adf52-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${uuid}.json`, { cache: 'no-store' });
             const data = await res.json();
             if (!data || !data.dateLinked) {
                 stopStatusLoop();
@@ -669,7 +669,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
     let pollInterval;
     function pollForLink(uuid, aesKey) {
-        const firebaseUrl = `https://mailsync-osb-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${uuid}.json`;
+        const firebaseUrl = `https://otpsync-adf52-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${uuid}.json`;
         if (pollInterval) clearInterval(pollInterval);
 
         pollInterval = setInterval(async () => {
