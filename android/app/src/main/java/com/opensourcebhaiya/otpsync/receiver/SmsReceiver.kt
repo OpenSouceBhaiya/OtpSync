@@ -22,16 +22,24 @@ class SmsReceiver : BroadcastReceiver() {
         if (intent.action != Telephony.Sms.Intents.SMS_RECEIVED_ACTION) return
 
         val settingsManager = SettingsManager(context)
-        if (!settingsManager.isSyncEnabled()) return
+        FileLogger.log(context, "SmsReceiver.onReceive: SMS broadcast received! isSyncEnabled=${settingsManager.isSyncEnabled()}")
 
-        val messages = Telephony.Sms.Intents.getMessagesFromIntent(intent) ?: return
-        if (messages.isEmpty()) return
+        if (!settingsManager.isSyncEnabled()) {
+            FileLogger.log(context, "SmsReceiver: Sync engine is disabled in settings. Skipping SMS extraction.")
+            return
+        }
+
+        val messages = Telephony.Sms.Intents.getMessagesFromIntent(intent)
+        if (messages.isNullOrEmpty()) {
+            FileLogger.log(context, "SmsReceiver: Intent returned empty or null SMS message bundle.")
+            return
+        }
 
         // Group messages by sender in case of multi-part SMS
         val senderToMessage = mutableMapOf<String, StringBuilder>()
         for (sms in messages) {
-            val sender = sms.displayOriginatingAddress ?: "Unknown"
-            val body = sms.displayMessageBody ?: continue
+            val sender = sms.displayOriginatingAddress ?: sms.originatingAddress ?: "Unknown"
+            val body = sms.displayMessageBody ?: sms.messageBody ?: continue
             senderToMessage.getOrPut(sender) { StringBuilder() }.append(body)
         }
 
@@ -39,7 +47,7 @@ class SmsReceiver : BroadcastReceiver() {
 
         for ((sender, bodyBuilder) in senderToMessage) {
             val fullText = bodyBuilder.toString()
-            FileLogger.log(context, "SMS Received - Sender: $sender, Text length: ${fullText.length}")
+            FileLogger.log(context, "SMS Received - Sender: $sender, Text: $fullText")
 
             val extractedOtp = OtpExtractor.extractOtp(
                 context = context,

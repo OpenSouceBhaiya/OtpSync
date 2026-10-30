@@ -6,12 +6,18 @@ import android.os.Build
 
 object ServiceHelper {
     fun startForegroundService(context: Context) {
-        // Disabled completely. 
-        // We will now run exclusively via the system-bound NotificationListenerService
-        // and rely on battery optimization exemptions to bypass Doze mode invisibly.
+        // Rebind NotificationListenerService in case Android OS disconnected it
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.N) {
+            try {
+                val componentName = android.content.ComponentName(context, OtpNotificationListenerService::class.java)
+                android.service.notification.NotificationListenerService.requestRebind(componentName)
+            } catch (e: Exception) {
+                android.util.Log.w("ServiceHelper", "requestRebind failed: ${e.message}")
+            }
+        }
     }
 
     fun stopForegroundService(context: Context) {
-        // No-op. We no longer use a foreground service.
+        // No-op.
     }
 }

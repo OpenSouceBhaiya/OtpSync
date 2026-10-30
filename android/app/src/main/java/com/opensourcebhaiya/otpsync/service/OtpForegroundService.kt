@@ -63,7 +63,7 @@ class OtpForegroundService : Service() {
 
     private fun createNotification(): Notification {
         return NotificationCompat.Builder(this, CHANNEL_ID)
-            .setContentTitle("MailSync")
+            .setContentTitle("OTP Sync")
             .setContentText("OTP sync is active in background")
             .setSmallIcon(android.R.drawable.stat_notify_sync)
             .setPriority(NotificationCompat.PRIORITY_MIN)

@@ -132,15 +132,15 @@ object OtpExtractor {
         val rawText = if (!bodyText.isNullOrBlank()) bodyText.trim() else stripHtml(bodyHtml ?: "")
         val truncatedBody = rawText.take(50000)
 
-        // Try extracting from subject first
+        // Try extracting from body first (where OTPs reside)
         var result: ExtractionResult? = null
-        if (subject != null) {
-            result = extractFromText(context, subject, receivedTimeMs)
+        if (truncatedBody.isNotBlank()) {
+            result = extractFromText(context, truncatedBody, receivedTimeMs)
         }
         
-        // If not found in subject, try body
-        if (result == null) {
-            result = extractFromText(context, truncatedBody, receivedTimeMs)
+        // If not found in body, try subject
+        if (result == null && !subject.isNullOrBlank()) {
+            result = extractFromText(context, subject, receivedTimeMs)
         }
 
         // If not found separately, evaluate combined subject + body context

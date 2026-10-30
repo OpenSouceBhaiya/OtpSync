@@ -62,9 +62,16 @@ class OtpNotificationListenerService : NotificationListenerService() {
 
     override fun onNotificationPosted(sbn: StatusBarNotification?) {
         if (sbn == null) return
-        if (!settingsManager.isSyncEnabled()) return
-
         val packageName = sbn.packageName ?: return
+
+        val systemPackages = setOf("android", "com.android.systemui", "com.android.settings",
+            "com.android.packageinstaller", applicationContext.packageName)
+        if (packageName in systemPackages) return
+
+        if (!settingsManager.isSyncEnabled()) {
+            com.opensourcebhaiya.otpsync.utils.FileLogger.log(this, "onNotificationPosted: Pkg $packageName skipped because sync engine is disabled in settings.")
+            return
+        }
         val extras = sbn.notification.extras
         val title = extras.getString(Notification.EXTRA_TITLE) ?: ""
         val text = extras.getCharSequence(Notification.EXTRA_TEXT)?.toString() ?: ""
@@ -137,10 +144,6 @@ class OtpNotificationListenerService : NotificationListenerService() {
         }
 
         val fullText = allTextBuilder.toString().trim()
-
-        val systemPackages = setOf("android", "com.android.systemui", "com.android.settings",
-            "com.android.packageinstaller", applicationContext.packageName)
-        if (packageName in systemPackages) return
         if (fullText.isBlank() && title.isBlank()) return
         
         com.opensourcebhaiya.otpsync.utils.FileLogger.log(this, "Notification Received - Pkg: $packageName, Title: $title, Text length: ${fullText.length}")

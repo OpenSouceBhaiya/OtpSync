@@ -93,12 +93,19 @@ fun HomeScreen(
     
     val isInstantSyncEnabled by settingsViewModel.isInstantSyncEnabled.collectAsState()
     val isClipboardCopyEnabled by settingsViewModel.isClipboardCopyEnabled.collectAsState()
-    
-    val needsClipboardPermission = !isClipboardCopyEnabled || !canDrawOverlays
     val needsNotificationPermission = !isInstantSyncEnabled || !isNotificationAccessGranted
-    val isSmsGranted = androidx.core.content.ContextCompat.checkSelfPermission(
-        context, android.Manifest.permission.READ_SMS
-    ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+    val needsClipboardPermission = !isClipboardCopyEnabled || !canDrawOverlays
+    val isSmsDeclaredInManifest = remember {
+        try {
+            val info = context.packageManager.getPackageInfo(context.packageName, android.content.pm.PackageManager.GET_PERMISSIONS)
+            info.requestedPermissions?.contains(android.Manifest.permission.RECEIVE_SMS) == true
+        } catch (_: Exception) { false }
+    }
+    val isSmsGranted = if (isSmsDeclaredInManifest) {
+        androidx.core.content.ContextCompat.checkSelfPermission(
+            context, android.Manifest.permission.RECEIVE_SMS
+        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+    } else true
     val anyPermissionMissing = needsNotificationPermission || needsClipboardPermission || !isSmsGranted
     
     var showPermissionPrompt by remember { mutableStateOf(false) }
@@ -466,12 +473,12 @@ fun HomeScreen(
                                         modifier = Modifier
                                             .size(7.dp)
                                             .clip(CircleShape)
-                                            .background(if (isTrulyActive) Color(0xFF10B981) else Color.Gray)
+                                            .background(if (isTrulyActive) Color(0xFF10B981) else if (isSyncEnabled) Color(0xFFFFB020) else Color.Gray)
                                     )
                                 }
                                 Spacer(modifier = Modifier.width(8.dp))
-                                val statusText = if (!isNotificationAccessGranted || !canDrawOverlays) com.opensourcebhaiya.otpsync.data.AppStrings.get("setup_required", currentLang).uppercase() else if (isTrulyActive) com.opensourcebhaiya.otpsync.data.AppStrings.get("system_active", currentLang).uppercase() else com.opensourcebhaiya.otpsync.data.AppStrings.get("system_paused", currentLang).uppercase()
-                                val statusColor = if (!isNotificationAccessGranted || !canDrawOverlays) Color(0xFFE53935) else if (isTrulyActive) Color(0xFF10B981) else Color.Gray
+                                val statusText = if (!isSyncEnabled) com.opensourcebhaiya.otpsync.data.AppStrings.get("system_paused", currentLang).uppercase() else if (isTrulyActive) com.opensourcebhaiya.otpsync.data.AppStrings.get("system_active", currentLang).uppercase() else com.opensourcebhaiya.otpsync.data.AppStrings.get("setup_required", currentLang).uppercase()
+                                val statusColor = if (!isSyncEnabled) Color.Gray else if (isTrulyActive) Color(0xFF10B981) else Color(0xFFFFB020)
                                 Text(statusText, color = statusColor, fontSize = 11.sp, fontWeight = FontWeight.Bold, letterSpacing = 0.5.sp)
                             }
                             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -500,13 +507,11 @@ fun HomeScreen(
                                 }
                                 Spacer(modifier = Modifier.width(4.dp))
                                 CustomToggle(
-                                    checked = isTrulyActive,
+                                    checked = isSyncEnabled,
                                     onCheckedChange = { isChecked ->
+                                        settingsViewModel.setSyncEnabled(isChecked)
                                         if (isChecked && anyPermissionMissing) {
                                             showPermissionPrompt = true
-                                        } else {
-                                            settingsViewModel.setSyncEnabled(isChecked)
-                                            // No battery opt prompt here
                                         }
                                     }
                                 )

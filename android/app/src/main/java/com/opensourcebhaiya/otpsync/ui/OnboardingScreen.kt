@@ -344,10 +344,8 @@ fun OnboardingScreen(
                                     canDrawOverlays = android.provider.Settings.canDrawOverlays(context)
                                     isNotificationAccessGranted = androidx.core.app.NotificationManagerCompat.getEnabledListenerPackages(context).contains(context.packageName)
                                     isSmsPermissionGranted = if (isSmsDeclaredInManifest) androidx.core.content.ContextCompat.checkSelfPermission(context, android.Manifest.permission.RECEIVE_SMS) == android.content.pm.PackageManager.PERMISSION_GRANTED else true
-                                    // Just update the states to reflect OS reality
-                                    if (!isNotificationAccessGranted && settingsViewModel.isSyncEnabled.value) {
-                                        settingsViewModel.setSyncEnabled(false)
-                                    } else if (isNotificationAccessGranted && !settingsViewModel.isSyncEnabled.value) {
+                                    // Update permission state
+                                    if (isNotificationAccessGranted) {
                                         settingsViewModel.setSyncEnabled(true)
                                     }
                                     if (!canDrawOverlays && triedOverlay) {
@@ -358,10 +356,6 @@ fun OnboardingScreen(
                             lifecycleOwner.lifecycle.addObserver(observer)
                             onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
                         }
-                        
-                        // Instant Sync Toggle
-                        val isSyncEnabled by settingsViewModel.isSyncEnabled.collectAsState()
-
                         
                         Row(
                             modifier = Modifier
@@ -377,7 +371,7 @@ fun OnboardingScreen(
                             }
                             Spacer(modifier = Modifier.width(8.dp))
                             CustomToggle(
-                                checked = isSyncEnabled && isNotificationAccessGranted,
+                                checked = isNotificationAccessGranted,
                                 onCheckedChange = { isChecked ->
                                     if (isChecked) {
                                         if (!isNotificationAccessGranted) {
@@ -481,7 +475,7 @@ fun OnboardingScreen(
                             }
                         }
                         
-                        val isAllPermissionsGranted = isSyncEnabled && canDrawOverlays && (!isSmsDeclaredInManifest || isSmsPermissionGranted)
+                        val isAllPermissionsGranted = isNotificationAccessGranted && canDrawOverlays && (!isSmsDeclaredInManifest || isSmsPermissionGranted)
 
                         val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
                         androidx.compose.runtime.LaunchedEffect(isAllPermissionsGranted) {
@@ -532,6 +526,7 @@ fun OnboardingScreen(
                         onClick = {
                             settingsViewModel.setBackendSyncEnabled(false)
                             settingsViewModel.setNotificationOnlyMode(true)
+                            settingsViewModel.setSyncEnabled(true)
                             onFinishOnboarding()
                         },
                         colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),

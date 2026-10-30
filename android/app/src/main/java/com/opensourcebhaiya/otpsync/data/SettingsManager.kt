@@ -190,11 +190,17 @@ class SettingsManager(context: Context) {
     }
 
     fun isSyncEnabled(): Boolean {
-        return sharedPreferences.getBoolean(KEY_SYNC_ENABLED, false)
+        if (sharedPreferences.getBoolean("user_manually_paused", false)) {
+            return false
+        }
+        return sharedPreferences.getBoolean(KEY_SYNC_ENABLED, true)
     }
 
     fun setSyncEnabled(enabled: Boolean) {
-        sharedPreferences.edit().putBoolean(KEY_SYNC_ENABLED, enabled).apply()
+        sharedPreferences.edit()
+            .putBoolean(KEY_SYNC_ENABLED, enabled)
+            .putBoolean("user_manually_paused", !enabled)
+            .apply()
     }
 
     fun hasSeenOnboarding(): Boolean {

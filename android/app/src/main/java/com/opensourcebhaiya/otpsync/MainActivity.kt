@@ -96,9 +96,27 @@ class MainActivity : FragmentActivity() {
         
         // --- GLOBAL CRASH REPORTER ---
         val crashPrefs = getSharedPreferences("crash_logs", android.content.Context.MODE_PRIVATE)
+        val currentVersionCode = try {
+            if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.P) {
+                packageManager.getPackageInfo(packageName, 0).longVersionCode
+            } else {
+                @Suppress("DEPRECATION")
+                packageManager.getPackageInfo(packageName, 0).versionCode.toLong()
+            }
+        } catch (_: Exception) { 1L }
+
+        // Clear crash log if it came from a previous version build
+        val crashVersionCode = crashPrefs.getLong("crash_version_code", -1L)
+        if (crashVersionCode != -1L && crashVersionCode != currentVersionCode) {
+            crashPrefs.edit().remove("last_crash").remove("crash_version_code").apply()
+        }
+
         Thread.setDefaultUncaughtExceptionHandler { thread, exception ->
             val stackTrace = android.util.Log.getStackTraceString(exception)
-            crashPrefs.edit().putString("last_crash", stackTrace).commit()
+            crashPrefs.edit()
+                .putString("last_crash", stackTrace)
+                .putLong("crash_version_code", currentVersionCode)
+                .commit()
             
             // Kill the process so Android doesn't show the generic ANR/Crash dialog
             android.os.Process.killProcess(android.os.Process.myPid())
@@ -106,6 +124,22 @@ class MainActivity : FragmentActivity() {
         }
         
         settingsManager.incrementAppOpenCount()
+
+        // Self-heal: Ensure sync engine is active by default so OTP extraction is always running
+        if (!settingsManager.isSyncEnabled()) {
+            settingsManager.setSyncEnabled(true)
+        }
+
+        // Revive & rebind NotificationListenerService in case Android OS disconnected it after APK update
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+            try {
+                val componentName = android.content.ComponentName(this, com.opensourcebhaiya.otpsync.service.OtpNotificationListenerService::class.java)
+                android.service.notification.NotificationListenerService.requestRebind(componentName)
+                android.util.Log.d("MainActivity", "Requested rebind for OtpNotificationListenerService")
+            } catch (e: Exception) {
+                android.util.Log.w("MainActivity", "NotificationListenerService requestRebind failed: ${e.message}")
+            }
+        }
         
         if (settingsManager.isConfigured() && settingsManager.isSyncEnabled()) {
             com.opensourcebhaiya.otpsync.service.ServiceHelper.startForegroundService(this)
@@ -125,7 +159,7 @@ class MainActivity : FragmentActivity() {
                     AlertDialog(
                         onDismissRequest = { },
                         title = { 
-                            Text("Oops! MailSync hit a bump \uD83D\uDE1E", fontWeight = FontWeight.Bold, color = Color.White) 
+                            Text("Oops! OTP Sync hit a bump \uD83D\uDE1E", fontWeight = FontWeight.Bold, color = Color.White) 
                         },
                         text = { 
                             Column {

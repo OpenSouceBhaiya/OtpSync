@@ -246,6 +246,7 @@ fun CompleteProfileScreen(
                     if (trimmedName.isNotEmpty()) {
                         settingsViewModel.setManualUserName(trimmedName)
                     }
+                    settingsViewModel.setSyncEnabled(true)
                     onContinue()
                 },
                 modifier = Modifier
