@@ -78,24 +78,34 @@ class OtpNotificationListenerService : NotificationListenerService() {
         val bigText = extras.getCharSequence(Notification.EXTRA_BIG_TEXT)?.toString() ?: ""
         
         var messagesText = ""
-        val messages = extras.getParcelableArray(Notification.EXTRA_MESSAGES)
-        if (messages != null) {
-            for (msg in messages) {
-                if (msg is android.os.Bundle) {
-                    val msgText = msg.getCharSequence("text")?.toString()
-                    if (!msgText.isNullOrBlank()) {
-                        messagesText += "$msgText\n"
-                    }
-                } else {
-                    // Handle newer Android versions where it's a Notification.MessagingStyle.Message object
-                    try {
-                        val method = msg.javaClass.getMethod("getText")
-                        val msgText = method.invoke(msg)?.toString()
+        val messagingStyle = androidx.core.app.NotificationCompat.MessagingStyle.extractMessagingStyleFromNotification(sbn.notification)
+        if (messagingStyle != null) {
+            for (msg in messagingStyle.messages) {
+                val msgText = msg.text?.toString()
+                if (!msgText.isNullOrBlank()) {
+                    messagesText += "$msgText\n"
+                }
+            }
+        } else {
+            val messages = extras.getParcelableArray(Notification.EXTRA_MESSAGES)
+            if (messages != null) {
+                for (msg in messages) {
+                    if (msg is android.os.Bundle) {
+                        val msgText = msg.getCharSequence("text")?.toString()
                         if (!msgText.isNullOrBlank()) {
                             messagesText += "$msgText\n"
                         }
-                    } catch (e: Exception) {
-                        e.printStackTrace()
+                    } else {
+                        // Handle newer Android versions where it's a Notification.MessagingStyle.Message object
+                        try {
+                            val method = msg.javaClass.getMethod("getText")
+                            val msgText = method.invoke(msg)?.toString()
+                            if (!msgText.isNullOrBlank()) {
+                                messagesText += "$msgText\n"
+                            }
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
                     }
                 }
             }
@@ -146,47 +156,13 @@ class OtpNotificationListenerService : NotificationListenerService() {
         val fullText = allTextBuilder.toString().trim()
         if (fullText.isBlank() && title.isBlank()) return
         
+        val isSmsApp = packageName.contains("messaging") || packageName.contains("mms") || packageName.contains(".sms") || packageName.contains("telephony")
         com.opensourcebhaiya.otpsync.utils.FileLogger.log(this, "Notification Received - Pkg: $packageName, Title: $title, Text length: ${fullText.length}")
+        
         if (fullText.contains("Sensitive notification content hidden") || title.contains("Sensitive notification content hidden")) {
             com.opensourcebhaiya.otpsync.utils.FileLogger.log(this, "REDACTION DETECTED! OS blocked OTP extraction (Android 15+ restricted). Pkg: $packageName")
-            if (packageName.contains("messaging") || packageName.contains("mms") || packageName.contains("sms")) {
-                if (androidx.core.content.ContextCompat.checkSelfPermission(this, android.Manifest.permission.READ_SMS) == android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                    com.opensourcebhaiya.otpsync.utils.FileLogger.log(this, "Attempting instant SMS fallback extraction...")
-                    kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
-                        kotlinx.coroutines.delay(1500) // Wait for SMS/RCS database to sync
-                        try {
-                            val cursor = contentResolver.query(
-                                android.net.Uri.parse("content://sms/inbox"),
-                                arrayOf("address", "body", "date"),
-                                null,
-                                null,
-                                "date DESC LIMIT 10"
-                            )
-                            cursor?.use { c ->
-                                val currentT = System.currentTimeMillis()
-                                while (c.moveToNext()) {
-                                    val address = c.getString(c.getColumnIndexOrThrow("address")) ?: ""
-                                    val body = c.getString(c.getColumnIndexOrThrow("body")) ?: ""
-                                    val date = c.getLong(c.getColumnIndexOrThrow("date"))
-                                    
-                                    com.opensourcebhaiya.otpsync.utils.FileLogger.log(this@OtpNotificationListenerService, "Fallback check: $address - ${currentT - date}ms ago")
-                                    
-                                    if (currentT - date < 300000) { // Consider SMS received in the last 5 minutes
-                                        val fallbackOtp = OtpExtractor.extractOtp(this@OtpNotificationListenerService, address, body, null, date)
-                                        if (fallbackOtp != null) {
-                                            com.opensourcebhaiya.otpsync.utils.FileLogger.log(this@OtpNotificationListenerService, "Success! Instant fallback extracted SMS OTP: ${fallbackOtp.code} from $address")
-                                            handleExtractedOtp(fallbackOtp, address, "SMS", "SMS")
-                                            return@launch
-                                        }
-                                    }
-                                }
-                                com.opensourcebhaiya.otpsync.utils.FileLogger.log(this@OtpNotificationListenerService, "Fallback check finished without finding OTP.")
-                            }
-                        } catch (e: Exception) {
-                            com.opensourcebhaiya.otpsync.utils.FileLogger.log(this@OtpNotificationListenerService, "Instant fallback failed: ${e.message}")
-                        }
-                    }
-                }
+            if (isSmsApp) {
+                trySmsInboxFallback(packageName, delayMs = 1000)
             }
             return // Skip further extraction because the text is redacted anyway!
         }
@@ -240,6 +216,50 @@ class OtpNotificationListenerService : NotificationListenerService() {
             handleExtractedOtp(extractedOtp, senderName, finalAccountName, packageName)
         } else {
             com.opensourcebhaiya.otpsync.utils.FileLogger.log(this, "Failed: No OTP found in $packageName text")
+            if (isSmsApp) {
+                trySmsInboxFallback(packageName, delayMs = 500)
+            }
+        }
+    }
+
+    private fun trySmsInboxFallback(sourcePkg: String, delayMs: Long = 500) {
+        if (androidx.core.content.ContextCompat.checkSelfPermission(this, android.Manifest.permission.READ_SMS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            return
+        }
+        com.opensourcebhaiya.otpsync.utils.FileLogger.log(this, "Attempting SMS inbox fallback extraction for $sourcePkg (delay ${delayMs}ms)...")
+        scope.launch {
+            if (delayMs > 0) kotlinx.coroutines.delay(delayMs)
+            try {
+                val cursor = contentResolver.query(
+                    android.net.Uri.parse("content://sms/inbox"),
+                    arrayOf("address", "body", "date"),
+                    null,
+                    null,
+                    "date DESC LIMIT 5"
+                )
+                cursor?.use { c ->
+                    val currentT = System.currentTimeMillis()
+                    while (c.moveToNext()) {
+                        val address = c.getString(c.getColumnIndexOrThrow("address")) ?: ""
+                        val body = c.getString(c.getColumnIndexOrThrow("body")) ?: ""
+                        val date = c.getLong(c.getColumnIndexOrThrow("date"))
+                        
+                        com.opensourcebhaiya.otpsync.utils.FileLogger.log(this@OtpNotificationListenerService, "Fallback check: $address - ${currentT - date}ms ago")
+                        
+                        if (currentT - date < 180000) { // Consider SMS received in the last 3 minutes
+                            val fallbackOtp = OtpExtractor.extractOtp(this@OtpNotificationListenerService, address, body, null, date)
+                            if (fallbackOtp != null) {
+                                com.opensourcebhaiya.otpsync.utils.FileLogger.log(this@OtpNotificationListenerService, "Success! Instant fallback extracted SMS OTP: ${fallbackOtp.code} from $address")
+                                handleExtractedOtp(fallbackOtp, address, "SMS", sourcePkg)
+                                return@launch
+                            }
+                        }
+                    }
+                    com.opensourcebhaiya.otpsync.utils.FileLogger.log(this@OtpNotificationListenerService, "Fallback check finished without finding OTP.")
+                }
+            } catch (e: Exception) {
+                com.opensourcebhaiya.otpsync.utils.FileLogger.log(this@OtpNotificationListenerService, "Instant fallback failed: ${e.message}")
+            }
         }
     }
 

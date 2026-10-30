@@ -73,10 +73,10 @@ class SmsReceiver : BroadcastReceiver() {
                     FileLogger.log(context, "SMS duplicate burst for $otpCode suppressed.")
                     return
                 }
-                if (status == com.opensourcebhaiya.otpsync.utils.OtpArrivalStatus.SIMULTANEOUS_BURST) {
-                    FileLogger.log(context, "Dual arrival OTP $otpCode already captured via email.")
+                val isDualArrival = (status == com.opensourcebhaiya.otpsync.utils.OtpArrivalStatus.SIMULTANEOUS_BURST)
+                if (isDualArrival) {
+                    FileLogger.log(context, "Dual arrival OTP $otpCode already captured via email. Merging SMS channel into database.")
                     com.opensourcebhaiya.otpsync.utils.ToastManager.show(context, "Same OTP also arrived on SMS", android.widget.Toast.LENGTH_SHORT)
-                    return
                 }
                 val isResentDuplicate = (status == com.opensourcebhaiya.otpsync.utils.OtpArrivalStatus.RESENT_SAME_CODE)
                 if (isResentDuplicate) {
@@ -127,7 +127,7 @@ class SmsReceiver : BroadcastReceiver() {
                             null
                         }
 
-                        // 3. ASYNC Room Database Insertion (Never delays user clipboard/cloud broadcast)
+                        // 3. ASYNC Room Database Insertion & Channel Merge (Never delays user clipboard/cloud broadcast)
                         val db = AppDatabase.getDatabase(context)
                         AppDatabase.insertMutex.withLock {
                             var existing = db.otpDao().getOtpByCodeRecent(otpCode, System.currentTimeMillis() - 6 * 60 * 1000L)
@@ -144,11 +144,13 @@ class SmsReceiver : BroadcastReceiver() {
                                     sentToDevices = sentToDevicesString
                                 ))
                             } else {
-                                existing.receivedAt = System.currentTimeMillis()
-                                if (sentToDevicesString != null) {
-                                    existing.sentToDevices = sentToDevicesString
-                                }
-                                db.otpDao().updateOtp(existing)
+                                val mergedAccount = if (!existing.account.contains("SMS")) "${existing.account} + SMS" else existing.account
+                                val updated = existing.copy(
+                                    account = mergedAccount,
+                                    receivedAt = System.currentTimeMillis(),
+                                    sentToDevices = sentToDevicesString ?: existing.sentToDevices
+                                )
+                                db.otpDao().updateOtp(updated)
                             }
                         }
                     } catch (e: Exception) {
