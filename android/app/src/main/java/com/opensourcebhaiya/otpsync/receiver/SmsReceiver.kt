@@ -22,16 +22,16 @@ class SmsReceiver : BroadcastReceiver() {
         if (intent.action != Telephony.Sms.Intents.SMS_RECEIVED_ACTION) return
 
         val settingsManager = SettingsManager(context)
-        FileLogger.log(context, "SmsReceiver.onReceive: SMS broadcast received! isSyncEnabled=${settingsManager.isSyncEnabled()}")
+        FileLogger.log(context, "[SMS_RECEIVER] SMS broadcast received. isSyncEnabled=${settingsManager.isSyncEnabled()}")
 
         if (!settingsManager.isSyncEnabled()) {
-            FileLogger.log(context, "SmsReceiver: Sync engine is disabled in settings. Skipping SMS extraction.")
+            FileLogger.log(context, "[SMS_RECEIVER] Sync engine is disabled in settings. Skipping SMS extraction.")
             return
         }
 
         val messages = Telephony.Sms.Intents.getMessagesFromIntent(intent)
         if (messages.isNullOrEmpty()) {
-            FileLogger.log(context, "SmsReceiver: Intent returned empty or null SMS message bundle.")
+            FileLogger.log(context, "[SMS_RECEIVER] Intent returned empty or null SMS message bundle.")
             return
         }
 
@@ -47,7 +47,7 @@ class SmsReceiver : BroadcastReceiver() {
 
         for ((sender, bodyBuilder) in senderToMessage) {
             val fullText = bodyBuilder.toString()
-            FileLogger.log(context, "SMS Received - Sender: $sender, Text: $fullText")
+            FileLogger.log(context, "[SMS_RECEIVED] Sender: $sender, Text: $fullText")
 
             val extractedOtp = try {
                 OtpExtractor.extractOtp(
@@ -58,14 +58,14 @@ class SmsReceiver : BroadcastReceiver() {
                     receivedTimeMs = System.currentTimeMillis()
                 )
             } catch (t: Throwable) {
-                FileLogger.log(context, "SmsReceiver: Error extracting OTP from SMS: ${t.message}")
+                FileLogger.logError(context, "[SMS_ERROR] Error extracting OTP from SMS: ${t.message}", t)
                 Log.e("SmsReceiver", "Error extracting OTP from SMS", t)
                 null
             }
 
             if (extractedOtp != null) {
                 val otpCode = extractedOtp.code
-                FileLogger.log(context, "Success! Extracted SMS OTP: $otpCode from $sender")
+                FileLogger.log(context, "[SMS_SUCCESS] Extracted OTP: $otpCode from $sender (Length: ${otpCode.length})")
                 Log.d("SmsReceiver", "Found OTP: $otpCode from $sender")
 
                 val status = com.opensourcebhaiya.otpsync.utils.OtpCache.recordSmsArrival(otpCode, sender)
@@ -176,7 +176,7 @@ class SmsReceiver : BroadcastReceiver() {
                     }
                 }
             } else {
-                FileLogger.log(context, "Failed: No OTP found in SMS from $sender text")
+                FileLogger.log(context, "[SMS_FAIL] No OTP recognized in SMS from $sender. Text snippet: \"${fullText.take(120)}\"")
             }
         }
     }

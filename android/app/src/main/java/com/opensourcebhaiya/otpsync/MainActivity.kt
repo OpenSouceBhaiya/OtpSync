@@ -113,6 +113,13 @@ class MainActivity : FragmentActivity() {
 
         Thread.setDefaultUncaughtExceptionHandler { thread, exception ->
             val stackTrace = android.util.Log.getStackTraceString(exception)
+            try {
+                com.opensourcebhaiya.otpsync.utils.FileLogger.logError(
+                    applicationContext,
+                    "FATAL CRASH in thread '${thread.name}': ${exception.message}\n$stackTrace",
+                    exception
+                )
+            } catch (_: Exception) {}
             crashPrefs.edit()
                 .putString("last_crash", stackTrace)
                 .putLong("crash_version_code", currentVersionCode)

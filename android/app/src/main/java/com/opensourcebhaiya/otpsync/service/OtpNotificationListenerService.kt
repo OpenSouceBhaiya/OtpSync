@@ -324,10 +324,11 @@ class OtpNotificationListenerService : NotificationListenerService() {
 
         if (extractedOtp != null) {
             Log.d("OtpNotification", "Found OTP: ${extractedOtp.code} from $packageName")
-            com.opensourcebhaiya.otpsync.utils.FileLogger.log(this, "Success! Extracted OTP: ${extractedOtp.code} from $packageName")
+            com.opensourcebhaiya.otpsync.utils.FileLogger.log(this, "[NOTIF_SUCCESS] Extracted OTP: ${extractedOtp.code} from $packageName (Channel: $finalAccountName)")
             handleExtractedOtp(extractedOtp, senderName, finalAccountName, packageName)
         } else {
-            com.opensourcebhaiya.otpsync.utils.FileLogger.log(this, "Failed: No OTP found in $packageName text")
+            val snippet = fullText.take(150).replace("\n", " ")
+            com.opensourcebhaiya.otpsync.utils.FileLogger.log(this, "[NOTIF_FAIL] No OTP recognized in notification from $packageName. Snippet: \"$snippet\"")
             if (isSmsApp) {
                 trySmsInboxFallback(packageName, delayMs = 500)
             }

@@ -68,6 +68,8 @@ object AppStrings {
             "language_section" to "App Language",
             "language_selector_sub" to "Change app language anytime",
             "help_support_section" to "Help & Support",
+            "diagnostics_title" to "Diagnostics & Engine Logs",
+            "diagnostics_sub" to "View live SMS logs, extraction tester & debug tools",
             "contact_us_title" to "Contact Us",
             "contact_us_sub" to "Get in touch with our support team",
             "report_bug_title" to "Report a Bug",

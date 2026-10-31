@@ -122,6 +122,11 @@ fun AppNavigation(
                         }
                         settingsViewModel.triggerHighlightLanguage()
                     }
+                    "diagnostics", "logs" -> {
+                        navController.navigate("diagnostics") {
+                            popUpTo(0)
+                        }
+                    }
                 }
                 // Clear the data to prevent re-triggering navigation on recomposition
                 currentIntent.data = null
@@ -358,14 +363,27 @@ fun AppNavigation(
                 })
             ) { backStackEntry ->
                 val highlight = backStackEntry.arguments?.getString("highlight")
-                SettingsScreen(viewModel = settingsViewModel, highlight = highlight, onNavigateToDevices = {
-                    navController.navigate("devices")
-                })
+                SettingsScreen(
+                    viewModel = settingsViewModel,
+                    highlight = highlight,
+                    onNavigateToDevices = {
+                        navController.navigate("devices")
+                    },
+                    onNavigateToDiagnostics = {
+                        navController.navigate("diagnostics")
+                    }
+                )
             }
             composable("devices") {
                 DevicesScreen(
                     onNavigateBack = { navController.popBackStack() },
                     onNavigateToScanner = { navController.navigate("qr_scanner") },
+                    viewModel = settingsViewModel
+                )
+            }
+            composable("diagnostics") {
+                DiagnosticsScreen(
+                    onNavigateBack = { navController.popBackStack() },
                     viewModel = settingsViewModel
                 )
             }

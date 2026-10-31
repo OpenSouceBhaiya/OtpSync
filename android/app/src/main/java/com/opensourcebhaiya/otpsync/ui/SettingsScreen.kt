@@ -19,6 +19,7 @@ import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.BugReport
 import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Computer
@@ -53,7 +54,12 @@ import kotlinx.coroutines.delay
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
-fun SettingsScreen(viewModel: SettingsViewModel, highlight: String? = null, onNavigateToDevices: () -> Unit) {
+fun SettingsScreen(
+    viewModel: SettingsViewModel,
+    highlight: String? = null,
+    onNavigateToDevices: () -> Unit,
+    onNavigateToDiagnostics: () -> Unit = {}
+) {
     val currentLang by viewModel.appLanguage.collectAsState()
     var expandedLanguageDropdown by remember { mutableStateOf(false) }
     val languageMenuScrollState = rememberScrollState()
@@ -648,6 +654,15 @@ fun SettingsScreen(viewModel: SettingsViewModel, highlight: String? = null, onNa
             
             // Help & Support Section
             Text(com.opensourcebhaiya.otpsync.data.AppStrings.get("help_support_section", currentLang), style = MaterialTheme.typography.titleMedium, color = TextPrimary, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(8.dp))
+
+            SettingsItem(
+                title = com.opensourcebhaiya.otpsync.data.AppStrings.get("diagnostics_title", currentLang),
+                subtitle = com.opensourcebhaiya.otpsync.data.AppStrings.get("diagnostics_sub", currentLang),
+                icon = Icons.Default.Info,
+                onClick = onNavigateToDiagnostics
+            )
+
             Spacer(modifier = Modifier.height(8.dp))
             
             val highlightContactUs by viewModel.highlightContactUs.collectAsState()
