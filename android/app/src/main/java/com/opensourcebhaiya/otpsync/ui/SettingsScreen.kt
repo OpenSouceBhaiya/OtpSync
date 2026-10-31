@@ -656,15 +656,6 @@ fun SettingsScreen(
             // Help & Support Section
             Text(com.opensourcebhaiya.otpsync.data.AppStrings.get("help_support_section", currentLang), style = MaterialTheme.typography.titleMedium, color = TextPrimary, fontWeight = FontWeight.Bold)
             Spacer(modifier = Modifier.height(8.dp))
-
-            SettingsItem(
-                title = com.opensourcebhaiya.otpsync.data.AppStrings.get("diagnostics_title", currentLang),
-                subtitle = com.opensourcebhaiya.otpsync.data.AppStrings.get("diagnostics_sub", currentLang),
-                icon = Icons.Default.Info,
-                onClick = onNavigateToDiagnostics
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
             
             val highlightContactUs by viewModel.highlightContactUs.collectAsState()
             val highlightContactUsColor: Color by animateColorAsState(
