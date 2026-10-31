@@ -729,10 +729,7 @@ fun SettingsScreen(
                 }
             )
 
-            var developerTapCount by remember { mutableStateOf(0) }
-            var isDeveloperUnlocked by remember { mutableStateOf(false) }
-
-            if (com.opensourcebhaiya.otpsync.BuildConfig.SHOW_DIAGNOSTICS || isDeveloperUnlocked) {
+            if (com.opensourcebhaiya.otpsync.BuildConfig.SHOW_DIAGNOSTICS) {
                 SettingsItem(
                     title = com.opensourcebhaiya.otpsync.data.AppStrings.get("diagnostics_title", currentLang),
                     subtitle = com.opensourcebhaiya.otpsync.data.AppStrings.get("diagnostics_sub", currentLang),
@@ -773,25 +770,7 @@ fun SettingsScreen(
                     text = "OTP Sync v${com.opensourcebhaiya.otpsync.BuildConfig.VERSION_NAME}",
                     style = MaterialTheme.typography.bodySmall,
                     color = TextSecondary,
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(8.dp))
-                        .clickable {
-                            if (isDeveloperUnlocked) {
-                                val quote = com.opensourcebhaiya.otpsync.utils.DeveloperEasterEgg.getNextFunnyQuote()
-                                com.opensourcebhaiya.otpsync.utils.ToastManager.show(context, quote)
-                            } else {
-                                developerTapCount++
-                                if (developerTapCount in 3..6) {
-                                    val remaining = 7 - developerTapCount
-                                    val stepWord = if (remaining == 1) "step" else "steps"
-                                    com.opensourcebhaiya.otpsync.utils.ToastManager.show(context, "You are now $remaining $stepWord away from developer mode...")
-                                } else if (developerTapCount >= 7) {
-                                    isDeveloperUnlocked = true
-                                    com.opensourcebhaiya.otpsync.utils.ToastManager.show(context, "Developer mode unlocked! Engine Diagnostics enabled.")
-                                }
-                            }
-                        }
-                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                 )
             }
             

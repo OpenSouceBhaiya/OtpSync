@@ -123,8 +123,10 @@ fun AppNavigation(
                         settingsViewModel.triggerHighlightLanguage()
                     }
                     "diagnostics", "logs" -> {
-                        navController.navigate("diagnostics") {
-                            popUpTo(0)
+                        if (com.opensourcebhaiya.otpsync.BuildConfig.SHOW_DIAGNOSTICS) {
+                            navController.navigate("diagnostics") {
+                                popUpTo(0)
+                            }
                         }
                     }
                 }
