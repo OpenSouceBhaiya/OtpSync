@@ -160,7 +160,7 @@ object OtpExtractor {
         Regex("(?i)\\b(?:one[- ]time\\s+(?:password|passcode|code|pin)|verification\\s+(?:code|pin|token|otp)|security\\s+(?:code|pin|token|otp)|auth(?:entication|orization)?\\s+(?:code|pin|token|otp)|confirm(?:ation)?\\s+(?:code|pin|token|otp)|login\\s+(?:code|pin|token|otp)|sign[- ]in\\s+(?:code|pin|token|otp)|access\\s+(?:code|pin|token|otp)|delivery\\s+otp|pickup\\s+otp|secret\\s+(?:code|pin)|passcode|a?otp|[\\w-]+\\s+(?:otp|code)|pin)(?:[^.!\n\r]{0,80})(?<!\\d)(?:is|are|es|est|lautet|é|è|:|=)(?!\\d)\\s*[:=]?\\s*([0-9A-Za-z]{4,10})\\b"),
 
         // 7b. Universal service/brand OTP template: "Your OTP for Internet Lifestyle Hub is 123456", "OTP to login to Portal is 849201"
-        Regex("(?i)\\b(?:your|the)?\\s*(?:a?otp|code|pin|passcode|verification\\s+code)\\s+(?:for|to)\\s+[^.!,:\n\r]{1,50}?(?:\\s+is\\s*[:=]?|[:=])\\s*([0-9A-Za-z]{4,10})\\b"),
+        Regex("(?i)\\b(?:your|the)?\\s*(?:a?otp|code|pin|passcode|verification\\s+code)\\s+(?:for|to)\\s+[^.!,:\n\r]{1,100}?(?:\\s+is\\s*[:=]?|[:=])\\s*([0-9A-Za-z]{4,10})\\b"),
 
         // 8. Direct keyword + colon/dash/is + OTP: "Telegram code: 49201", "WhatsApp code: 829104", "Код: 582914", "رمز: 83910"
         Regex("(?i)(?:^|[^\\p{L}\\p{Nd}])(?:code|otp|pin|passcode|[Кк]од|[Пп]ароль|رمز|کد|कोड)\\s*(?:is\\s*:?|:|=)\\s*[:=]?\\s*([0-9A-Za-z]{4,10})\\b"),
@@ -471,12 +471,30 @@ object OtpExtractor {
             return true
         }
 
-        // Look back 80 characters for helpline/contact indicators
+        // A 4, 5, or 6 digit number is almost certainly an OTP rather than a full phone number.
+        // Full phone numbers/mobile numbers are typically 7 to 14 digits worldwide.
+        if (candidate.length in 4..6 && candidate.all { it.isDigit() }) {
+            // Check if candidate is directly embedded in a formatted phone number (e.g., "+1-800-201-3730" or "(555) 201-3734")
+            val windowStart = maxOf(0, startPos - 20)
+            val windowEnd = minOf(text.length, startPos + candidate.length + 20)
+            val window = text.substring(windowStart, windowEnd)
+
+            if (Regex("(?:\\+?\\d{1,3}[- ]?)?\\(?\\d{3}\\)?[- ]\\d{3}[- ]\\d{4}").containsMatchIn(window)) return true
+            if (Regex("\\d{3,4}[- ]+\\d{3,4}[- ]+\\d{3,4}").containsMatchIn(window)) return true
+            if (startPos > 0 && text[startPos - 1] == '-' && startPos > 1 && text[startPos - 2].isDigit()) {
+                val digitsInWindow = window.count { it.isDigit() }
+                if (digitsInWindow >= 7) return true
+            }
+            return false
+        }
+
+        // For 7+ digit candidates: Look back 80 characters for helpline/contact indicators
         val prefix80 = text.substring(maxOf(0, startPos - 80), startPos).lowercase()
-        val helplineKeywordMatch = Regex("(?:\\b(?:call(?:\\s+us)?|helpline|contact(?:\\s+us)?|tel|phone|dial|support|toll[- ]?free|customer\\s+care|helpdesk|fraud|reach\\s+us|teléfono|téléphone|telefon|servizio\\s+clienti|kundenservice)\\b|संपर्क)").containsMatchIn(prefix80)
+        // Do NOT match bare "phone" because "phone number verification" is a standard OTP phrase!
+        val helplineKeywordMatch = Regex("(?:\\b(?:call(?:\\s+us)?|helpline|contact(?:\\s+us)?|dial|toll[- ]?free|customer\\s+care|helpdesk|fraud|reach\\s+us|kundenservice|servizio\\s+clienti)\\b|\\bphone\\s*[:=]|संपर्क)").containsMatchIn(prefix80)
         if (helplineKeywordMatch) {
-            // Unless there is an explicit OTP assignment intervening directly before candidate
-            val explicitOtpBeforeCandidate = Regex("(?i)(?:otp|code|pin|passcode|código|clave|passwort|код|ओटीपी|पासवर्ड)\\s*(?:is|:|=|है)?\\s*$").containsMatchIn(prefix80)
+            // Unless there is an explicit OTP assignment intervening before candidate
+            val explicitOtpBeforeCandidate = Regex("(?i)(?:\\ba?otp|verification\\s+code|security\\s+code|login\\s+code|sign[- ]in\\s+code|auth\\s+code|passcode|código|clave|passwort|код|ओटीपी|पासवर्ड)[^.!\n\r]{0,60}?(?:is|:|=|है)?\\s*$").containsMatchIn(prefix80)
             if (!explicitOtpBeforeCandidate) {
                 return true
             }
@@ -535,16 +553,16 @@ object OtpExtractor {
         return !hasPendingOtpRequirement
     }
 
-    private fun isValidCandidate(candidate: String, text: String, startPos: Int): Boolean {
+    private fun getCandidateRejectionReason(candidate: String, text: String, startPos: Int): String? {
         // Supported OTP length range: 4 to 10 characters
-        if (candidate.length !in 4..10) return false
+        if (candidate.length !in 4..10) return "Length ${candidate.length} not in 4..10"
 
         val letterCount = candidate.count { it.isLetter() }
         val digitCount = candidate.count { it.isDigit() }
 
         // Pure letters: MUST be uppercase, >= 4 chars, and NOT a common dictionary word
         if (digitCount == 0) {
-            if (!candidate.all { it.isUpperCase() } || candidate.length < 4) return false
+            if (!candidate.all { it.isUpperCase() } || candidate.length < 4) return "Pure letter candidate not uppercase or length < 4"
             val commonWords = setOf(
                 "WITH", "FROM", "YOUR", "THIS", "THAT", "HAVE", "WILL", "CALL", "CODE",
                 "USER", "HERE", "ONCE", "SIGN", "TRUE", "FREE", "MORE", "DATE", "TIME",
@@ -554,28 +572,49 @@ object OtpExtractor {
                 "DICH", "BITTE", "KANN", "SEIN", "TODO", "NADA", "SOLO", "CLAVE",
                 "NUNCA", "JAMAS", "TIDAK", "PERNAH", "JANGAN", "BUKAN", "BANCO", "AVISO", "ALERT", "ALERTA"
             )
-            if (commonWords.contains(candidate.uppercase())) return false
+            if (commonWords.contains(candidate.uppercase())) return "Matches common dictionary word ($candidate)"
         }
 
         // Mixed letters: Require at least 2 digits unless it matches common 5-char token (like Steam Guard)
-        if (letterCount > 0 && digitCount < 2 && candidate.length != 5) return false
+        if (letterCount > 0 && digitCount < 2 && candidate.length != 5) return "Mixed letter candidate has < 2 digits and length != 5"
 
         // Filter out mixed-case strings (like SMS Retriever hashes: Df9YrqIZHWd, FA+9qP15k7j)
         // Authentic alphanumeric OTPs (e.g. Steam Guard 9RF2K, Microsoft) are always purely uppercase or digits!
-        if (letterCount > 0 && candidate.any { it.isLowerCase() } && candidate.any { it.isUpperCase() }) return false
+        if (letterCount > 0 && candidate.any { it.isLowerCase() } && candidate.any { it.isUpperCase() }) return "Mixed-case string rejected (SMS retriever hash)"
 
-        if (isLikelyYear(candidate, text, startPos)) return false
-        if (isMaskedCardOrAccount(text, startPos)) return false
-        if (isAmountOrCurrency(text, startPos, candidate.length)) return false
-        if (isIdentifierOrReference(text, startPos)) return false
+        if (isLikelyYear(candidate, text, startPos)) return "Matches calendar year (isLikelyYear)"
+        if (isMaskedCardOrAccount(text, startPos)) return "Matches masked card or account number"
+        if (isAmountOrCurrency(text, startPos, candidate.length)) return "Matches monetary amount or currency"
+        if (isIdentifierOrReference(text, startPos)) return "Matches reference or transaction ID"
         if (startPos > 0) {
             val prefix10 = text.substring(maxOf(0, startPos - 10), startPos)
             val isWebOtp = Regex("(?i)@[a-zA-Z0-9.-]+\\s+#$").containsMatchIn(text.substring(0, startPos))
-            if (!isWebOtp && Regex("#[A-Za-z0-9_-]*$").containsMatchIn(prefix10)) return false
+            if (!isWebOtp && Regex("#[A-Za-z0-9_-]*$").containsMatchIn(prefix10)) return "Matches hashtag/tracking code"
         }
-        if (isPincode(text, startPos, candidate)) return false
-        if (isPhoneNumber(text, startPos, candidate)) return false
-        return true
+        if (isPincode(text, startPos, candidate)) return "Matches postal pincode"
+        if (isPhoneNumber(text, startPos, candidate)) return "Matches phone/helpline number"
+        // Reject candidates embedded in URL paths or web links (e.g. example.com/t/928301)
+        if (startPos > 0 && text[startPos - 1] == '/') {
+            val prefix40 = text.substring(maxOf(0, startPos - 40), startPos)
+            if (prefix40.contains("http") || prefix40.contains("www.") || prefix40.contains(".com") || 
+                prefix40.contains(".in") || prefix40.contains(".org") || prefix40.contains(".io") || 
+                prefix40.contains(".me") || prefix40.contains(".co") || prefix40.contains(".net") || 
+                prefix40.contains("//")) {
+                return "Matches URL path or web link"
+            }
+        }
+        val afterPos = startPos + candidate.length
+        if (afterPos < text.length && (text[afterPos] == '/' || text[afterPos] == '?' || text[afterPos] == '&')) {
+            val prefix40 = text.substring(maxOf(0, startPos - 40), startPos)
+            if (prefix40.contains("http") || prefix40.contains("www.") || prefix40.contains(".com") || prefix40.contains("//")) {
+                return "Matches URL query or path"
+            }
+        }
+        return null
+    }
+
+    private fun isValidCandidate(candidate: String, text: String, startPos: Int): Boolean {
+        return getCandidateRejectionReason(candidate, text, startPos) == null
     }
 
     private fun isAfterFooter(text: String, position: Int): Boolean {
@@ -603,10 +642,13 @@ object OtpExtractor {
             for (match in pattern.findAll(normalized)) {
                 val candidate = match.groupValues[1]
                 val startPos = match.groups[1]?.range?.first ?: match.range.first
-                if (isValidCandidate(candidate, normalized, startPos)) {
+                val rejectionReason = getCandidateRejectionReason(candidate, normalized, startPos)
+                if (rejectionReason == null) {
                     com.opensourcebhaiya.otpsync.utils.FileLogger.log(context, "[OtpExtractor] Phase 1 Anchor Matched: $candidate")
                     safeLog("OtpExtractor", "Phase 1 Anchor Matched: $candidate")
                     return ExtractionResult(candidate, extractExpiry(normalized, receivedTimeMs))
+                } else {
+                    com.opensourcebhaiya.otpsync.utils.FileLogger.log(context, "[OtpExtractor] Phase 1 candidate '$candidate' rejected: $rejectionReason")
                 }
             }
         }
@@ -618,6 +660,9 @@ object OtpExtractor {
         var evalText = normalized.replace(Regex("(?i)(?:safe\\s+banking\\s+tip|security\\s+tip|safety\\s+tip|security\\s+advice|important\\s+notice|caution|disclaimer|warning|aviso\\s+de\\s+seguridad|waspada\\s+penipuan)[^.\\n\\r]*(?:never\\s+share|do\\s+not\\s+share|don'?t\\s+share|never\\s+disclose|never\\s+ask|never\\s+call|ne\\s+partagez\\s+pas|no\\s+comparta|jamás\\s+comparta|teilen\\s+sie\\s+nicht|geben\\s+sie\\s+niemals|nunca\\s+le\\s+solicitará|tidak\\s+pernah\\s+meminta|कभी\\s+भी\\s+शेयर\\s+न\\s+करें|साझा\\s+न\\s+करें)[^.\\n\\r]*[.!]?"), " ")
 
         evalText = evalText.replace(Regex("(?i)\\b(?:bank\\s+(?:never|will\\s+never)\\s+asks?\\s+for|we\\s+never\\s+ask\\s+for|never\\s+share\\s+your\\s+(?:internet\\s+banking|credentials|bank\\s+details|password|pin|mpin|cvv|otp))[^.\\n\\r]*[.!]?"), " ")
+
+        // Strip marketing coupon/promo code references so discount codes are not mistaken for authentication OTPs
+        evalText = evalText.replace(Regex("(?i)\\b(?:coupon|promo|discount|voucher|referral)\\s+code\\b"), " ")
 
         // Strict gate: If the message contains ZERO genuine OTP keywords, return null immediately.
         // This stops non-OTP marketing emails (like Amazon, Flipkart, WhatsApp newsletters) and bank transaction receipts from false-extracting!
@@ -659,8 +704,9 @@ object OtpExtractor {
             val digitCount = candidate.count { it.isDigit() }
             val letterCount = candidate.count { it.isLetter() }
 
-            if (!isValidCandidate(candidate, normalized, startPos)) {
-                com.opensourcebhaiya.otpsync.utils.FileLogger.log(context, "[OtpExtractor] Candidate $candidate rejected by safety validators.")
+            val rejectionReason = getCandidateRejectionReason(candidate, normalized, startPos)
+            if (rejectionReason != null) {
+                com.opensourcebhaiya.otpsync.utils.FileLogger.log(context, "[OtpExtractor] Candidate '$candidate' at pos $startPos rejected: $rejectionReason")
                 continue
             }
 

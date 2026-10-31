@@ -1,6 +1,7 @@
 package com.opensourcebhaiya.otpsync.data
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Test
 
@@ -616,6 +617,24 @@ class OtpExtractorTest {
         // Verification code
         val sms6 = "Dear Member, 482910 is your verification code for Internet Lifestyle Hub."
         assertEquals("482910", OtpExtractor.extractOtp(null, "VM-ILHUB", sms6, null, 0L)?.code)
+    }
+
+    @Test
+    fun testPhoneNumberVerificationRealSms() {
+        val sms = """
+            Your OTP for phone number verification on Internet Lifestyle Hub's platform is 201373
+            
+            Regards,
+            TagMango
+        """.trimIndent()
+        val result = OtpExtractor.extractOtp(null, "AX-TMANGO-S", sms, null, 0L)
+        assertNotNull(result)
+        assertEquals("201373", result?.code)
+
+        val sms2 = "Your OTP for phone number verification on Internet Lifestyle Hub's platform is 819184\n\nRegards,\nTagMango"
+        val result2 = OtpExtractor.extractOtp(null, "CP-TMANGO-S", sms2, null, 0L)
+        assertNotNull(result2)
+        assertEquals("819184", result2?.code)
     }
 }
 

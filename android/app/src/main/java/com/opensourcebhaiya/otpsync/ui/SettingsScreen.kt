@@ -18,6 +18,7 @@ import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.filled.BugReport
+import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Check
@@ -737,63 +738,71 @@ fun SettingsScreen(
                 }
             )
 
+            var developerTapCount by remember { mutableStateOf(0) }
+            var isDeveloperUnlocked by remember { mutableStateOf(false) }
 
-                        // App Info
-              Column(
-                  modifier = Modifier.fillMaxWidth().padding(top = 24.dp, bottom = 8.dp),
-                  horizontalAlignment = Alignment.CenterHorizontally
-              ) {
-                  Row(
-                      verticalAlignment = Alignment.CenterVertically,
-                      modifier = Modifier.clickable {
-                          val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://www.opensourcebhaiya.com"))
-                          context.startActivity(intent)
-                      }.padding(8.dp)
-                  ) {
-                      Icon(
-                          Icons.Default.Language,
-                          contentDescription = "Website",
-                          tint = MaterialTheme.colorScheme.primary,
-                          modifier = Modifier.size(16.dp)
-                      )
-                      Spacer(modifier = Modifier.width(6.dp))
-                      Text(
-                          text = "www.opensourcebhaiya.com",
-                          style = MaterialTheme.typography.labelLarge,
-                          color = MaterialTheme.colorScheme.primary,
-                          fontWeight = FontWeight.Bold
-                      )
-                  }
-                  Spacer(modifier = Modifier.height(4.dp))
-                  var developerTapCount by remember { mutableStateOf(0) }
-                  var isDeveloperUnlocked by remember { mutableStateOf(false) }
+            if (com.opensourcebhaiya.otpsync.BuildConfig.SHOW_DIAGNOSTICS || isDeveloperUnlocked) {
+                SettingsItem(
+                    title = com.opensourcebhaiya.otpsync.data.AppStrings.get("diagnostics_title", currentLang),
+                    subtitle = com.opensourcebhaiya.otpsync.data.AppStrings.get("diagnostics_sub", currentLang),
+                    icon = Icons.Default.Build,
+                    onClick = onNavigateToDiagnostics
+                )
+            }
 
-                  Text(
-                      text = "OTP Sync v${com.opensourcebhaiya.otpsync.BuildConfig.VERSION_NAME}",
-                      style = MaterialTheme.typography.bodySmall,
-                      color = TextSecondary,
-                      modifier = Modifier
-                          .clip(RoundedCornerShape(8.dp))
-                          .clickable {
-                              if (isDeveloperUnlocked) {
-                                  val quote = com.opensourcebhaiya.otpsync.utils.DeveloperEasterEgg.getNextFunnyQuote()
-                                  com.opensourcebhaiya.otpsync.utils.ToastManager.show(context, quote)
-                              } else {
-                                  developerTapCount++
-                                  if (developerTapCount in 3..6) {
-                                      val remaining = 7 - developerTapCount
-                                      val stepWord = if (remaining == 1) "step" else "steps"
-                                      com.opensourcebhaiya.otpsync.utils.ToastManager.show(context, "You are now $remaining $stepWord away from developer mode...")
-                                  } else if (developerTapCount >= 7) {
-                                      isDeveloperUnlocked = true
-                                      val quote = com.opensourcebhaiya.otpsync.utils.DeveloperEasterEgg.getNextFunnyQuote()
-                                      com.opensourcebhaiya.otpsync.utils.ToastManager.show(context, quote)
-                                  }
-                              }
-                          }
-                          .padding(horizontal = 12.dp, vertical = 6.dp)
-                  )
-              }
+            // App Info
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(top = 24.dp, bottom = 8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.clickable {
+                        val intent = Intent(Intent.ACTION_VIEW, android.net.Uri.parse("https://www.opensourcebhaiya.com"))
+                        context.startActivity(intent)
+                    }.padding(8.dp)
+                ) {
+                    Icon(
+                        Icons.Default.Language,
+                        contentDescription = "Website",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(16.dp)
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text(
+                        text = "www.opensourcebhaiya.com",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.primary,
+                        fontWeight = FontWeight.Bold
+                    )
+                }
+                Spacer(modifier = Modifier.height(4.dp))
+
+                Text(
+                    text = "OTP Sync v${com.opensourcebhaiya.otpsync.BuildConfig.VERSION_NAME}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = TextSecondary,
+                    modifier = Modifier
+                        .clip(RoundedCornerShape(8.dp))
+                        .clickable {
+                            if (isDeveloperUnlocked) {
+                                val quote = com.opensourcebhaiya.otpsync.utils.DeveloperEasterEgg.getNextFunnyQuote()
+                                com.opensourcebhaiya.otpsync.utils.ToastManager.show(context, quote)
+                            } else {
+                                developerTapCount++
+                                if (developerTapCount in 3..6) {
+                                    val remaining = 7 - developerTapCount
+                                    val stepWord = if (remaining == 1) "step" else "steps"
+                                    com.opensourcebhaiya.otpsync.utils.ToastManager.show(context, "You are now $remaining $stepWord away from developer mode...")
+                                } else if (developerTapCount >= 7) {
+                                    isDeveloperUnlocked = true
+                                    com.opensourcebhaiya.otpsync.utils.ToastManager.show(context, "Developer mode unlocked! Engine Diagnostics enabled.")
+                                }
+                            }
+                        }
+                        .padding(horizontal = 12.dp, vertical = 6.dp)
+                )
+            }
             
               Spacer(modifier = Modifier.height(20.dp))
           }

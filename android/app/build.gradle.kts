@@ -33,9 +33,15 @@ android {
     productFlavors {
         create("playstore") {
             dimension = "distribution"
+            buildConfigField("Boolean", "SHOW_DIAGNOSTICS", "false")
         }
         create("github") {
             dimension = "distribution"
+            buildConfigField("Boolean", "SHOW_DIAGNOSTICS", "false")
+        }
+        create("developer") {
+            dimension = "distribution"
+            buildConfigField("Boolean", "SHOW_DIAGNOSTICS", "true")
         }
     }
 

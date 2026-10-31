@@ -271,24 +271,24 @@ class OtpNotificationListenerService : NotificationListenerService() {
             return // Skip further extraction because the text is redacted anyway!
         }
 
-        val senderName = title.takeIf { it.isNotBlank() } ?: packageName
+        var resolvedSender = title.takeIf { it.isNotBlank() } ?: packageName
 
         // 1. Check clean, unpolluted message fields first
         var extractedOtp: com.opensourcebhaiya.otpsync.data.ExtractionResult? = null
         if (bigText.isNotBlank()) {
-            extractedOtp = OtpExtractor.extractOtp(this, senderName, bigText, null, System.currentTimeMillis())
+            extractedOtp = OtpExtractor.extractOtp(this, resolvedSender, bigText, null, System.currentTimeMillis())
             if (extractedOtp != null) {
                 com.opensourcebhaiya.otpsync.utils.FileLogger.log(this, "Found OTP in bigText: ${extractedOtp.code}")
             }
         }
         if (extractedOtp == null && text.isNotBlank() && text != bigText) {
-            extractedOtp = OtpExtractor.extractOtp(this, senderName, text, null, System.currentTimeMillis())
+            extractedOtp = OtpExtractor.extractOtp(this, resolvedSender, text, null, System.currentTimeMillis())
             if (extractedOtp != null) {
                 com.opensourcebhaiya.otpsync.utils.FileLogger.log(this, "Found OTP in text: ${extractedOtp.code}")
             }
         }
         if (extractedOtp == null && messagesText.isNotBlank()) {
-            extractedOtp = OtpExtractor.extractOtp(this, senderName, messagesText, null, System.currentTimeMillis())
+            extractedOtp = OtpExtractor.extractOtp(this, resolvedSender, messagesText, null, System.currentTimeMillis())
             if (extractedOtp != null) {
                 com.opensourcebhaiya.otpsync.utils.FileLogger.log(this, "Found OTP in messagesText: ${extractedOtp.code}")
             }
@@ -299,10 +299,14 @@ class OtpNotificationListenerService : NotificationListenerService() {
         if (extractedOtp == null && textLines != null && textLines.isNotEmpty()) {
             for (line in textLines) {
                 val lineStr = line?.toString() ?: continue
-                val res = OtpExtractor.extractOtp(this, senderName, lineStr, null, System.currentTimeMillis())
+                val res = OtpExtractor.extractOtp(this, resolvedSender, lineStr, null, System.currentTimeMillis())
                 if (res != null) {
                     extractedOtp = res
-                    com.opensourcebhaiya.otpsync.utils.FileLogger.log(this, "Found OTP in grouped line: ${res.code}")
+                    val lineSender = extractSenderFromLine(lineStr)
+                    if (!lineSender.isNullOrBlank()) {
+                        resolvedSender = lineSender
+                    }
+                    com.opensourcebhaiya.otpsync.utils.FileLogger.log(this, "Found OTP in grouped line: ${res.code} (Resolved Sender: $resolvedSender)")
                     break
                 }
             }
@@ -310,10 +314,19 @@ class OtpNotificationListenerService : NotificationListenerService() {
 
         // 3. Fallback to fullText evaluated as a whole
         if (extractedOtp == null && fullText.isNotBlank()) {
-            extractedOtp = OtpExtractor.extractOtp(this, senderName, fullText, null, System.currentTimeMillis())
+            extractedOtp = OtpExtractor.extractOtp(this, resolvedSender, fullText, null, System.currentTimeMillis())
         }
 
         val appName = resolveSourceLabel(packageName)
+
+        // Resolve clean company sender if title is a generic group counter (e.g. "2 new messages", "3 unread emails")
+        if (isGenericGroupTitle(resolvedSender)) {
+            val betterSender = conversationTitle.takeIf { it.isNotBlank() && !isGenericGroupTitle(it) }
+                ?: subText.takeIf { it.isNotBlank() && !isGenericGroupTitle(it) }
+                ?: appName
+            resolvedSender = betterSender
+        }
+
         val finalAccountName = if (isSmsApp) {
             "SMS"
         } else if (subText.isNotBlank()) {
@@ -323,9 +336,9 @@ class OtpNotificationListenerService : NotificationListenerService() {
         }
 
         if (extractedOtp != null) {
-            Log.d("OtpNotification", "Found OTP: ${extractedOtp.code} from $packageName")
-            com.opensourcebhaiya.otpsync.utils.FileLogger.log(this, "[NOTIF_SUCCESS] Extracted OTP: ${extractedOtp.code} from $packageName (Channel: $finalAccountName)")
-            handleExtractedOtp(extractedOtp, senderName, finalAccountName, packageName)
+            Log.d("OtpNotification", "Found OTP: ${extractedOtp.code} from $packageName (Sender: $resolvedSender)")
+            com.opensourcebhaiya.otpsync.utils.FileLogger.log(this, "[NOTIF_SUCCESS] Extracted OTP: ${extractedOtp.code} from $packageName (Sender: $resolvedSender, Channel: $finalAccountName)")
+            handleExtractedOtp(extractedOtp, resolvedSender, finalAccountName, packageName)
         } else {
             val snippet = fullText.take(150).replace("\n", " ")
             com.opensourcebhaiya.otpsync.utils.FileLogger.log(this, "[NOTIF_FAIL] No OTP recognized in notification from $packageName. Snippet: \"$snippet\"")
@@ -518,6 +531,33 @@ class OtpNotificationListenerService : NotificationListenerService() {
             val info = applicationContext.packageManager.getApplicationInfo(pkg, 0)
             applicationContext.packageManager.getApplicationLabel(info).toString()
         } catch (e: Exception) { pkg.substringAfterLast(".") }
+    }
+
+    private fun isGenericGroupTitle(title: String): Boolean {
+        val t = title.trim().lowercase()
+        if (t.matches(Regex("^\\d+\\s+(?:new|unread)\\s+(?:messages?|emails?|mails?).*"))) return true
+        if (t.matches(Regex("^\\d+\\s+(?:nuevos?|novas?)\\s+(?:mensajes?|mensagens?).*"))) return true
+        if (t.matches(Regex("^\\d+\\s+nouvelles?\\s+(?:messages?|e-mails?).*"))) return true
+        if (t.matches(Regex("^\\d+\\s+neue\\s+nachrichten.*"))) return true
+        if (t.matches(Regex("^\\d+\\s+नए\\s+संदेश.*"))) return true
+        if (t in listOf("gmail", "messages", "inbox", "mail", "outlook", "email", "sms")) return true
+        return false
+    }
+
+    private fun extractSenderFromLine(line: String): String? {
+        val tabSplit = line.split('\t')
+        if (tabSplit.size > 1 && tabSplit[0].isNotBlank()) {
+            return tabSplit[0].trim()
+        }
+        val spaceSplit = line.split(Regex("\\s{2,}"))
+        if (spaceSplit.size > 1 && spaceSplit[0].isNotBlank()) {
+            return spaceSplit[0].trim()
+        }
+        val colonSplit = line.split(':')
+        if (colonSplit.size > 1 && colonSplit[0].isNotBlank() && colonSplit[0].length < 40) {
+            return colonSplit[0].trim()
+        }
+        return null
     }
 }
 

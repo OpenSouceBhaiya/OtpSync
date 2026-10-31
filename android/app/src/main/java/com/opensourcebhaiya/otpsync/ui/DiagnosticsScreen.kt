@@ -101,24 +101,33 @@ fun DiagnosticsScreen(
     }
 
     fun copyLogsToClipboard() {
-        val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-        val sysSummary = buildString {
-            appendLine("=== OTP SYNC DIAGNOSTIC REPORT ===")
-            appendLine("App Package: ${context.packageName}")
-            appendLine("Android OS: ${Build.VERSION.RELEASE} (SDK ${Build.VERSION.SDK_INT})")
-            appendLine("Device: ${Build.MANUFACTURER} ${Build.MODEL}")
-            appendLine("Sync Engine: ${if (isSyncEnabled) "ACTIVE" else "DISABLED"}")
-            appendLine("Notification Listener: ${if (isNotificationAccessGranted) "GRANTED" else "DENIED"}")
-            appendLine("READ_SMS Permission: ${if (isReadSmsGranted) "GRANTED" else "DENIED"}")
-            appendLine("RECEIVE_SMS Permission: ${if (isReceiveSmsGranted) "GRANTED" else "DENIED"}")
-            appendLine("Overlay (Clipboard): ${if (canDrawOverlays) "GRANTED" else "DENIED"}")
-            appendLine("Battery Optimization Ignored: $isBatteryOptIgnored")
-            appendLine("==================================")
-            appendLine()
-            appendLine(rawLogs)
+        try {
+            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            val recentLogs = if (rawLogs.length > 80_000) {
+                "[... Earlier logs truncated for clipboard size limits (${rawLogs.length / 1024} KB total). Use 'Export Logs' for complete file ...]\n\n" + rawLogs.takeLast(80_000)
+            } else {
+                rawLogs
+            }
+            val sysSummary = buildString {
+                appendLine("=== OTP SYNC DIAGNOSTIC REPORT ===")
+                appendLine("App Package: ${context.packageName}")
+                appendLine("Android OS: ${Build.VERSION.RELEASE} (SDK ${Build.VERSION.SDK_INT})")
+                appendLine("Device: ${Build.MANUFACTURER} ${Build.MODEL}")
+                appendLine("Sync Engine: ${if (isSyncEnabled) "ACTIVE" else "DISABLED"}")
+                appendLine("Notification Listener: ${if (isNotificationAccessGranted) "CONNECTED" else "ACCESS MISSING"}")
+                appendLine("READ_SMS Permission: ${if (isReadSmsGranted) "GRANTED" else "PERMISSION DENIED"}")
+                appendLine("RECEIVE_SMS Permission: ${if (isReceiveSmsGranted) "GRANTED" else "PERMISSION DENIED"}")
+                appendLine("Overlay (Clipboard): ${if (canDrawOverlays) "GRANTED" else "DENIED"}")
+                appendLine("Battery Optimization Ignored: $isBatteryOptIgnored")
+                appendLine("==================================")
+                appendLine()
+                appendLine(recentLogs)
+            }
+            clipboard.setPrimaryClip(ClipData.newPlainText("OTP Sync Diagnostics", sysSummary))
+            ToastManager.show(context, "Recent logs copied to clipboard!", android.widget.Toast.LENGTH_SHORT)
+        } catch (e: Exception) {
+            ToastManager.show(context, "Clipboard error: ${e.message}. Use 'Export Logs' button.", android.widget.Toast.LENGTH_LONG)
         }
-        clipboard.setPrimaryClip(ClipData.newPlainText("OTP Sync Diagnostics", sysSummary))
-        ToastManager.show(context, "All logs copied to clipboard!", android.widget.Toast.LENGTH_SHORT)
     }
 
     fun runExtractionTest() {
@@ -127,13 +136,14 @@ fun DiagnosticsScreen(
             return
         }
         val startTime = System.currentTimeMillis()
-        val res = OtpExtractor.extractOtp(context, "TEST-SENDER", testInputText, null, startTime)
+        FileLogger.log(context, "[MANUAL_TEST] Triggered extraction test on text snippet: \"${testInputText.take(100)}\"")
+        val res = OtpExtractor.extractOtp(context, "MANUAL-TEST", testInputText, null, startTime)
         if (res != null) {
             testResultSuccess = true
-            testResultText = "Extracted OTP: ${res.code}\nExpiry: ${res.expiresAt?.let { "$it ms" } ?: "Not specified"}"
+            testResultText = "SUCCESSFUL EXTRACTION!\n\nOTP Code: ${res.code}\nLength: ${res.code.length} digits\nExpiry: ${res.expiresAt?.let { "$it ms" } ?: "Not specified"}"
         } else {
             testResultSuccess = false
-            testResultText = "No OTP candidate matched.\nCheck logs below for scoring and pattern details."
+            testResultText = "NO OTP CANDIDATE ACCEPTED\n\nCheck the live engine logs terminal below for exact rejection reasons, scoring breakdown, and safety validator details."
         }
         rawLogs = FileLogger.getAllLogs(context)
     }
@@ -296,6 +306,16 @@ fun DiagnosticsScreen(
                     placeholder = { Text("e.g. 482910 is your OTP for Internet Lifestyle Hub...", color = TextSecondary.copy(alpha = 0.5f)) },
                     modifier = Modifier.fillMaxWidth(),
                     maxLines = 4,
+                    trailingIcon = {
+                        if (testInputText.isNotBlank()) {
+                            IconButton(onClick = { 
+                                testInputText = ""
+                                testResultText = null
+                            }) {
+                                Icon(Icons.Default.Clear, contentDescription = "Clear input", tint = TextSecondary)
+                            }
+                        }
+                    },
                     colors = OutlinedTextFieldDefaults.colors(
                         focusedTextColor = TextPrimary,
                         unfocusedTextColor = TextPrimary,
@@ -305,11 +325,11 @@ fun DiagnosticsScreen(
                     )
                 )
 
-                Spacer(modifier = Modifier.height(10.dp))
+                Spacer(modifier = Modifier.height(12.dp))
 
                 Row(
                     modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    horizontalArrangement = Arrangement.spacedBy(10.dp)
                 ) {
                     OutlinedButton(
                         onClick = {
@@ -319,23 +339,27 @@ fun DiagnosticsScreen(
                                 testInputText = clip.getItemAt(0).text?.toString() ?: ""
                             }
                         },
-                        modifier = Modifier.weight(1f),
-                        shape = RoundedCornerShape(10.dp)
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(46.dp),
+                        shape = RoundedCornerShape(12.dp)
                     ) {
-                        Icon(Icons.Default.ContentPaste, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.ContentPaste, contentDescription = null, modifier = Modifier.size(18.dp))
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Paste Clip")
+                        Text("Paste Clip", fontWeight = FontWeight.Medium)
                     }
 
                     Button(
                         onClick = { runExtractionTest() },
-                        modifier = Modifier.weight(1f),
+                        modifier = Modifier
+                            .weight(1f)
+                            .height(46.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = PurpleAccent),
-                        shape = RoundedCornerShape(10.dp)
+                        shape = RoundedCornerShape(12.dp)
                     ) {
-                        Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(16.dp))
+                        Icon(Icons.Default.PlayArrow, contentDescription = null, modifier = Modifier.size(20.dp))
                         Spacer(modifier = Modifier.width(6.dp))
-                        Text("Analyze", fontWeight = FontWeight.Bold)
+                        Text("Analyze OTP", fontWeight = FontWeight.Bold)
                     }
                 }
 
@@ -504,44 +528,51 @@ fun DiagnosticsScreen(
             // Action Buttons
             Row(
                 modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                Button(
+                OutlinedButton(
                     onClick = { copyLogsToClipboard() },
-                    colors = ButtonDefaults.buttonColors(containerColor = DarkSurfaceVariant),
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(10.dp)
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(46.dp),
+                    shape = RoundedCornerShape(12.dp)
                 ) {
-                    Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(16.dp), tint = TextPrimary)
+                    Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(18.dp), tint = TextPrimary)
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Copy Logs", color = TextPrimary, fontSize = 13.sp)
+                    Text("Copy Logs", color = TextPrimary, fontSize = 14.sp, fontWeight = FontWeight.Medium)
                 }
 
                 Button(
                     onClick = { FileLogger.exportLog(context) },
-                    colors = ButtonDefaults.buttonColors(containerColor = DarkSurfaceVariant),
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(10.dp)
+                    colors = ButtonDefaults.buttonColors(containerColor = PurpleAccent),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(46.dp),
+                    shape = RoundedCornerShape(12.dp)
                 ) {
-                    Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(16.dp), tint = TextPrimary)
+                    Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color.White)
                     Spacer(modifier = Modifier.width(6.dp))
-                    Text("Export", color = TextPrimary, fontSize = 13.sp)
+                    Text("Export Logs", color = Color.White, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                 }
+            }
 
-                OutlinedButton(
-                    onClick = {
-                        FileLogger.clearLog(context)
-                        rawLogs = FileLogger.getAllLogs(context)
-                        ToastManager.show(context, "Logs cleared", android.widget.Toast.LENGTH_SHORT)
-                    },
-                    modifier = Modifier.weight(1f),
-                    shape = RoundedCornerShape(10.dp),
-                    colors = ButtonDefaults.outlinedButtonColors(contentColor = ErrorRed)
-                ) {
-                    Icon(Icons.Default.DeleteOutline, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(4.dp))
-                    Text("Clear", fontSize = 13.sp)
-                }
+            Spacer(modifier = Modifier.height(8.dp))
+
+            OutlinedButton(
+                onClick = {
+                    FileLogger.clearLog(context)
+                    rawLogs = FileLogger.getAllLogs(context)
+                    ToastManager.show(context, "All logs cleared", android.widget.Toast.LENGTH_SHORT)
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(44.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = ErrorRed)
+            ) {
+                Icon(Icons.Default.DeleteOutline, contentDescription = null, modifier = Modifier.size(18.dp), tint = ErrorRed)
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Clear Engine Log History", color = ErrorRed, fontSize = 13.sp, fontWeight = FontWeight.Medium)
             }
         }
     }
