@@ -109,12 +109,20 @@ class SettingsViewModel(
                         val status = snapshot.child("status").getValue(String::class.java)
                         val name = snapshot.child("name").getValue(String::class.java)
                         val lastOtp = snapshot.child("lastOtpCapturedTime").getValue(String::class.java)
-                        val lastSeen = snapshot.child("lastSeen").getValue(Long::class.java) ?: 0L
+                        val lastSeen = (snapshot.child("lastSeen").value as? Number)?.toLong() ?: 0L
+                        val lastActive = (snapshot.child("lastActive").value as? Number)?.toLong() ?: 0L
+                        val pcLoginActive = snapshot.child("pcLoginActive").child("active").getValue(Boolean::class.java) ?: false
+                        val pcLoginTs = (snapshot.child("pcLoginActive").child("ts").value as? Number)?.toLong() ?: 0L
+                        
+                        val now = System.currentTimeMillis()
+                        val effectiveLastSeen = maxOf(lastSeen, lastActive, if (pcLoginActive) pcLoginTs else 0L)
                         
                         var finalStatus = status
-                        if (lastSeen > 0L) {
-                            if (System.currentTimeMillis() - lastSeen > 5 * 60 * 1000L) {
+                        if (effectiveLastSeen > 0L) {
+                            if (now - effectiveLastSeen > 5 * 60 * 1000L) {
                                 finalStatus = "inactive"
+                            } else if (status != "terminated") {
+                                finalStatus = "active"
                             }
                         }
                         
@@ -185,12 +193,20 @@ class SettingsViewModel(
                             val status = snapshot.child("status").getValue(String::class.java)
                             val name = snapshot.child("name").getValue(String::class.java)
                             val lastOtp = snapshot.child("lastOtpCapturedTime").getValue(String::class.java)
-                            val lastSeen = snapshot.child("lastSeen").getValue(Long::class.java) ?: 0L
+                            val lastSeen = (snapshot.child("lastSeen").value as? Number)?.toLong() ?: 0L
+                            val lastActive = (snapshot.child("lastActive").value as? Number)?.toLong() ?: 0L
+                            val pcLoginActive = snapshot.child("pcLoginActive").child("active").getValue(Boolean::class.java) ?: false
+                            val pcLoginTs = (snapshot.child("pcLoginActive").child("ts").value as? Number)?.toLong() ?: 0L
+                            
+                            val now = System.currentTimeMillis()
+                            val effectiveLastSeen = maxOf(lastSeen, lastActive, if (pcLoginActive) pcLoginTs else 0L)
                             
                             var finalStatus = status
-                            if (lastSeen > 0L) {
-                                if (System.currentTimeMillis() - lastSeen > 5 * 60 * 1000L) {
+                            if (effectiveLastSeen > 0L) {
+                                if (now - effectiveLastSeen > 5 * 60 * 1000L) {
                                     finalStatus = "inactive"
+                                } else if (status != "terminated") {
+                                    finalStatus = "active"
                                 }
                             }
                             

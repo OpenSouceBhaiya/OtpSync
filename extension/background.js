@@ -18,6 +18,29 @@ self.addEventListener('online', () => {
     setToolbarIcon('active');
 });
 
+// Ensure toolbar icon has NO badge text (clean icon only)
+try {
+    chrome.action.setBadgeText({ text: '' });
+} catch (_) {}
+
+// ─── Real-time Device Heartbeat & Status Sync ────────────────────────────────
+function sendDeviceHeartbeat(uuid, isUserActive = false) {
+    if (!uuid) return;
+    const now = Date.now();
+    const payload = {
+        lastSeen: now,
+        status: "active"
+    };
+    if (isUserActive) {
+        payload.lastActive = now;
+    }
+    fetch(`https://otpsync-adf52-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${uuid}.json`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+    }).catch(() => {});
+}
+
 // ─── Keep-Alive Alarm ────────────────────────────────────────────────────────
 chrome.alarms.create("keepAlive", { periodInMinutes: 1 });
 chrome.alarms.onAlarm.addListener(async (alarm) => {
@@ -25,11 +48,8 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
     try {
         const data = await chrome.storage.local.get(['linked', 'uuid', 'aesKey']);
         if (!data.linked || !data.uuid || !data.aesKey) return;
-        // Send Heartbeat to Firebase so Android knows the device is alive
-        fetch(`https://otpsync-adf52-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${data.uuid}/lastSeen.json`, {
-            method: 'PUT',
-            body: Date.now().toString()
-        }).catch(() => {});
+        // Send Heartbeat to Firebase immediately so Android knows the device is active
+        sendDeviceHeartbeat(data.uuid, false);
 
         const hasDoc = await chrome.offscreen.hasDocument().catch(() => false);
         if (!hasDoc) {
@@ -52,6 +72,7 @@ chrome.alarms.onAlarm.addListener(async (alarm) => {
 chrome.runtime.onStartup.addListener(() => {
     chrome.storage.local.get(['linked', 'uuid', 'aesKey'], async (data) => {
         if (data.linked && data.uuid && data.aesKey) {
+            sendDeviceHeartbeat(data.uuid, true);
             const hasDoc = await chrome.offscreen.hasDocument().catch(() => false);
             startListening(data.uuid, data.aesKey, !hasDoc);
         } else {
@@ -62,7 +83,8 @@ chrome.runtime.onStartup.addListener(() => {
 
 chrome.storage.local.get(['linked', 'uuid', 'aesKey'], async (data) => {
     if (data.linked && data.uuid && data.aesKey) {
-        // Ping firebase to tell Android this is a v2 extension that supports pcLoginActive
+        // Ping firebase to tell Android this device is online and active
+        sendDeviceHeartbeat(data.uuid, true);
         fetch(`https://otpsync-adf52-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${data.uuid}/extVersion.json`, {
             method: 'PUT',
             body: '2'
@@ -108,6 +130,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     } else if (message.action === "pc_login_detected") {
         chrome.storage.local.get(['uuid'], (data) => {
             if (!data.uuid) return;
+            sendDeviceHeartbeat(data.uuid, true);
             fetch(`https://otpsync-adf52-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${data.uuid}/pcLoginActive.json`, {
                 method: 'PUT',
                 body: JSON.stringify({ active: true, host: message.url, ts: Date.now() })
@@ -123,22 +146,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     } else if (message.action === "otp_intent") {
         chrome.storage.local.get(['uuid'], (data) => {
             if (!data.uuid) return;
+            sendDeviceHeartbeat(data.uuid, true);
             fetch(`https://otpsync-adf52-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${data.uuid}/otpIntent.json`, {
                 method: 'PUT',
                 body: JSON.stringify({ active: true, host: message.host || '', ts: Date.now() })
-            }).catch(() => {});
-            fetch(`https://otpsync-adf52-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${data.uuid}/lastActive.json`, {
-                method: 'PUT',
-                body: Date.now().toString()
             }).catch(() => {});
         });
     } else if (message.action === "user_activity") {
         chrome.storage.local.get(['uuid'], (data) => {
             if (!data.uuid) return;
-            fetch(`https://otpsync-adf52-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${data.uuid}/lastActive.json`, {
-                method: 'PUT',
-                body: Date.now().toString()
-            }).catch(() => {});
+            sendDeviceHeartbeat(data.uuid, true);
         });
     } else if (message.action === "sse_otp") {
         // SSE fired a real OTP event — fetch it immediately
@@ -178,10 +195,7 @@ chrome.windows.onFocusChanged.addListener((windowId) => {
             body: isFocused ? 'true' : 'false'
         }).catch(() => {});
         if (isFocused) {
-            fetch(`https://otpsync-adf52-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${data.uuid}/lastActive.json`, {
-                method: 'PUT',
-                body: Date.now().toString()
-            }).catch(() => {});
+            sendDeviceHeartbeat(data.uuid, true);
         }
     });
 });
@@ -564,15 +578,6 @@ async function handleEncryptedOtp(ivBase64, dataBase64, cryptoKey) {
         // 1. Copy to clipboard immediately
         await copyToClipboard(otpCode);
 
-        // 1.5 Set badge on extension toolbar icon (visible even on chrome://newtab and system pages)
-        try {
-            chrome.action.setBadgeText({ text: otpCode.length > 4 ? otpCode.substring(0, 4) : otpCode });
-            chrome.action.setBadgeBackgroundColor({ color: '#10b981' });
-            setTimeout(() => {
-                chrome.action.setBadgeText({ text: '' });
-            }, 60000);
-        } catch (_) {}
-
         // 2. Auto-clear clipboard after 60s
         setTimeout(() => copyToClipboard(' '), 60000);
 
@@ -714,12 +719,15 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 });
 
 chrome.tabs.onActivated.addListener((activeInfo) => {
-    chrome.tabs.get(activeInfo.tabId, (tab) => {
-        if (chrome.runtime.lastError || !tab) return;
-        const isRestrictedUrl = !tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://') || tab.url.startsWith('about:');
-        if (isRestrictedUrl) return;
+    chrome.storage.local.get(['uuid', 'pendingToast'], (data) => {
+        if (data.uuid) {
+            sendDeviceHeartbeat(data.uuid, true);
+        }
+        chrome.tabs.get(activeInfo.tabId, (tab) => {
+            if (chrome.runtime.lastError || !tab) return;
+            const isRestrictedUrl = !tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://') || tab.url.startsWith('about:');
+            if (isRestrictedUrl) return;
 
-        chrome.storage.local.get(['pendingToast'], (data) => {
             const pt = data.pendingToast;
             if (pt && pt.showUntil && Date.now() < pt.showUntil) {
                 const remaining = pt.showUntil - Date.now();
@@ -732,7 +740,22 @@ chrome.tabs.onActivated.addListener((activeInfo) => {
                         timeRemaining: remaining,
                         showUntil: pt.showUntil,
                         isDuplicate: Boolean(pt.isDuplicate)
-                    }).catch(() => {});
+                    }).catch(async (err) => {
+                        try {
+                            await chrome.scripting.insertCSS({ target: { tabId: activeInfo.tabId }, files: ["content.css"] });
+                            await chrome.scripting.executeScript({ target: { tabId: activeInfo.tabId }, files: ["content.js"] });
+                            await new Promise(resolve => setTimeout(resolve, 100));
+                            await chrome.tabs.sendMessage(activeInfo.tabId, {
+                                action: "show_toast_and_copy",
+                                otp: pt.otp,
+                                sender: pt.sender,
+                                isCarryForward: true,
+                                timeRemaining: remaining,
+                                showUntil: pt.showUntil,
+                                isDuplicate: Boolean(pt.isDuplicate)
+                            });
+                        } catch (_) {}
+                    });
                 }
             }
         });

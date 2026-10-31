@@ -259,12 +259,11 @@ class FirebaseManager {
         }
 
         val status = snapshot.child("status").getValue(String::class.java)
-        val lastSeen = (snapshot.child("lastSeen").value as? Number)?.toLong() ?: 0L
-
-        // If explicitly inactive, paused, or no heartbeat for over 3 minutes, it is Tier 4 (Inactive)
-        if (status == "inactive" || status == "paused" || (lastSeen > 0 && now - lastSeen > 180000L)) {
-            return DeviceTargetCandidate(uuid, key, 4, lastSeen)
+        if (status == "terminated" || status == "paused") {
+            return DeviceTargetCandidate(uuid, key, 4, 0L)
         }
+
+        val lastSeen = (snapshot.child("lastSeen").value as? Number)?.toLong() ?: 0L
         val lastActive = (snapshot.child("lastActive").value as? Number)?.toLong() ?: 0L
         val isFocused = snapshot.child("isFocused").getValue(Boolean::class.java) ?: false
 
@@ -293,13 +292,14 @@ class FirebaseManager {
             return DeviceTargetCandidate(uuid, key, 2, score)
         }
 
-        // Tier 3: Recent Heartbeat (Seen within last 3 minutes)
-        if (now - lastSeen in 0..180000) {
-            return DeviceTargetCandidate(uuid, key, 3, lastSeen)
+        // Tier 3: Recent Heartbeat (Seen or active within last 5 minutes)
+        val effectiveLastSeen = maxOf(lastSeen, lastActive)
+        if (now - effectiveLastSeen in 0..300000) {
+            return DeviceTargetCandidate(uuid, key, 3, effectiveLastSeen)
         }
 
         // Tier 4: Inactive / Cold
-        return DeviceTargetCandidate(uuid, key, 4, lastSeen)
+        return DeviceTargetCandidate(uuid, key, 4, effectiveLastSeen)
     }
 
     private fun encryptAesGcm(otpCode: String, sender: String, timestamp: Long, expiresAt: Long, keyBase64: String, targetUuid: String = "ALL"): Map<String, String> {
