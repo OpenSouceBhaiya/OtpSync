@@ -50,7 +50,7 @@ object OtpCache {
         val now = System.currentTimeMillis()
         recentOtps.removeAll { now - it.timestamp > 180_000L }
 
-        val isSmsApp = sourcePackage.contains("messaging") || sourcePackage.contains("mms") || sourcePackage.contains(".sms")
+        val isSmsApp = sourcePackage.contains("messaging") || sourcePackage.contains("mms") || sourcePackage.contains("sms") || sourcePackage.contains("telephony") || sourcePackage.contains("truecaller")
         val currentChannel = if (isSmsApp) "SMS" else if (accountName.contains("gmail", ignoreCase = true) || sourcePackage.contains("android.gm")) "Gmail" else accountName
         val existing = recentOtps.find { it.code == sanitized }
 

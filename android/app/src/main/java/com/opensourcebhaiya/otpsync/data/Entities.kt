@@ -26,10 +26,10 @@ fun formatCompactSource(account: String): String {
         val parts = clean.split("+").map { it.trim() }
         val shortParts = parts.map { part ->
             when {
+                part.contains("@") || part.contains("gmail", ignoreCase = true) -> "Gmail"
                 part.contains("sms", ignoreCase = true) -> "SMS"
                 part.contains("whatsapp", ignoreCase = true) -> "WhatsApp"
                 part.contains("telegram", ignoreCase = true) -> "Telegram"
-                part.contains("gmail", ignoreCase = true) || part.contains("@") -> "Gmail"
                 else -> part.take(12)
             }
         }.distinct()
@@ -37,10 +37,10 @@ fun formatCompactSource(account: String): String {
     }
 
     return when {
+        clean.contains("@") || clean.contains("gmail", ignoreCase = true) -> "Gmail"
         clean.contains("sms", ignoreCase = true) -> "SMS"
         clean.contains("whatsapp", ignoreCase = true) -> "WhatsApp"
         clean.contains("telegram", ignoreCase = true) -> "Telegram"
-        clean.contains("gmail", ignoreCase = true) || clean.contains("@") -> "Gmail"
         else -> clean.take(16)
     }
 }

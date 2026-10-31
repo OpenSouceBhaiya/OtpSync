@@ -591,5 +591,31 @@ class OtpExtractorTest {
         val result = OtpExtractor.extractOtp(context = null, subject = "JD-SHEINI-S", bodyText = text, bodyHtml = null, receivedTimeMs = 0L)
         assertEquals("776690", result?.code)
     }
+
+    @Test
+    fun testInternetLifestyleHubSmsFormats() {
+        // Reverse phrasing
+        val sms1 = "482910 is your OTP for Internet Lifestyle Hub. Valid for 10 minutes."
+        assertEquals("482910", OtpExtractor.extractOtp(null, "VM-ILHUB", sms1, null, 0L)?.code)
+
+        val sms2 = "482910 is the OTP to login to Internet Lifestyle Hub."
+        assertEquals("482910", OtpExtractor.extractOtp(null, "VM-ILHUB", sms2, null, 0L)?.code)
+
+        // Brand template with for
+        val sms3 = "Your OTP for Internet Lifestyle Hub is 482910. Valid for 10 minutes. Do not share."
+        assertEquals("482910", OtpExtractor.extractOtp(null, "VM-ILHUB", sms3, null, 0L)?.code)
+
+        // Action verb
+        val sms4 = "Use OTP 482910 to login to your Internet Lifestyle Hub account."
+        assertEquals("482910", OtpExtractor.extractOtp(null, "VM-ILHUB", sms4, null, 0L)?.code)
+
+        // Secret OTP reverse
+        val sms5 = "Internet Lifestyle Hub: 482910 is your secret OTP. Do not share it with anyone."
+        assertEquals("482910", OtpExtractor.extractOtp(null, "VM-ILHUB", sms5, null, 0L)?.code)
+
+        // Verification code
+        val sms6 = "Dear Member, 482910 is your verification code for Internet Lifestyle Hub."
+        assertEquals("482910", OtpExtractor.extractOtp(null, "VM-ILHUB", sms6, null, 0L)?.code)
+    }
 }
 

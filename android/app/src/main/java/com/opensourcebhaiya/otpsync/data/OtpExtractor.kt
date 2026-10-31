@@ -12,9 +12,10 @@ object OtpExtractor {
     // Comprehensive multi-lingual genuine trigger phrases that confirm this message actually contains an OTP
     private val genuineOtpKeywords = listOf(
         // English
+        "otp", "aotp", "passcode", "use otp", "enter otp", "the otp", "secret otp",
         "verification code", "one-time code", "one time code", "one-time password", "one time password",
         "security code", "access code", "login code", "sign-in code", "sign in code", 
-        "auth code", "authentication code", "confirmation code", "secret code", "passcode",
+        "auth code", "authentication code", "confirmation code", "secret code",
         "single-use code", "single use code", "otp is", "aotp is", "otp for", "aotp for",
         "otp:", "otp -", "aotp:", "otp code", "your otp", "your otp is", "your code", "code is", "code:",
         "use this code", "enter this code", "enter the code", "use the code", "code to sign in",
@@ -150,7 +151,7 @@ object OtpExtractor {
         Regex("(?i)\\b([0-9A-Za-z]{4,10})\\s+(?:is|es|est|é|è|lautet|hai|adalah)\\s+(?:your|su|votre|dein|il\\s+tuo|la\\s+tua|il|la|aapka|apka|the|an?|kode)?\\s*(?:[\\w-]+\\s+){0,4}(?:otp|code|pin|passcode|one[- ]time\\s*(?:password|passcode|code)|verification\\s*(?:code|otp|pin)|security\\s*(?:code|otp|pin)|login\\s*(?:code|otp|pin)|access\\s*(?:code|otp|pin)|auth(?:entication|orization|orizzazione)?\\s*(?:code|otp|pin)|confirmation\\s*(?:code|pin)|autorizzazione|kode|verifikasi)\\b"),
 
         // 5b. Simpler reverse: "256587 is your OTP" / "123456 is the OTP" / "4829 is your Uber code"
-        Regex("(?i)\\b([0-9A-Za-z]{4,10})\\s+is\\s+(?:your|the|an?)?\\s*(?:[A-Za-z0-9_-]+\\s+)?(?:a?otp|one[- ]time|verification|security|login|access|[A-Za-z0-9_-]+)(?:\\s+(?:code|password|passcode|pin|otp))\\b"),
+        Regex("(?i)\\b([0-9A-Za-z]{4,10})\\s+is\\s+(?:your|the|an?)?\\s*(?:[A-Za-z0-9_-]+\\s+)?(?:a?otp|one[- ]time(?:\\s+password|\\s+code)?|verification(?:\\s+code)?|security(?:\\s+code)?|login(?:\\s+otp)?|access(?:\\s+code)?|code|password|passcode|pin)\\b"),
 
         // 6. Multi-line isolated code on its own line after a label or "code below"
         Regex("(?im)(?:verification\\s+code|security\\s+code|one[- ]time\\s+(?:password|code)|your\\s+code|código|code|passcode)[^\\n\\r]*?(?:below|is|:)?\\s*$\\s*^([0-9A-Za-z]{4,10})\\s*$"),
@@ -159,7 +160,7 @@ object OtpExtractor {
         Regex("(?i)\\b(?:one[- ]time\\s+(?:password|passcode|code|pin)|verification\\s+(?:code|pin|token|otp)|security\\s+(?:code|pin|token|otp)|auth(?:entication|orization)?\\s+(?:code|pin|token|otp)|confirm(?:ation)?\\s+(?:code|pin|token|otp)|login\\s+(?:code|pin|token|otp)|sign[- ]in\\s+(?:code|pin|token|otp)|access\\s+(?:code|pin|token|otp)|delivery\\s+otp|pickup\\s+otp|secret\\s+(?:code|pin)|passcode|a?otp|[\\w-]+\\s+(?:otp|code)|pin)(?:[^.!\n\r]{0,80})(?<!\\d)(?:is|are|es|est|lautet|é|è|:|=)(?!\\d)\\s*[:=]?\\s*([0-9A-Za-z]{4,10})\\b"),
 
         // 7b. Universal service/brand OTP template: "Your OTP for Internet Lifestyle Hub is 123456", "OTP to login to Portal is 849201"
-        Regex("(?i)\\b(?:your|the)?\\s*(?:a?otp|code|pin|passcode|verification\\s+code)\\s+(?:for|to)\\s+[^.!,:\n\r]{1,40}?\\s+is\\s*[:=]?\\s*([0-9A-Za-z]{4,10})\\b"),
+        Regex("(?i)\\b(?:your|the)?\\s*(?:a?otp|code|pin|passcode|verification\\s+code)\\s+(?:for|to)\\s+[^.!,:\n\r]{1,50}?(?:\\s+is\\s*[:=]?|[:=])\\s*([0-9A-Za-z]{4,10})\\b"),
 
         // 8. Direct keyword + colon/dash/is + OTP: "Telegram code: 49201", "WhatsApp code: 829104", "Код: 582914", "رمز: 83910"
         Regex("(?i)(?:^|[^\\p{L}\\p{Nd}])(?:code|otp|pin|passcode|[Кк]од|[Пп]ароль|رمز|کد|कोड)\\s*(?:is\\s*:?|:|=)\\s*[:=]?\\s*([0-9A-Za-z]{4,10})\\b"),
@@ -550,7 +551,8 @@ object OtpExtractor {
                 "NAME", "TEAM", "HELP", "SEND", "DEAR", "STOP", "VALID", "SHARE", "ENTER",
                 "ACCESS", "PLEASE", "VERIFY", "LOGIN", "ACCOUNT", "NUMBER", "SECRET",
                 "ESTA", "ESTE", "PARA", "POUR", "AVEC", "VOUS", "NOUS", "BIEN", "DASS",
-                "DICH", "BITTE", "KANN", "SEIN", "TODO", "NADA", "SOLO", "CLAVE"
+                "DICH", "BITTE", "KANN", "SEIN", "TODO", "NADA", "SOLO", "CLAVE",
+                "NUNCA", "JAMAS", "TIDAK", "PERNAH", "JANGAN", "BUKAN", "BANCO", "AVISO", "ALERT", "ALERTA"
             )
             if (commonWords.contains(candidate.uppercase())) return false
         }
@@ -613,7 +615,7 @@ object OtpExtractor {
         // ══════════════════════════════════════════════════════════════════════════════
         // Strip informational banking security disclaimers / warnings where "OTP" is mentioned only as a warning advice
         // e.g. "Safe Banking Tip: Never share your OTP...", "Bank never asks for OTP...", "Beware of fraud, do not share OTP..."
-        var evalText = normalized.replace(Regex("(?i)(?:safe\\s+banking\\s+tip|security\\s+tip|safety\\s+tip|security\\s+advice|important\\s+notice|caution|disclaimer|warning)[^.\\n\\r]*(?:never\\s+share|do\\s+not\\s+share|don'?t\\s+share|never\\s+disclose|never\\s+ask|never\\s+call|ne\\s+partagez\\s+pas|no\\s+comparta|jamás\\s+comparta|teilen\\s+sie\\s+nicht|geben\\s+sie\\s+niemals|कभी\\s+भी\\s+शेयर\\s+न\\s+करें|साझा\\s+न\\s+करें)[^.\\n\\r]*[.!]?"), " ")
+        var evalText = normalized.replace(Regex("(?i)(?:safe\\s+banking\\s+tip|security\\s+tip|safety\\s+tip|security\\s+advice|important\\s+notice|caution|disclaimer|warning|aviso\\s+de\\s+seguridad|waspada\\s+penipuan)[^.\\n\\r]*(?:never\\s+share|do\\s+not\\s+share|don'?t\\s+share|never\\s+disclose|never\\s+ask|never\\s+call|ne\\s+partagez\\s+pas|no\\s+comparta|jamás\\s+comparta|teilen\\s+sie\\s+nicht|geben\\s+sie\\s+niemals|nunca\\s+le\\s+solicitará|tidak\\s+pernah\\s+meminta|कभी\\s+भी\\s+शेयर\\s+न\\s+करें|साझा\\s+न\\s+करें)[^.\\n\\r]*[.!]?"), " ")
 
         evalText = evalText.replace(Regex("(?i)\\b(?:bank\\s+(?:never|will\\s+never)\\s+asks?\\s+for|we\\s+never\\s+ask\\s+for|never\\s+share\\s+your\\s+(?:internet\\s+banking|credentials|bank\\s+details|password|pin|mpin|cvv|otp))[^.\\n\\r]*[.!]?"), " ")
 
@@ -739,9 +741,11 @@ object OtpExtractor {
             }
         }
 
-        // Must achieve at least a score of 100 to be declared an OTP
-        if (bestMatch != null && highestScore >= 100) {
-            safeLog("OtpExtractor", "Scored Engine Selected: $bestMatch with score $highestScore")
+        // Must achieve threshold: for short messages (SMS, RCS, notifications <= 300 chars) threshold is 30 for numeric codes, for long emails 100
+        val bestCandidateDigitCount = bestMatch?.count { it.isDigit() } ?: 0
+        val minRequiredScore = if (normalized.length <= 300 && bestCandidateDigitCount > 0) 30 else 100
+        if (bestMatch != null && highestScore >= minRequiredScore) {
+            safeLog("OtpExtractor", "Scored Engine Selected: $bestMatch with score $highestScore (threshold $minRequiredScore)")
             com.opensourcebhaiya.otpsync.utils.FileLogger.log(context, "[OtpExtractor] Final Decision: Extracted $bestMatch with score $highestScore")
             return ExtractionResult(bestMatch, extractExpiry(normalized, receivedTimeMs))
         }

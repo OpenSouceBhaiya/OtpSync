@@ -78,7 +78,7 @@ class OtpNotificationListenerService : NotificationListenerService() {
                 }
             }
             contentResolver.registerContentObserver(
-                android.provider.Telephony.Sms.Inbox.CONTENT_URI,
+                android.provider.Telephony.Sms.CONTENT_URI,
                 true,
                 observer
             )
@@ -115,7 +115,7 @@ class OtpNotificationListenerService : NotificationListenerService() {
                         val address = c.getString(c.getColumnIndexOrThrow("address")) ?: ""
                         val body = c.getString(c.getColumnIndexOrThrow("body")) ?: ""
                         val date = c.getLong(c.getColumnIndexOrThrow("date"))
-                        if (kotlin.math.abs(now - date) < 180_000L) { // Within last 3 minutes
+                        if (kotlin.math.abs(now - date) < 300_000L) { // Within last 5 minutes (handles clock skew)
                             val result = OtpExtractor.extractOtp(this@OtpNotificationListenerService, address, body, null, date)
                             if (result != null) {
                                 val otpCode = result.code
@@ -138,6 +138,9 @@ class OtpNotificationListenerService : NotificationListenerService() {
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification?) {
+        if (smsObserver == null) {
+            registerSmsObserver()
+        }
         if (sbn == null) return
         val packageName = sbn.packageName ?: return
 
@@ -150,42 +153,53 @@ class OtpNotificationListenerService : NotificationListenerService() {
             return
         }
         val extras = sbn.notification.extras
-        val title = extras.getString(Notification.EXTRA_TITLE) ?: ""
+        val title = extras.getCharSequence(Notification.EXTRA_TITLE)?.toString()
+            ?: extras.getCharSequence(Notification.EXTRA_TITLE_BIG)?.toString()
+            ?: ""
         val text = extras.getCharSequence(Notification.EXTRA_TEXT)?.toString() ?: ""
         val bigText = extras.getCharSequence(Notification.EXTRA_BIG_TEXT)?.toString() ?: ""
+        val subText = extras.getCharSequence(Notification.EXTRA_SUB_TEXT)?.toString() ?: ""
+        val summaryText = extras.getCharSequence(Notification.EXTRA_SUMMARY_TEXT)?.toString() ?: ""
+        val conversationTitle = extras.getCharSequence("android.conversationTitle")?.toString() ?: ""
         
         var messagesText = ""
-        val messagingStyle = androidx.core.app.NotificationCompat.MessagingStyle.extractMessagingStyleFromNotification(sbn.notification)
-        if (messagingStyle != null) {
-            for (msg in messagingStyle.messages) {
-                val msgText = msg.text?.toString()
-                if (!msgText.isNullOrBlank()) {
-                    messagesText += "$msgText\n"
-                }
-            }
-        } else {
-            val messages = extras.getParcelableArray(Notification.EXTRA_MESSAGES)
-            if (messages != null) {
-                for (msg in messages) {
-                    if (msg is android.os.Bundle) {
-                        val msgText = msg.getCharSequence("text")?.toString()
-                        if (!msgText.isNullOrBlank()) {
-                            messagesText += "$msgText\n"
-                        }
-                    } else {
-                        // Handle newer Android versions where it's a Notification.MessagingStyle.Message object
-                        try {
-                            val method = msg.javaClass.getMethod("getText")
-                            val msgText = method.invoke(msg)?.toString()
-                            if (!msgText.isNullOrBlank()) {
-                                messagesText += "$msgText\n"
-                            }
-                        } catch (e: Exception) {
-                            e.printStackTrace()
-                        }
+        try {
+            val messagingStyle = androidx.core.app.NotificationCompat.MessagingStyle.extractMessagingStyleFromNotification(sbn.notification)
+            if (messagingStyle != null) {
+                for (msg in messagingStyle.messages) {
+                    val msgText = msg.text?.toString()
+                    if (!msgText.isNullOrBlank()) {
+                        messagesText += "$msgText\n"
                     }
                 }
             }
+        } catch (_: Exception) {}
+
+        if (messagesText.isBlank()) {
+            try {
+                val messages = extras.getParcelableArray(Notification.EXTRA_MESSAGES)
+                if (messages != null) {
+                    for (msg in messages) {
+                        when (msg) {
+                            is android.os.Bundle -> {
+                                val msgText = msg.getCharSequence("text")?.toString()
+                                if (!msgText.isNullOrBlank()) {
+                                    messagesText += "$msgText\n"
+                                }
+                            }
+                            else -> {
+                                try {
+                                    val method = msg.javaClass.getMethod("getText")
+                                    val msgText = method.invoke(msg)?.toString()
+                                    if (!msgText.isNullOrBlank()) {
+                                        messagesText += "$msgText\n"
+                                    }
+                                } catch (_: Exception) {}
+                            }
+                        }
+                    }
+                }
+            } catch (_: Exception) {}
         }
 
         val allTextBuilder = StringBuilder()
@@ -197,6 +211,9 @@ class OtpNotificationListenerService : NotificationListenerService() {
         if (text.isNotBlank()) allTextBuilder.append(text).append("\n")
         if (bigText.isNotBlank() && bigText != text) allTextBuilder.append(bigText).append("\n")
         if (messagesText.isNotBlank()) allTextBuilder.append(messagesText).append("\n")
+        if (subText.isNotBlank() && subText != title) allTextBuilder.append(subText).append("\n")
+        if (summaryText.isNotBlank() && summaryText != title) allTextBuilder.append(summaryText).append("\n")
+        if (conversationTitle.isNotBlank() && conversationTitle != title) allTextBuilder.append(conversationTitle).append("\n")
         
         // Loop through all extras to catch hidden fields used by verified businesses / RCS
         try {
@@ -296,7 +313,6 @@ class OtpNotificationListenerService : NotificationListenerService() {
             extractedOtp = OtpExtractor.extractOtp(this, senderName, fullText, null, System.currentTimeMillis())
         }
 
-        val subText = extras.getCharSequence(Notification.EXTRA_SUB_TEXT)?.toString() ?: ""
         val appName = resolveSourceLabel(packageName)
         val finalAccountName = if (isSmsApp) {
             "SMS"
