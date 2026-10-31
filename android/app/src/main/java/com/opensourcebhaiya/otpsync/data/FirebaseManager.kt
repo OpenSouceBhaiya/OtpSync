@@ -144,19 +144,30 @@ class FirebaseManager {
         val tier3 = candidates.filter { it.tier == 3 }
 
         val targetsToSend: List<DeviceTargetCandidate> = when {
-            // Case 1: One or more devices explicitly signaled OTP intent / active login page
+            // Case 1: Devices explicitly signaled OTP intent / active login page
+            // Prioritize the specific device that most recently requested or focused the OTP
             tier1.isNotEmpty() -> {
-                Log.d("FirebaseManager", "Targeting ${tier1.size} device(s) with explicit OTP intent/login.")
-                tier1
+                val sorted = tier1.sortedByDescending { it.score }
+                val top = sorted.first()
+                val second = sorted.getOrNull(1)
+                // If top device requested it within 45s, target that specific device exclusively
+                if (second == null || (top.score - second.score > 5000L)) {
+                    Log.d("FirebaseManager", "Targeting primary requesting device ${top.uuid} with explicit OTP intent.")
+                    listOf(top)
+                } else {
+                    Log.d("FirebaseManager", "Targeting ${sorted.size} devices with concurrent OTP intent.")
+                    sorted
+                }
             }
 
-            // Case 2: One or more devices have active window focus or recent keyboard/mouse activity
+            // Case 2: Devices with active window focus or recent keyboard/mouse activity
             tier2.isNotEmpty() -> {
-                Log.d("FirebaseManager", "Targeting ${tier2.size} actively focused/used device(s).")
-                tier2
+                val sorted = tier2.sortedByDescending { it.score }
+                Log.d("FirebaseManager", "Targeting focused active device ${sorted.first().uuid}.")
+                listOf(sorted.first())
             }
 
-            // Case 3: Zero-drop guarantee: Even if phone screen is on, NEVER drop OTP. Target standby devices.
+            // Case 3: Standby devices (seen in last 3 minutes)
             tier3.isNotEmpty() -> {
                 Log.d("FirebaseManager", "Targeting ${tier3.size} standby device(s).")
                 tier3
@@ -173,36 +184,40 @@ class FirebaseManager {
             return emptyList()
         }
 
-        for (candidate in targetsToSend) {
-            val uuid = candidate.uuid
-            val keyBase64 = candidate.keyBase64
-            try {
-                // If only 1 specific device is targeted, mark payload with that UUID; otherwise 'ALL'
-                val targetTag = if (targetsToSend.size == 1) uuid else "ALL"
-                val encryptedData = encryptAesGcm(otpCode, sender, timestamp, expiresAt, keyBase64, targetTag)
-                otpsRef.child(uuid).setValue(encryptedData).await()
-                
-                // Only count device as sent recipient if it is genuinely ACTIVE (Tiers 1..3)
-                // Inactive / cold devices (Tier 4) are queued in mailbox but never reported as sent to UI
-                if (candidate.tier in 1..3) {
-                    sentDeviceUuids.add(uuid)
-                    Log.d("FirebaseManager", "OTP sent to active target device $uuid (tier: ${candidate.tier})")
-                } else {
-                    Log.d("FirebaseManager", "OTP queued in mailbox for inactive device $uuid (tier: 4)")
-                }
-
-                // Self-destruct the OTP from Firebase after 30 seconds.
-                managerScope.launch {
-                    kotlinx.coroutines.delay(30000)
+        // Concurrently dispatch to all selected target devices in parallel (0ms sequential delay)
+        coroutineScope {
+            targetsToSend.map { candidate ->
+                async {
+                    val uuid = candidate.uuid
+                    val keyBase64 = candidate.keyBase64
                     try {
-                        otpsRef.child(uuid).removeValue().await()
+                        val targetTag = if (targetsToSend.size == 1) uuid else "ALL"
+                        val encryptedData = encryptAesGcm(otpCode, sender, timestamp, expiresAt, keyBase64, targetTag)
+                        otpsRef.child(uuid).setValue(encryptedData).await()
+                        
+                        if (candidate.tier in 1..3) {
+                            synchronized(sentDeviceUuids) {
+                                sentDeviceUuids.add(uuid)
+                            }
+                            Log.d("FirebaseManager", "OTP sent to active target device $uuid (tier: ${candidate.tier})")
+                        } else {
+                            Log.d("FirebaseManager", "OTP queued in mailbox for inactive device $uuid (tier: 4)")
+                        }
+
+                        // Self-destruct the OTP from Firebase after 30 seconds
+                        managerScope.launch {
+                            delay(30000)
+                            try {
+                                otpsRef.child(uuid).removeValue().await()
+                            } catch (e: Exception) {
+                                Log.e("FirebaseManager", "Failed to self-destruct OTP", e)
+                            }
+                        }
                     } catch (e: Exception) {
-                        Log.e("FirebaseManager", "Failed to self-destruct OTP", e)
+                        Log.e("FirebaseManager", "Failed to encrypt/send OTP to device $uuid", e)
                     }
                 }
-            } catch (e: Exception) {
-                Log.e("FirebaseManager", "Failed to encrypt/send OTP to device $uuid", e)
-            }
+            }.awaitAll()
         }
 
         return sentDeviceUuids

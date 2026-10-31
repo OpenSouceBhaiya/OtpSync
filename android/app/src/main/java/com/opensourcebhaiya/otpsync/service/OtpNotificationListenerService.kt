@@ -19,16 +19,19 @@ class OtpNotificationListenerService : NotificationListenerService() {
     private lateinit var settingsManager: SettingsManager
 
     private var connectedListener: com.google.firebase.database.ValueEventListener? = null
+    private var smsObserver: android.database.ContentObserver? = null
 
     override fun onCreate() {
         super.onCreate()
         settingsManager = SettingsManager(this)
         Log.d("OtpNotification", "Notification Listener Service Created")
+        registerSmsObserver()
     }
 
     override fun onListenerConnected() {
         super.onListenerConnected()
         Log.d("OtpNotification", "Notification Listener Connected")
+        registerSmsObserver()
         connectedListener = com.google.firebase.database.FirebaseDatabase.getInstance().getReference(".info/connected")
             .addValueEventListener(object : com.google.firebase.database.ValueEventListener {
                 override fun onDataChange(snapshot: com.google.firebase.database.DataSnapshot) {
@@ -57,7 +60,81 @@ class OtpNotificationListenerService : NotificationListenerService() {
 
     override fun onDestroy() {
         super.onDestroy()
+        unregisterSmsObserver()
         Log.d("OtpNotification", "Notification Listener Service Destroyed")
+    }
+
+    private fun registerSmsObserver() {
+        if (smsObserver != null) return
+        if (androidx.core.content.ContextCompat.checkSelfPermission(this, android.Manifest.permission.READ_SMS) != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            return
+        }
+        try {
+            val observer = object : android.database.ContentObserver(android.os.Handler(android.os.Looper.getMainLooper())) {
+                override fun onChange(selfChange: Boolean, uri: android.net.Uri?) {
+                    super.onChange(selfChange, uri)
+                    if (!settingsManager.isSyncEnabled()) return
+                    checkLatestSmsInbox()
+                }
+            }
+            contentResolver.registerContentObserver(
+                android.provider.Telephony.Sms.Inbox.CONTENT_URI,
+                true,
+                observer
+            )
+            smsObserver = observer
+            com.opensourcebhaiya.otpsync.utils.FileLogger.log(this, "ContentObserver registered on SMS inbox successfully.")
+        } catch (e: Exception) {
+            Log.e("OtpNotification", "Failed to register SMS ContentObserver", e)
+        }
+    }
+
+    private fun unregisterSmsObserver() {
+        smsObserver?.let {
+            try {
+                contentResolver.unregisterContentObserver(it)
+            } catch (_: Exception) {}
+            smsObserver = null
+        }
+    }
+
+    private fun checkLatestSmsInbox() {
+        if (androidx.core.content.ContextCompat.checkSelfPermission(this, android.Manifest.permission.READ_SMS) != android.content.pm.PackageManager.PERMISSION_GRANTED) return
+        scope.launch {
+            try {
+                val cursor = contentResolver.query(
+                    android.provider.Telephony.Sms.Inbox.CONTENT_URI,
+                    arrayOf("address", "body", "date"),
+                    null,
+                    null,
+                    "date DESC LIMIT 3"
+                )
+                cursor?.use { c ->
+                    val now = System.currentTimeMillis()
+                    while (c.moveToNext()) {
+                        val address = c.getString(c.getColumnIndexOrThrow("address")) ?: ""
+                        val body = c.getString(c.getColumnIndexOrThrow("body")) ?: ""
+                        val date = c.getLong(c.getColumnIndexOrThrow("date"))
+                        if (kotlin.math.abs(now - date) < 180_000L) { // Within last 3 minutes
+                            val result = OtpExtractor.extractOtp(this@OtpNotificationListenerService, address, body, null, date)
+                            if (result != null) {
+                                val otpCode = result.code
+                                val status = com.opensourcebhaiya.otpsync.utils.OtpCache.recordSmsArrival(otpCode, address)
+                                if (status == com.opensourcebhaiya.otpsync.utils.OtpArrivalStatus.SAME_SMS_DUPLICATE) {
+                                    // Already processed via SmsReceiver or notification
+                                    return@launch
+                                }
+                                com.opensourcebhaiya.otpsync.utils.FileLogger.log(this@OtpNotificationListenerService, "ContentObserver extracted SMS OTP: $otpCode from $address")
+                                handleExtractedOtp(result, address, "SMS", "sms_inbox")
+                                return@launch
+                            }
+                        }
+                    }
+                }
+            } catch (e: Exception) {
+                Log.e("OtpNotification", "Error checking SMS inbox from ContentObserver", e)
+            }
+        }
     }
 
     override fun onNotificationPosted(sbn: StatusBarNotification?) {
@@ -153,10 +230,20 @@ class OtpNotificationListenerService : NotificationListenerService() {
             e.printStackTrace()
         }
 
+        val actions = sbn.notification.actions
+        if (actions != null) {
+            for (action in actions) {
+                val actionTitle = action.title?.toString()
+                if (!actionTitle.isNullOrBlank()) {
+                    allTextBuilder.append(actionTitle).append("\n")
+                }
+            }
+        }
+
         val fullText = allTextBuilder.toString().trim()
         if (fullText.isBlank() && title.isBlank()) return
         
-        val isSmsApp = packageName.contains("messaging") || packageName.contains("mms") || packageName.contains(".sms") || packageName.contains("telephony")
+        val isSmsApp = packageName.contains("messaging") || packageName.contains("mms") || packageName.contains(".sms") || packageName.contains("telephony") || packageName.contains("truecaller") || packageName.contains("message")
         com.opensourcebhaiya.otpsync.utils.FileLogger.log(this, "Notification Received - Pkg: $packageName, Title: $title, Text length: ${fullText.length}")
         
         if (fullText.contains("Sensitive notification content hidden") || title.contains("Sensitive notification content hidden")) {
@@ -246,7 +333,7 @@ class OtpNotificationListenerService : NotificationListenerService() {
                         
                         com.opensourcebhaiya.otpsync.utils.FileLogger.log(this@OtpNotificationListenerService, "Fallback check: $address - ${currentT - date}ms ago")
                         
-                        if (currentT - date < 180000) { // Consider SMS received in the last 3 minutes
+                        if (kotlin.math.abs(currentT - date) < 300000L) { // Consider SMS received in the last 5 minutes (resilient to carrier clock skew)
                             val fallbackOtp = OtpExtractor.extractOtp(this@OtpNotificationListenerService, address, body, null, date)
                             if (fallbackOtp != null) {
                                 com.opensourcebhaiya.otpsync.utils.FileLogger.log(this@OtpNotificationListenerService, "Success! Instant fallback extracted SMS OTP: ${fallbackOtp.code} from $address")

@@ -101,7 +101,34 @@ class SmsReceiver : BroadcastReceiver() {
                 val pendingResult = goAsync()
                 scope.launch {
                     try {
-                        // 2. INSTANT Firebase Cloud Broadcast
+                        val db = AppDatabase.getDatabase(context)
+
+                        // 1. INSTANT Room Database Insertion & Channel Merge (0ms latency, runs FIRST before network)
+                        AppDatabase.insertMutex.withLock {
+                            val existing = db.otpDao().getOtpByCodeRecent(otpCode, System.currentTimeMillis() - 6 * 60 * 1000L)
+                            if (existing == null) {
+                                db.otpDao().insertOtp(OtpEntity(
+                                    id = UUID.randomUUID().toString(),
+                                    code = otpCode,
+                                    sender = sender,
+                                    subject = sender,
+                                    account = "SMS",
+                                    receivedAt = System.currentTimeMillis(),
+                                    expiresAt = extractedOtp.expiresAt ?: (System.currentTimeMillis() + 5 * 60 * 1000L),
+                                    sourcePackage = "sms",
+                                    sentToDevices = null
+                                ))
+                            } else {
+                                val mergedAccount = if (!existing.account.contains("SMS")) "${existing.account} + SMS" else existing.account
+                                val updated = existing.copy(
+                                    account = mergedAccount,
+                                    receivedAt = System.currentTimeMillis()
+                                )
+                                db.otpDao().updateOtp(updated)
+                            }
+                        }
+
+                        // 2. INSTANT Firebase Cloud Broadcast (Parallel, non-blocking)
                         val firebaseManager = FirebaseManager()
                         val currentTime = java.text.SimpleDateFormat("MMM dd, hh:mm a", java.util.Locale.getDefault()).format(java.util.Date())
                         val allKeys = settingsManager.getAllLinkedDeviceKeys()
@@ -109,11 +136,18 @@ class SmsReceiver : BroadcastReceiver() {
                             settingsManager.updateLinkedDeviceLastOtpTime(deviceId, currentTime)
                         }
 
+                        val powerManager = context.getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager
+                        val keyguardManager = context.getSystemService(Context.KEYGUARD_SERVICE) as? android.app.KeyguardManager
+                        val isScreenOn = powerManager?.isInteractive ?: false
+                        val isLocked = keyguardManager?.isKeyguardLocked ?: false
+                        val isPhoneInUse = isScreenOn && !isLocked
+
                         val sentDeviceUuids = firebaseManager.broadcastOtp(
                             otpCode = otpCode,
                             sender = sender,
                             activeDeviceKeys = allKeys,
-                            expiresAt = extractedOtp.expiresAt ?: (System.currentTimeMillis() + 5 * 60 * 1000L)
+                            expiresAt = extractedOtp.expiresAt ?: (System.currentTimeMillis() + 5 * 60 * 1000L),
+                            isPhoneInteractive = isPhoneInUse
                         )
 
                         val sentDeviceNames = if (sentDeviceUuids.isNotEmpty()) {
@@ -127,30 +161,12 @@ class SmsReceiver : BroadcastReceiver() {
                             null
                         }
 
-                        // 3. ASYNC Room Database Insertion & Channel Merge (Never delays user clipboard/cloud broadcast)
-                        val db = AppDatabase.getDatabase(context)
-                        AppDatabase.insertMutex.withLock {
-                            var existing = db.otpDao().getOtpByCodeRecent(otpCode, System.currentTimeMillis() - 6 * 60 * 1000L)
-                            if (existing == null) {
-                                db.otpDao().insertOtp(OtpEntity(
-                                    id = UUID.randomUUID().toString(),
-                                    code = otpCode,
-                                    sender = sender,
-                                    subject = sender,
-                                    account = "SMS",
-                                    receivedAt = System.currentTimeMillis(),
-                                    expiresAt = extractedOtp.expiresAt ?: (System.currentTimeMillis() + 5 * 60 * 1000L),
-                                    sourcePackage = "sms",
-                                    sentToDevices = sentToDevicesString
-                                ))
-                            } else {
-                                val mergedAccount = if (!existing.account.contains("SMS")) "${existing.account} + SMS" else existing.account
-                                val updated = existing.copy(
-                                    account = mergedAccount,
-                                    receivedAt = System.currentTimeMillis(),
-                                    sentToDevices = sentToDevicesString ?: existing.sentToDevices
-                                )
-                                db.otpDao().updateOtp(updated)
+                        if (sentToDevicesString != null) {
+                            AppDatabase.insertMutex.withLock {
+                                val current = db.otpDao().getOtpByCodeRecent(otpCode, System.currentTimeMillis() - 6 * 60 * 1000L)
+                                if (current != null) {
+                                    db.otpDao().updateOtp(current.copy(sentToDevices = sentToDevicesString))
+                                }
                             }
                         }
                     } catch (e: Exception) {
