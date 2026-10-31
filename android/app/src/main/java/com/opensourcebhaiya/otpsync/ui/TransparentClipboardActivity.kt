@@ -78,17 +78,17 @@ class TransparentClipboardActivity : Activity() {
 
             val alreadyOnClipboard = (currentClip == code)
 
-            // Only invoke setPrimaryClip if the code isn't already on the clipboard,
+            // Only invoke setPrimaryClip if the code isn't already on the clipboard and not a duplicate,
             // preventing Android 13+ OS from displaying a secondary 'Copied' overlay over our toast
-            if (!alreadyOnClipboard) {
+            if (!alreadyOnClipboard && !isDuplicate) {
                 val clip = ClipData.newPlainText("OTP", code)
                 clipboard.setPrimaryClip(clip)
             }
             Log.d("TransparentClipboard", "Copied OTP status: $code (isDuplicate: $isDuplicate, alreadyOnClipboard: $alreadyOnClipboard)")
 
-            if (isDuplicate) {
-                com.opensourcebhaiya.otpsync.utils.ToastManager.show(this, "Same OTP already copied: $code", android.widget.Toast.LENGTH_SHORT)
-            } else if (!alreadyOnClipboard && Build.VERSION.SDK_INT <= 32) {
+            if (isDuplicate || alreadyOnClipboard) {
+                com.opensourcebhaiya.otpsync.utils.ToastManager.show(this, "Same OTP already on clipboard: $code", android.widget.Toast.LENGTH_SHORT)
+            } else if (Build.VERSION.SDK_INT <= 32) {
                 com.opensourcebhaiya.otpsync.utils.ToastManager.show(this, "OTP Sync: OTP Copied ✔️", android.widget.Toast.LENGTH_SHORT)
             }
 

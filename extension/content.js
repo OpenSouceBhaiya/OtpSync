@@ -79,20 +79,23 @@ function playNotificationChime() {
 {
     chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         if (request.action === "show_toast_and_copy") {
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(request.otp).catch(() => {});
-            } else {
-                try {
-                    const textArea = document.createElement("textarea");
-                    textArea.value = request.otp;
-                    textArea.style.position = "fixed";
-                    textArea.style.opacity = "0";
-                    document.body.appendChild(textArea);
-                    textArea.focus();
-                    textArea.select();
-                    document.execCommand('copy');
-                    document.body.removeChild(textArea);
-                } catch (e) { }
+            // Only write to clipboard if NOT an already-copied duplicate
+            if (!request.isDuplicate) {
+                if (navigator.clipboard && navigator.clipboard.writeText) {
+                    navigator.clipboard.writeText(request.otp).catch(() => {});
+                } else {
+                    try {
+                        const textArea = document.createElement("textarea");
+                        textArea.value = request.otp;
+                        textArea.style.position = "fixed";
+                        textArea.style.opacity = "0";
+                        document.body.appendChild(textArea);
+                        textArea.focus();
+                        textArea.select();
+                        document.execCommand('copy');
+                        document.body.removeChild(textArea);
+                    } catch (e) { }
+                }
             }
             
             showToast(request.otp, request.sender, request.isCarryForward, request.timeRemaining, request.showUntil, Boolean(request.isDuplicate));

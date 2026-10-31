@@ -256,42 +256,51 @@ class OtpNotificationListenerService : NotificationListenerService() {
 
         val senderName = title.takeIf { it.isNotBlank() } ?: packageName
 
-        // 1. Check individual lines first (handles Gmail, Outlook, WhatsApp with 20-50 grouped messages)
-        val textLines = extras.getCharSequenceArray(Notification.EXTRA_TEXT_LINES)
+        // 1. Check clean, unpolluted message fields first
         var extractedOtp: com.opensourcebhaiya.otpsync.data.ExtractionResult? = null
+        if (bigText.isNotBlank()) {
+            extractedOtp = OtpExtractor.extractOtp(this, senderName, bigText, null, System.currentTimeMillis())
+            if (extractedOtp != null) {
+                com.opensourcebhaiya.otpsync.utils.FileLogger.log(this, "Found OTP in bigText: ${extractedOtp.code}")
+            }
+        }
+        if (extractedOtp == null && text.isNotBlank() && text != bigText) {
+            extractedOtp = OtpExtractor.extractOtp(this, senderName, text, null, System.currentTimeMillis())
+            if (extractedOtp != null) {
+                com.opensourcebhaiya.otpsync.utils.FileLogger.log(this, "Found OTP in text: ${extractedOtp.code}")
+            }
+        }
+        if (extractedOtp == null && messagesText.isNotBlank()) {
+            extractedOtp = OtpExtractor.extractOtp(this, senderName, messagesText, null, System.currentTimeMillis())
+            if (extractedOtp != null) {
+                com.opensourcebhaiya.otpsync.utils.FileLogger.log(this, "Found OTP in messagesText: ${extractedOtp.code}")
+            }
+        }
 
-        if (textLines != null && textLines.isNotEmpty()) {
+        // 2. Check individual lines (handles Gmail, Outlook, WhatsApp with grouped messages)
+        val textLines = extras.getCharSequenceArray(Notification.EXTRA_TEXT_LINES)
+        if (extractedOtp == null && textLines != null && textLines.isNotEmpty()) {
             for (line in textLines) {
                 val lineStr = line?.toString() ?: continue
-                val res = OtpExtractor.extractOtp(
-                    context = this,
-                    subject = senderName,
-                    bodyText = lineStr,
-                    bodyHtml = null,
-                    receivedTimeMs = System.currentTimeMillis()
-                )
+                val res = OtpExtractor.extractOtp(this, senderName, lineStr, null, System.currentTimeMillis())
                 if (res != null) {
                     extractedOtp = res
-                    com.opensourcebhaiya.otpsync.utils.FileLogger.log(this, "Found OTP in grouped notification line: ${res.code}")
+                    com.opensourcebhaiya.otpsync.utils.FileLogger.log(this, "Found OTP in grouped line: ${res.code}")
                     break
                 }
             }
         }
 
-        // 2. If not found in individual lines, evaluate fullText as a whole
-        if (extractedOtp == null) {
-            extractedOtp = OtpExtractor.extractOtp(
-                context = this,
-                subject = senderName,
-                bodyText = fullText,
-                bodyHtml = null,
-                receivedTimeMs = System.currentTimeMillis()
-            )
+        // 3. Fallback to fullText evaluated as a whole
+        if (extractedOtp == null && fullText.isNotBlank()) {
+            extractedOtp = OtpExtractor.extractOtp(this, senderName, fullText, null, System.currentTimeMillis())
         }
 
         val subText = extras.getCharSequence(Notification.EXTRA_SUB_TEXT)?.toString() ?: ""
         val appName = resolveSourceLabel(packageName)
-        val finalAccountName = if (subText.isNotBlank()) {
+        val finalAccountName = if (isSmsApp) {
+            "SMS"
+        } else if (subText.isNotBlank()) {
             "$subText ($appName)"
         } else {
             appName

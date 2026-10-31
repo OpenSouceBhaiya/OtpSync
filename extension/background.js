@@ -564,6 +564,15 @@ async function handleEncryptedOtp(ivBase64, dataBase64, cryptoKey) {
         // 1. Copy to clipboard immediately
         await copyToClipboard(otpCode);
 
+        // 1.5 Set badge on extension toolbar icon (visible even on chrome://newtab and system pages)
+        try {
+            chrome.action.setBadgeText({ text: otpCode.length > 4 ? otpCode.substring(0, 4) : otpCode });
+            chrome.action.setBadgeBackgroundColor({ color: '#10b981' });
+            setTimeout(() => {
+                chrome.action.setBadgeText({ text: '' });
+            }, 60000);
+        } catch (_) {}
+
         // 2. Auto-clear clipboard after 60s
         setTimeout(() => copyToClipboard(' '), 60000);
 
@@ -672,8 +681,8 @@ function showNativeNotification(otpCode, sender, isDuplicate = false) {
             title: title,
             message: message,
             priority: 2,
-            silent: true,
-            requireInteraction: false
+            silent: false,
+            requireInteraction: true
         }, () => {});
     } catch (_) {}
 }

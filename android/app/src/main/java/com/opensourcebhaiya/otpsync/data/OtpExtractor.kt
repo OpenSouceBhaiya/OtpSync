@@ -158,6 +158,9 @@ object OtpExtractor {
         // 7. Bank SMS, GST & service template with context before "is/are/:"
         Regex("(?i)\\b(?:one[- ]time\\s+(?:password|passcode|code|pin)|verification\\s+(?:code|pin|token|otp)|security\\s+(?:code|pin|token|otp)|auth(?:entication|orization)?\\s+(?:code|pin|token|otp)|confirm(?:ation)?\\s+(?:code|pin|token|otp)|login\\s+(?:code|pin|token|otp)|sign[- ]in\\s+(?:code|pin|token|otp)|access\\s+(?:code|pin|token|otp)|delivery\\s+otp|pickup\\s+otp|secret\\s+(?:code|pin)|passcode|a?otp|[\\w-]+\\s+(?:otp|code)|pin)(?:[^.!\n\r]{0,80})(?<!\\d)(?:is|are|es|est|lautet|é|è|:|=)(?!\\d)\\s*[:=]?\\s*([0-9A-Za-z]{4,10})\\b"),
 
+        // 7b. Universal service/brand OTP template: "Your OTP for Internet Lifestyle Hub is 123456", "OTP to login to Portal is 849201"
+        Regex("(?i)\\b(?:your|the)?\\s*(?:a?otp|code|pin|passcode|verification\\s+code)\\s+(?:for|to)\\s+[^.!,:\n\r]{1,40}?\\s+is\\s*[:=]?\\s*([0-9A-Za-z]{4,10})\\b"),
+
         // 8. Direct keyword + colon/dash/is + OTP: "Telegram code: 49201", "WhatsApp code: 829104", "Код: 582914", "رمز: 83910"
         Regex("(?i)(?:^|[^\\p{L}\\p{Nd}])(?:code|otp|pin|passcode|[Кк]од|[Пп]ароль|رمز|کد|कोड)\\s*(?:is\\s*:?|:|=)\\s*[:=]?\\s*([0-9A-Za-z]{4,10})\\b"),
 
@@ -338,8 +341,16 @@ object OtpExtractor {
 
         // 5. Collapse 2-4 digit chunks separated by hyphens or spaces up to 10 total digits: e.g. "849-201-92" -> "84920192", "829-104" -> "829104", "392 810" -> "392810"
         normalized = normalized.replace(Regex("\\b(\\d{2,4})[- ](\\d{2,4})(?:[- ](\\d{2,4}))?\\b")) { m ->
-            val joined = m.groupValues.drop(1).filter { it.isNotEmpty() }.joinToString("")
-            if (joined.length in 4..10) joined else m.value
+            val g1 = m.groupValues[1]
+            val g2 = m.groupValues[2]
+            val g3 = m.groupValues[3]
+            // Don't collapse year ranges like 2026-27 (4 digits starting with 19/20 followed by 2 digits)
+            if (g1.length == 4 && (g1.startsWith("19") || g1.startsWith("20")) && g2.length == 2 && g3.isEmpty()) {
+                m.value
+            } else {
+                val joined = m.groupValues.drop(1).filter { it.isNotEmpty() }.joinToString("")
+                if (joined.length in 4..10) joined else m.value
+            }
         }
 
         // 6. Normalize brackets wrapping codes: e.g. "[492018]" -> " 492018 "
@@ -410,6 +421,10 @@ object OtpExtractor {
 
     private fun isMaskedCardOrAccount(text: String, startPos: Int): Boolean {
         val prefix = text.substring(maxOf(0, startPos - 35), startPos).lowercase()
+        // If candidate is preceded by explicit OTP keyword, it is definitely an OTP, not a masked card/account!
+        if (Regex("(?i)(?:otp|code|pin|passcode|código|clave|код|ओटीपी|पिन)\\s*(?:is|:|=|-|है)?\\s*$").containsMatchIn(prefix)) {
+            return false
+        }
         // Matches "ending 4821", "terminada en 4821", "terminata con 4821", "card ending 4821", "a/c ending 4821", "**4821", "xx4821", "المنتهي برقم"
         return Regex("(?:ending(?:\\s+in|\\s+with)?|terminada\\s+en|terminata\\s+con|finissant\\s+par|endend\\s+auf|card|tarjeta|carte|karte|a/c|ac|account|cuenta|compte|konto|kart|المنتهي(?:\\s+برقم)?|खाता|कार्ड)\\s*[:#]?\\s*[*xX]*\\s*$").containsMatchIn(prefix) ||
                Regex("[*xX]{2,}\\s*$").containsMatchIn(prefix)
@@ -433,7 +448,11 @@ object OtpExtractor {
 
     private fun isIdentifierOrReference(text: String, startPos: Int): Boolean {
         val prefix = text.substring(maxOf(0, startPos - 35), startPos).lowercase()
-        return Regex("(?:ref(?:erence|erencia|érence)?|riferimento|order|pedido|commande|bestellung|ordine|operaci[oó]n|vorgang|transacci[oó]n|transazione|transaction|operazione|заказ|订单|注文|sipariş|مرجع|رقم\\s+المرجع|संदर्भ|txn|ticket|case|awb|tracking|单号|快递单号|invoice|factura|rechnung|statement|beneficiary|destinatario|empfänger|bénéficiaire|store|tienda|magasin|arn|srn|urn|pran|uan|crn|cif|pan|tan|din|cin|gstin|reg[- ]?\\d*|form[- ]?\\d*|acknowledg(?:e)?ment|application|registration|challan|complaint|notice|circular|appeal|assessment)\\s*(?:(?:no\\.?|num(?:ber)?|id|#|:|-|=)\\s*(?:[a-z]{1,4}[- ]?)?|\\s)\\s*$").containsMatchIn(prefix)
+        // If candidate is preceded by explicit OTP keyword, it is definitely an OTP!
+        if (Regex("(?i)(?:otp|code|pin|passcode|código|clave|код|ओटीपी|पिन)\\s*(?:is|:|=|-|है)?\\s*$").containsMatchIn(prefix)) {
+            return false
+        }
+        return Regex("(?:ref(?:erence|erencia|érence)?|riferimento|order|pedido|commande|bestellung|ordine|operaci[oó]n|vorgang|transacci[oó]n|transazione|transaction|operazione|заказ|订单|注文|sipariş|مرجع|رقم\\s+المرجع|संदर्भ|txn|ticket|case|awb|tracking|单号|快递单号|invoice|factura|rechnung|statement|beneficiary|destinatario|empfänger|bénéficiaire|store|tienda|magasin|arn|srn|urn|pran|uan|crn|cif|pan|tan|din|cin|gstin|pnr|ack|reg[- ]?\\d*|form[- ]?\\d*|acknowledg(?:e)?ment|application|registration|challan|complaint|notice|circular|appeal|assessment)\\s*(?:(?:no\\.?|num(?:ber)?|id|#|:|-|=)\\s*(?:[a-z]{1,4}[- ]?)?|\\s)\\s*$").containsMatchIn(prefix)
     }
 
     private fun isPincode(text: String, startPos: Int, candidate: String): Boolean {
