@@ -16,8 +16,9 @@ enum class OtpArrivalStatus {
 
 object OtpCache {
     private val recentOtps = mutableListOf<CachedOtpRecord>()
-    private const val DEDUP_WINDOW_MS = 120_000L // 2-minute debounce window for matching brands/senders
-    private const val STRICT_IDENTICAL_WINDOW_MS = 120_000L // 2-minute window for exact same OTP code
+    private const val MAX_RETENTION_MS = 600_000L // 10-minute maximum window for duplicate detection. After 10 mins, resets to fresh normal OTP
+    private const val DEDUP_WINDOW_MS = 600_000L // 10-minute debounce window for matching brands/senders
+    private const val STRICT_IDENTICAL_WINDOW_MS = 600_000L // 10-minute window for exact same OTP code
     private const val SIMULTANEOUS_BURST_MS = 45_000L // 45s window: captures SMS-to-Notification delays, dual SMS+Email, and notification updates without re-copying
 
     @Synchronized
@@ -25,7 +26,7 @@ object OtpCache {
         val sanitized = code.replace("\\s".toRegex(), "")
         if (sanitized.isBlank()) return OtpArrivalStatus.NEW
         val now = System.currentTimeMillis()
-        recentOtps.removeAll { now - it.timestamp > 180_000L }
+        recentOtps.removeAll { now - it.timestamp > MAX_RETENTION_MS }
 
         val existing = recentOtps.find { it.code == sanitized }
         return if (existing == null) {
@@ -48,7 +49,7 @@ object OtpCache {
         val sanitized = code.replace("\\s".toRegex(), "")
         if (sanitized.isBlank()) return OtpArrivalStatus.NEW
         val now = System.currentTimeMillis()
-        recentOtps.removeAll { now - it.timestamp > 180_000L }
+        recentOtps.removeAll { now - it.timestamp > MAX_RETENTION_MS }
 
         val isSmsApp = sourcePackage.contains("messaging") || sourcePackage.contains("mms") || sourcePackage.contains("sms") || sourcePackage.contains("telephony") || sourcePackage.contains("truecaller")
         val currentChannel = if (isSmsApp) "SMS" else if (accountName.contains("gmail", ignoreCase = true) || sourcePackage.contains("android.gm")) "Gmail" else accountName
@@ -88,8 +89,8 @@ object OtpCache {
         if (sanitizedCode.isBlank()) return OtpArrivalStatus.NEW
         val now = System.currentTimeMillis()
 
-        // Purge expired records older than 3 minutes
-        recentOtps.removeAll { now - it.timestamp > 180_000L }
+        // Purge expired records older than 10 minutes
+        recentOtps.removeAll { now - it.timestamp > MAX_RETENTION_MS }
 
         val senderTokens = extractSignificantTokens(sender)
 

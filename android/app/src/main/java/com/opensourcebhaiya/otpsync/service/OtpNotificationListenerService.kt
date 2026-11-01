@@ -450,11 +450,6 @@ class OtpNotificationListenerService : NotificationListenerService() {
             try {
                 val firebaseManager = com.opensourcebhaiya.otpsync.data.FirebaseManager()
                 val keys = settingsManager.getAllLinkedDeviceKeys()
-                val currentTime = java.text.SimpleDateFormat("MMM dd, hh:mm a", java.util.Locale.getDefault()).format(java.util.Date())
-                for (deviceId in keys.keys) {
-                    settingsManager.updateLinkedDeviceLastOtpTime(deviceId, currentTime)
-                }
-
                 val powerManager = getSystemService(android.content.Context.POWER_SERVICE) as? android.os.PowerManager
                 val keyguardManager = getSystemService(android.content.Context.KEYGUARD_SERVICE) as? android.app.KeyguardManager
                 val isScreenOn = powerManager?.isInteractive ?: false
@@ -470,6 +465,10 @@ class OtpNotificationListenerService : NotificationListenerService() {
                 )
 
                 val sentDeviceNames = if (sentDeviceUuids.isNotEmpty()) {
+                    val currentTime = java.text.SimpleDateFormat("MMM dd, hh:mm a", java.util.Locale.getDefault()).format(java.util.Date())
+                    for (deviceId in sentDeviceUuids) {
+                        settingsManager.updateLinkedDeviceLastOtpTime(deviceId, currentTime)
+                    }
                     sentDeviceUuids.map { settingsManager.getLinkedDeviceName(it) }.distinct()
                 } else {
                     emptyList()

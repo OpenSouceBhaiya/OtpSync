@@ -124,7 +124,7 @@ fun DiagnosticsScreen(
                 appendLine(recentLogs)
             }
             clipboard.setPrimaryClip(ClipData.newPlainText("OTP Sync Diagnostics", sysSummary))
-            ToastManager.show(context, "Recent logs copied to clipboard!", android.widget.Toast.LENGTH_SHORT)
+            ToastManager.showCopyToast(context, "Copied")
         } catch (e: Exception) {
             ToastManager.show(context, "Clipboard error: ${e.message}. Use 'Export Logs' button.", android.widget.Toast.LENGTH_LONG)
         }

@@ -167,16 +167,17 @@ class FirebaseManager {
                 listOf(sorted.first())
             }
 
-            // Case 3: Standby devices (seen in last 3 minutes)
+            // Case 3: Online Standby devices (seen in last 3 minutes)
             tier3.isNotEmpty() -> {
-                Log.d("FirebaseManager", "Targeting ${tier3.size} standby device(s).")
+                Log.d("FirebaseManager", "Targeting ${tier3.size} online standby device(s).")
                 tier3
             }
 
-            // Case 4: Zero-drop fail-safe: Ambiguity or all reported cold -> Broadcast to ALL linked devices!
+            // Case 4: All linked devices are offline / shut down (Tier 4)
+            // DO NOT SEND! A shut-down device cannot receive or use an OTP.
             else -> {
-                Log.d("FirebaseManager", "Fail-safe: Ambiguity detected. Broadcasting to all linked devices to ensure zero dropped OTPs.")
-                candidates
+                Log.d("FirebaseManager", "All linked devices are OFFLINE or shut down. No devices targeted.")
+                emptyList()
             }
         }
 
@@ -195,14 +196,10 @@ class FirebaseManager {
                         val encryptedData = encryptAesGcm(otpCode, sender, timestamp, expiresAt, keyBase64, targetTag)
                         otpsRef.child(uuid).setValue(encryptedData).await()
                         
-                        if (candidate.tier in 1..3) {
-                            synchronized(sentDeviceUuids) {
-                                sentDeviceUuids.add(uuid)
-                            }
-                            Log.d("FirebaseManager", "OTP sent to active target device $uuid (tier: ${candidate.tier})")
-                        } else {
-                            Log.d("FirebaseManager", "OTP queued in mailbox for inactive device $uuid (tier: 4)")
+                        synchronized(sentDeviceUuids) {
+                            sentDeviceUuids.add(uuid)
                         }
+                        Log.d("FirebaseManager", "OTP sent to active target device $uuid (tier: ${candidate.tier})")
 
                         // Self-destruct the OTP from Firebase after 30 seconds
                         managerScope.launch {
@@ -259,7 +256,7 @@ class FirebaseManager {
         }
 
         val status = snapshot.child("status").getValue(String::class.java)
-        if (status == "terminated" || status == "paused") {
+        if (status == "terminated" || status == "paused" || status == "inactive") {
             return DeviceTargetCandidate(uuid, key, 4, 0L)
         }
 
@@ -292,9 +289,9 @@ class FirebaseManager {
             return DeviceTargetCandidate(uuid, key, 2, score)
         }
 
-        // Tier 3: Recent Heartbeat (Seen or active within last 5 minutes)
+        // Tier 3: Recent Heartbeat (Seen or active within last 3 minutes)
         val effectiveLastSeen = maxOf(lastSeen, lastActive)
-        if (now - effectiveLastSeen in 0..300000) {
+        if (effectiveLastSeen > 0L && now - effectiveLastSeen in 0..180000) {
             return DeviceTargetCandidate(uuid, key, 3, effectiveLastSeen)
         }
 

@@ -128,6 +128,9 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     } else if (message.action === "copy_to_clipboard") {
         copyToClipboard(message.text);
     } else if (message.action === "pc_login_detected") {
+        if (sender && sender.tab && sender.tab.id) {
+            activeLoginTabs.add(sender.tab.id);
+        }
         chrome.storage.local.get(['uuid'], (data) => {
             if (!data.uuid) return;
             sendDeviceHeartbeat(data.uuid, true);
@@ -137,12 +140,17 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             }).catch(() => {});
         });
     } else if (message.action === "pc_login_cleared") {
-        chrome.storage.local.get(['uuid'], (data) => {
-            if (!data.uuid) return;
-            fetch(`https://otpsync-adf52-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${data.uuid}/pcLoginActive.json`, {
-                method: 'DELETE'
-            }).catch(() => {});
-        });
+        if (sender && sender.tab && sender.tab.id) {
+            activeLoginTabs.delete(sender.tab.id);
+        }
+        if (activeLoginTabs.size === 0) {
+            chrome.storage.local.get(['uuid'], (data) => {
+                if (!data.uuid) return;
+                fetch(`https://otpsync-adf52-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${data.uuid}/pcLoginActive.json`, {
+                    method: 'DELETE'
+                }).catch(() => {});
+            });
+        }
     } else if (message.action === "otp_intent") {
         chrome.storage.local.get(['uuid'], (data) => {
             if (!data.uuid) return;
@@ -210,6 +218,22 @@ let iconAnimInterval = null;
 let currentIconState = 'none';
 // Track current UUID so we know if a new QR scan happened
 let currentUuid = null;
+const activeLoginTabs = new Set();
+
+chrome.tabs.onRemoved.addListener((tabId) => {
+    if (activeLoginTabs.has(tabId)) {
+        activeLoginTabs.delete(tabId);
+        if (activeLoginTabs.size === 0) {
+            chrome.storage.local.get(['uuid'], (data) => {
+                if (data.uuid) {
+                    fetch(`https://otpsync-adf52-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${data.uuid}/pcLoginActive.json`, {
+                        method: 'DELETE'
+                    }).catch(() => {});
+                }
+            });
+        }
+    }
+});
 
 // ─── Toolbar Icon with Animated Dot ──────────────────────────────────────────
 async function setToolbarIcon(state) {
@@ -510,11 +534,13 @@ async function handleEncryptedOtp(ivBase64, dataBase64, cryptoKey) {
         const sender = parts[1].trim();
 
         // Smart Deduplication:
-        // 1. Simultaneous dual arrival (< 2.5s e.g. concurrent SMS + Email dispatch): suppress to avoid double chime/toast.
-        // 2. Provider re-send (between 2.5s and 120s): re-copy to clipboard and show an extended toast (9s) notifying user it's the same OTP already on clipboard.
+        // 1. Simultaneous dual arrival (< 2.5s e.g. concurrent SMS + Email dispatch): suppress duplicate toast/chime.
+        // 2. Provider re-send within 10 minutes (600,000 ms): re-copy to clipboard and show an extended toast notifying user it's a re-sent OTP.
+        // 3. After 10 minutes: completely reset and treat as a fresh new OTP.
         const now = Date.now();
         const stored = await chrome.storage.local.get(['recentDeliveredOtps']);
-        let recentList = (stored.recentDeliveredOtps || []).filter(item => (now - item.time) < 180000);
+        const TEN_MINUTES_MS = 600000;
+        let recentList = (stored.recentDeliveredOtps || []).filter(item => (now - item.time) < TEN_MINUTES_MS);
 
         function extractTokens(str) {
             if (!str) return [];
@@ -530,11 +556,8 @@ async function handleEncryptedOtp(ivBase64, dataBase64, cryptoKey) {
         const matchedIndex = recentList.findIndex(item => {
             if (item.otp === otpCode) {
                 const elapsed = now - item.time;
-                if (elapsed <= 60000) return true; // Exact same code within 60s
-                if (elapsed <= 120000) {
-                    const itemTokens = extractTokens(item.sender);
-                    const sharesBrand = senderTokens.some(t => itemTokens.includes(t));
-                    return sharesBrand || item.sender.toLowerCase() === sender.toLowerCase();
+                if (elapsed <= TEN_MINUTES_MS) {
+                    return true;
                 }
             }
             return false;
@@ -575,11 +598,8 @@ async function handleEncryptedOtp(ivBase64, dataBase64, cryptoKey) {
             }).catch(() => {});
         }
 
-        // 1. Copy to clipboard immediately
+        // 1. Copy to clipboard immediately (never blank user's clipboard!)
         await copyToClipboard(otpCode);
-
-        // 2. Auto-clear clipboard after 60s
-        setTimeout(() => copyToClipboard(' '), 60000);
 
         // 3. Save pending toast for persistence across page reloads, redirects and tab switches
         // Re-sent duplicate OTP stays on screen for 9s (user requested 8-10s for ample visibility); fresh OTP stays for 6s

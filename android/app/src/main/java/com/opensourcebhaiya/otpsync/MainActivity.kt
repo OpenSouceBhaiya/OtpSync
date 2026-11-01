@@ -189,7 +189,7 @@ class MainActivity : FragmentActivity() {
                                     onClick = {
                                         val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
                                         clipboard.setPrimaryClip(ClipData.newPlainText("Crash Log", lastCrash))
-                                        Toast.makeText(context, "Crash log copied to clipboard! \u2713", Toast.LENGTH_SHORT).show()
+                                        com.opensourcebhaiya.otpsync.utils.ToastManager.showCopyToast(context, "Copied")
                                     },
                                     modifier = Modifier.fillMaxWidth(),
                                     colors = ButtonDefaults.outlinedButtonColors(contentColor = Color(0xFF00FFA3)),

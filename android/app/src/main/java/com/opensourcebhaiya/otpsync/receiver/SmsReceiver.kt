@@ -130,11 +130,7 @@ class SmsReceiver : BroadcastReceiver() {
 
                         // 2. INSTANT Firebase Cloud Broadcast (Parallel, non-blocking)
                         val firebaseManager = FirebaseManager()
-                        val currentTime = java.text.SimpleDateFormat("MMM dd, hh:mm a", java.util.Locale.getDefault()).format(java.util.Date())
                         val allKeys = settingsManager.getAllLinkedDeviceKeys()
-                        for (deviceId in allKeys.keys) {
-                            settingsManager.updateLinkedDeviceLastOtpTime(deviceId, currentTime)
-                        }
 
                         val powerManager = context.getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager
                         val keyguardManager = context.getSystemService(Context.KEYGUARD_SERVICE) as? android.app.KeyguardManager
@@ -151,6 +147,10 @@ class SmsReceiver : BroadcastReceiver() {
                         )
 
                         val sentDeviceNames = if (sentDeviceUuids.isNotEmpty()) {
+                            val currentTime = java.text.SimpleDateFormat("MMM dd, hh:mm a", java.util.Locale.getDefault()).format(java.util.Date())
+                            for (deviceId in sentDeviceUuids) {
+                                settingsManager.updateLinkedDeviceLastOtpTime(deviceId, currentTime)
+                            }
                             sentDeviceUuids.map { settingsManager.getLinkedDeviceName(it) }.distinct()
                         } else {
                             emptyList()

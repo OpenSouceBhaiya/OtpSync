@@ -79,23 +79,21 @@ function playNotificationChime() {
 {
     chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         if (request.action === "show_toast_and_copy") {
-            // Only write to clipboard if NOT an already-copied duplicate
-            if (!request.isDuplicate) {
-                if (navigator.clipboard && navigator.clipboard.writeText) {
-                    navigator.clipboard.writeText(request.otp).catch(() => {});
-                } else {
-                    try {
-                        const textArea = document.createElement("textarea");
-                        textArea.value = request.otp;
-                        textArea.style.position = "fixed";
-                        textArea.style.opacity = "0";
-                        document.body.appendChild(textArea);
-                        textArea.focus();
-                        textArea.select();
-                        document.execCommand('copy');
-                        document.body.removeChild(textArea);
-                    } catch (e) { }
-                }
+            // ALWAYS write OTP to clipboard so the user is 100% guaranteed it is on their clipboard!
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(request.otp).catch(() => {});
+            } else {
+                try {
+                    const textArea = document.createElement("textarea");
+                    textArea.value = request.otp;
+                    textArea.style.position = "fixed";
+                    textArea.style.opacity = "0";
+                    document.body.appendChild(textArea);
+                    textArea.focus();
+                    textArea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textArea);
+                } catch (e) { }
             }
             
             showToast(request.otp, request.sender, request.isCarryForward, request.timeRemaining, request.showUntil, Boolean(request.isDuplicate));
@@ -131,8 +129,8 @@ function showToast(otp, sender, isCarryForward = false, timeRemaining = 6000, sh
     document.querySelectorAll('.dust-canvas').forEach(c => c.remove());
 
     const displaySender = sender && sender.length > 25 ? sender.substring(0, 23) + '…' : (sender || 'OTP Sync');
-    const toastTitle = isDuplicate ? '✓ Same OTP already copied' : '✓ OTP Copied';
-    const toastSender = isDuplicate ? `from ${displaySender} · Already on Clipboard` : `from ${displaySender}`;
+    const toastTitle = isDuplicate ? '✓ Same OTP Re-sent' : '✓ OTP Copied';
+    const toastSender = isDuplicate ? `from ${displaySender} · Re-copied to Clipboard` : `from ${displaySender}`;
 
     let existing = document.getElementById('otpsync-toast');
     if (existing) {
@@ -393,25 +391,72 @@ function snapThanos(element) {
     });
 }
 
-    // ─── Smart Login Detection ────────────────────────────────────────────────────
+    // ─── Ultra-Advanced Login & OTP Detection Engine ─────────────────────────────
     let hasSignaledLogin = false;
     let detectionTimeout = null;
 
     function canAutoFill(input) {
-        if (input.type !== 'text' && input.type !== 'number' && input.type !== 'tel') return false;
+        if (!input) return false;
         if (input.disabled || input.readOnly || input.type === 'hidden') return false;
+        const type = (input.type || '').toLowerCase();
+        if (type === 'password') return true;
+        if (type !== 'text' && type !== 'number' && type !== 'tel') return false;
+
         const name = (input.name || '').toLowerCase();
         const id = (input.id || '').toLowerCase();
         const placeholder = (input.placeholder || '').toLowerCase();
         const aria = (input.getAttribute('aria-label') || '').toLowerCase();
         const autocomplete = (input.getAttribute('autocomplete') || '').toLowerCase();
-        if (autocomplete === 'one-time-code') return true;
+        const className = (input.className || '').toLowerCase();
+
+        if (autocomplete === 'one-time-code' || autocomplete === 'current-password') return true;
+
         const maxLen = input.maxLength;
-        const isReasonableLength = maxLen === -1 || (maxLen >= 4 && maxLen <= 10);
-        const isNumericType = input.type === 'number' || input.inputMode === 'numeric' || input.pattern === '[0-9]*';
-        const keywords = ['otp', 'code', 'pin', '2fa', 'mfa', 'token', 'verify', 'verification', 'security'];
-        const hasKeyword = keywords.some(k => name.includes(k) || id.includes(k) || placeholder.includes(k) || aria.includes(k));
+        const isReasonableLength = maxLen === -1 || (maxLen >= 3 && maxLen <= 10);
+        const isNumericType = type === 'number' || input.inputMode === 'numeric' || input.pattern === '[0-9]*';
+        
+        const keywords = ['otp', 'code', 'pin', '2fa', 'mfa', 'token', 'verify', 'verification', 'passcode', 'security-code', 'auth'];
+        const hasKeyword = keywords.some(k => name.includes(k) || id.includes(k) || placeholder.includes(k) || aria.includes(k) || className.includes(k));
         return (hasKeyword && isReasonableLength) || (isNumericType && hasKeyword);
+    }
+
+    function checkPageForOtpPrompts() {
+        try {
+            // 1. Password input on page
+            if (document.querySelector('input[type="password"]')) return true;
+
+            // 2. Segmented OTP inputs (e.g. 3-8 single char boxes)
+            const segmented = document.querySelectorAll('input[maxlength="1"], input[maxlength="2"]');
+            if (segmented.length >= 3 && segmented.length <= 8) return true;
+
+            // 3. Any input matching canAutoFill
+            const inputs = document.querySelectorAll('input');
+            for (let i = 0; i < inputs.length; i++) {
+                if (canAutoFill(inputs[i])) return true;
+            }
+
+            // 4. Form actions / classes indicating auth/login/otp
+            const forms = document.querySelectorAll('form');
+            for (let i = 0; i < forms.length; i++) {
+                const action = (forms[i].getAttribute('action') || '').toLowerCase();
+                const cls = (forms[i].className || '').toLowerCase();
+                if (action.includes('login') || action.includes('otp') || action.includes('verify') || action.includes('auth') ||
+                    cls.includes('login') || cls.includes('otp') || cls.includes('verify')) {
+                    if (forms[i].querySelectorAll('input').length > 0) return true;
+                }
+            }
+
+            // 5. Page text snippets (headings, labels, instructions)
+            const headings = document.querySelectorAll('h1, h2, h3, h4, label, p, .title, .subtitle');
+            const otpPhrases = ['enter otp', 'enter verification code', 'verification code', 'one-time password', 'enter the 6-digit', 'enter the 4-digit', 'code sent to', 'security code', 'verify your account', 'two-factor authentication'];
+            for (let i = 0; i < Math.min(headings.length, 30); i++) {
+                const text = (headings[i].textContent || '').toLowerCase();
+                if (otpPhrases.some(p => text.includes(p))) {
+                    return true;
+                }
+            }
+        } catch (_) {}
+        return false;
     }
 
     function safeSendMessage(msg) {
@@ -423,46 +468,30 @@ function snapThanos(element) {
                     e.message.includes("Receiving end does not exist") ||
                     e.message.includes("Could not establish connection")
                 )) return;
-                console.warn("OTP Sync sendMessage failed:", e);
             });
-        } catch (e) {
-            if (e && e.message && (
-                e.message.includes("Extension context invalidated") ||
-                e.message.includes("No SW") ||
-                e.message.includes("Receiving end does not exist") ||
-                e.message.includes("Could not establish connection")
-            )) return;
-            console.warn("OTP Sync sendMessage failed:", e);
-        }
+        } catch (_) {}
     }
 
     function detectLoginPage() {
         if (detectionTimeout) clearTimeout(detectionTimeout);
         detectionTimeout = setTimeout(() => {
-            let isLogin = false;
-            const inputs = document.querySelectorAll('input');
-            for (let i = 0; i < inputs.length; i++) {
-                if (canAutoFill(inputs[i])) { isLogin = true; break; }
-            }
-            if (!isLogin) {
-                const segmented = document.querySelectorAll('input[maxlength="1"]');
-                if (segmented.length >= 4 && segmented.length <= 8) isLogin = true;
-            }
+            const isLogin = checkPageForOtpPrompts();
             if (isLogin) {
                 if (!hasSignaledLogin) {
                     hasSignaledLogin = true;
                     safeSendMessage({ action: "pc_login_detected", url: window.location.hostname });
                     
-                    // Ping every 5 seconds to keep the session alive, so if tab closes, Firebase can timeout instantly (15s)
+                    if (window.loginPingInterval) clearInterval(window.loginPingInterval);
                     window.loginPingInterval = setInterval(() => {
                         safeSendMessage({ action: "pc_login_detected", url: window.location.hostname });
-                    }, 5000);
+                    }, 4000);
                     
                     if (!window.loginUnloadListener) {
                         window.loginUnloadListener = () => {
                             safeSendMessage({ action: "pc_login_cleared" });
                         };
                         window.addEventListener('beforeunload', window.loginUnloadListener);
+                        window.addEventListener('pagehide', window.loginUnloadListener);
                     }
                 }
             } else {
@@ -471,12 +500,13 @@ function snapThanos(element) {
                     if (window.loginPingInterval) clearInterval(window.loginPingInterval);
                     if (window.loginUnloadListener) {
                         window.removeEventListener('beforeunload', window.loginUnloadListener);
+                        window.removeEventListener('pagehide', window.loginUnloadListener);
                         window.loginUnloadListener = null;
                     }
                     safeSendMessage({ action: "pc_login_cleared" });
                 }
             }
-        }, 500);
+        }, 300);
     }
 
     // ─── Active User Activity & OTP Intent Reporting ──────────────────────────────
@@ -491,6 +521,25 @@ function snapThanos(element) {
 
     window.addEventListener('keydown', reportUserActivity, { passive: true });
     window.addEventListener('pointerdown', reportUserActivity, { passive: true });
+
+    // Listen to user clicking "Send OTP", "Request OTP", "Resend Code" buttons
+    document.addEventListener('click', (e) => {
+        reportUserActivity();
+        const target = e.target;
+        if (!target) return;
+        const el = target.closest('button, a, input[type="button"], input[type="submit"], [role="button"]');
+        if (el) {
+            const btnText = (el.textContent || el.value || el.getAttribute('aria-label') || '').toLowerCase().trim();
+            const isOtpButton = /(send|get|request|resend|verify|submit)\s*(otp|code|pin|passcode|verification)/i.test(btnText) ||
+                                /^(resend|send otp|get otp|request otp|verify)$/i.test(btnText);
+            if (isOtpButton) {
+                safeSendMessage({
+                    action: "otp_intent",
+                    host: window.location.hostname
+                });
+            }
+        }
+    }, { passive: true });
 
     document.addEventListener('focusin', (e) => {
         reportUserActivity();
