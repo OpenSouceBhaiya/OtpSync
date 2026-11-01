@@ -26,6 +26,7 @@ fun formatCompactSource(account: String): String {
         val parts = clean.split("+").map { it.trim() }
         val shortParts = parts.map { part ->
             when {
+                part.contains("truecaller", ignoreCase = true) -> "Truecaller"
                 part.contains("@") || part.contains("gmail", ignoreCase = true) -> "Gmail"
                 part.contains("sms", ignoreCase = true) -> "SMS"
                 part.contains("whatsapp", ignoreCase = true) -> "WhatsApp"
@@ -37,6 +38,7 @@ fun formatCompactSource(account: String): String {
     }
 
     return when {
+        clean.contains("truecaller", ignoreCase = true) -> "Truecaller"
         clean.contains("@") || clean.contains("gmail", ignoreCase = true) -> "Gmail"
         clean.contains("sms", ignoreCase = true) -> "SMS"
         clean.contains("whatsapp", ignoreCase = true) -> "WhatsApp"

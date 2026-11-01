@@ -225,7 +225,7 @@ fun InboxOtpCard(otp: OtpEntity, viewModel: OtpHistoryViewModel, currentLang: co
     val timeFormat = SimpleDateFormat("h:mm a MMMM dd", Locale.getDefault())
     val timeString = timeFormat.format(Date(otp.receivedAt))
 
-    val expiresAtMs = otp.expiresAt ?: (otp.receivedAt + 10 * 60 * 1000L)
+    val expiresAtMs = otp.expiresAt?.takeIf { it > otp.receivedAt + 30_000L } ?: (otp.receivedAt + 10 * 60 * 1000L)
     var remainingMs by remember { mutableStateOf(expiresAtMs - System.currentTimeMillis()) }
     val isExpired = remainingMs <= 0
     

@@ -703,8 +703,8 @@ fun StatCard(modifier: Modifier = Modifier, title: String, value: String, subtex
 fun OtpListItemFeed(otp: OtpEntity, context: Context, currentLang: com.opensourcebhaiya.otpsync.data.AppLanguage) {
     val haptic = androidx.compose.ui.platform.LocalHapticFeedback.current
     
-    // Use actual expiresAt from DB (parsed from email), fallback to 10 min default
-    val expiresAtMs = otp.expiresAt ?: (otp.receivedAt + 10 * 60 * 1000L)
+    // Use actual expiresAt from DB (parsed from message), fallback to 10 min default if missing or invalid
+    val expiresAtMs = otp.expiresAt?.takeIf { it > otp.receivedAt + 30_000L } ?: (otp.receivedAt + 10 * 60 * 1000L)
     var remainingMs by remember { mutableStateOf(expiresAtMs - System.currentTimeMillis()) }
     val isExpired = remainingMs <= 0
     

@@ -75,8 +75,10 @@ class SmsReceiver : BroadcastReceiver() {
                 }
                 val isDualArrival = (status == com.opensourcebhaiya.otpsync.utils.OtpArrivalStatus.SIMULTANEOUS_BURST)
                 if (isDualArrival) {
-                    FileLogger.log(context, "Dual arrival OTP $otpCode already captured via email. Merging SMS channel into database.")
-                    com.opensourcebhaiya.otpsync.utils.ToastManager.show(context, "Same OTP also arrived on SMS", android.widget.Toast.LENGTH_SHORT)
+                    FileLogger.log(context, "Dual arrival OTP $otpCode already captured. Merging SMS channel into database.")
+                    val allSources = com.opensourcebhaiya.otpsync.utils.OtpCache.getSourcesForCode(otpCode)
+                    val channelText = if (allSources.size > 1) allSources.joinToString(" + ") else "SMS"
+                    com.opensourcebhaiya.otpsync.utils.ToastManager.show(context, "Same OTP also arrived on $channelText", android.widget.Toast.LENGTH_SHORT)
                 }
                 val isResentDuplicate = (status == com.opensourcebhaiya.otpsync.utils.OtpArrivalStatus.RESENT_SAME_CODE)
                 if (isResentDuplicate) {
@@ -84,8 +86,8 @@ class SmsReceiver : BroadcastReceiver() {
                     Log.d("SmsReceiver", "Re-sent identical SMS OTP $otpCode from $sender detected.")
                 }
 
-                // 1. INSTANT Clipboard Copy (Sub-millisecond execution, zero DB blocking!)
-                if (settingsManager.isClipboardCopyEnabled()) {
+                // 1. INSTANT Clipboard Copy (ONLY for fresh OTP or genuine resend, NEVER on simultaneous dual arrival!)
+                if (!isDualArrival && settingsManager.isClipboardCopyEnabled()) {
                     try {
                         val clipIntent = Intent(context, com.opensourcebhaiya.otpsync.ui.TransparentClipboardActivity::class.java).apply {
                             putExtra("EXTRA_OTP_CODE", otpCode)
@@ -98,6 +100,9 @@ class SmsReceiver : BroadcastReceiver() {
                     }
                 }
 
+                val defaultExpiry = System.currentTimeMillis() + 10 * 60 * 1000L
+                val validExpiry = extractedOtp.expiresAt?.takeIf { it > System.currentTimeMillis() + 30_000L } ?: defaultExpiry
+
                 val pendingResult = goAsync()
                 scope.launch {
                     try {
@@ -105,7 +110,7 @@ class SmsReceiver : BroadcastReceiver() {
 
                         // 1. INSTANT Room Database Insertion & Channel Merge (0ms latency, runs FIRST before network)
                         AppDatabase.insertMutex.withLock {
-                            val existing = db.otpDao().getOtpByCodeRecent(otpCode, System.currentTimeMillis() - 6 * 60 * 1000L)
+                            val existing = db.otpDao().getOtpByCodeRecent(otpCode, System.currentTimeMillis() - 10 * 60 * 1000L)
                             if (existing == null) {
                                 db.otpDao().insertOtp(OtpEntity(
                                     id = UUID.randomUUID().toString(),
@@ -114,12 +119,16 @@ class SmsReceiver : BroadcastReceiver() {
                                     subject = sender,
                                     account = "SMS",
                                     receivedAt = System.currentTimeMillis(),
-                                    expiresAt = extractedOtp.expiresAt ?: (System.currentTimeMillis() + 5 * 60 * 1000L),
+                                    expiresAt = validExpiry,
                                     sourcePackage = "sms",
                                     sentToDevices = null
                                 ))
                             } else {
-                                val mergedAccount = if (!existing.account.contains("SMS")) "${existing.account} + SMS" else existing.account
+                                val existingParts = existing.account.split(" + ").map { it.trim() }.toMutableList()
+                                if ("SMS" !in existingParts) {
+                                    existingParts.add("SMS")
+                                }
+                                val mergedAccount = existingParts.distinct().joinToString(" + ")
                                 val updated = existing.copy(
                                     account = mergedAccount,
                                     receivedAt = System.currentTimeMillis()

@@ -1,19 +1,33 @@
 package com.opensourcebhaiya.otpsync.utils
 
 import android.content.Context
+import android.os.Handler
+import android.os.Looper
 import android.widget.Toast
 
 object ToastManager {
     private var currentToast: Toast? = null
+    private var lastMessage: String = ""
+    private var lastToastTime: Long = 0L
+    private val mainHandler = Handler(Looper.getMainLooper())
 
     fun show(context: Context, message: String, duration: Int = Toast.LENGTH_SHORT) {
-        // Cancel the current toast if it exists to prevent queueing
-        currentToast?.cancel()
-        
-        // Create and show the new toast immediately
-        val newToast = Toast.makeText(context.applicationContext, message, duration)
-        newToast.show()
-        currentToast = newToast
+        val now = System.currentTimeMillis()
+        if (message == lastMessage && (now - lastToastTime) < 2000L) {
+            return // Debounce exact duplicate messages within 2 seconds
+        }
+        lastMessage = message
+        lastToastTime = now
+
+        mainHandler.post {
+            try {
+                // Cancel current toast to avoid delayed stacking/queueing
+                currentToast?.cancel()
+                val newToast = Toast.makeText(context.applicationContext, message, duration)
+                newToast.show()
+                currentToast = newToast
+            } catch (_: Exception) {}
+        }
     }
 
     /**

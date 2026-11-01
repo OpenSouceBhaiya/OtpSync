@@ -3,42 +3,61 @@ package com.opensourcebhaiya.otpsync.utils
 data class CachedOtpRecord(
     val code: String,
     val sender: String,
-    val source: String,
-    var timestamp: Long
+    val sources: MutableSet<String>,
+    var initialTimestamp: Long,
+    var lastTimestamp: Long
 )
 
 enum class OtpArrivalStatus {
     NEW,                   // Brand new OTP
-    SIMULTANEOUS_BURST,    // Received within <= 45s (concurrent dual dispatch e.g. SMS + Gmail notification)
-    SAME_SMS_DUPLICATE,    // Notification from SMS app for SMS already handled by SmsReceiver within 30s
-    RESENT_SAME_CODE       // Exact same code resent (e.g. user requested resend)
+    SIMULTANEOUS_BURST,    // Received from an additional source/channel within retention window
+    SAME_SMS_DUPLICATE,    // Duplicate notification from an already-handled channel (suppress)
+    RESENT_SAME_CODE       // Exact same code re-sent after cooldown (> 45s) from same channel
 }
 
 object OtpCache {
     private val recentOtps = mutableListOf<CachedOtpRecord>()
-    private const val MAX_RETENTION_MS = 600_000L // 10-minute maximum window for duplicate detection. After 10 mins, resets to fresh normal OTP
-    private const val DEDUP_WINDOW_MS = 600_000L // 10-minute debounce window for matching brands/senders
-    private const val STRICT_IDENTICAL_WINDOW_MS = 600_000L // 10-minute window for exact same OTP code
-    private const val SIMULTANEOUS_BURST_MS = 45_000L // 45s window: captures SMS-to-Notification delays, dual SMS+Email, and notification updates without re-copying
+    private const val MAX_RETENTION_MS = 600_000L // 10-minute maximum retention window. After 10 mins, resets to fresh normal OTP
+    private const val SAME_CHANNEL_DEBOUNCE_MS = 45_000L // 45s debounce window for identical channel re-triggers
+
+    fun resolveChannel(sourcePackage: String, accountName: String): String {
+        val pkg = sourcePackage.lowercase()
+        return when {
+            pkg.contains("truecaller") -> "Truecaller"
+            pkg.contains("whatsapp") -> "WhatsApp"
+            pkg.contains("telegram") -> "Telegram"
+            pkg.contains("com.google.android.gm") || accountName.contains("gmail", ignoreCase = true) -> "Gmail"
+            pkg.contains("messaging") || pkg.contains("mms") || pkg.contains(".sms") || pkg.contains("telephony") -> "SMS"
+            pkg.contains("outlook") -> "Outlook"
+            accountName.isNotBlank() && !accountName.equals("SMS", ignoreCase = true) -> accountName
+            else -> "SMS"
+        }
+    }
 
     @Synchronized
     fun recordSmsArrival(code: String, sender: String): OtpArrivalStatus {
         val sanitized = code.replace("\\s".toRegex(), "")
         if (sanitized.isBlank()) return OtpArrivalStatus.NEW
         val now = System.currentTimeMillis()
-        recentOtps.removeAll { now - it.timestamp > MAX_RETENTION_MS }
+        recentOtps.removeAll { now - it.lastTimestamp > MAX_RETENTION_MS }
 
         val existing = recentOtps.find { it.code == sanitized }
         return if (existing == null) {
-            recentOtps.add(CachedOtpRecord(sanitized, sender, "SMS", now))
+            recentOtps.add(CachedOtpRecord(
+                code = sanitized,
+                sender = sender,
+                sources = mutableSetOf("SMS"),
+                initialTimestamp = now,
+                lastTimestamp = now
+            ))
             OtpArrivalStatus.NEW
         } else {
-            val elapsed = now - existing.timestamp
-            if (!existing.source.equals("SMS", ignoreCase = true) && elapsed < SIMULTANEOUS_BURST_MS) {
-                existing.timestamp = now
+            if ("SMS" !in existing.sources) {
+                existing.sources.add("SMS")
+                existing.lastTimestamp = now
                 OtpArrivalStatus.SIMULTANEOUS_BURST
             } else {
-                existing.timestamp = now
+                existing.lastTimestamp = now
                 OtpArrivalStatus.RESENT_SAME_CODE
             }
         }
@@ -49,38 +68,44 @@ object OtpCache {
         val sanitized = code.replace("\\s".toRegex(), "")
         if (sanitized.isBlank()) return OtpArrivalStatus.NEW
         val now = System.currentTimeMillis()
-        recentOtps.removeAll { now - it.timestamp > MAX_RETENTION_MS }
+        recentOtps.removeAll { now - it.lastTimestamp > MAX_RETENTION_MS }
 
-        val isSmsApp = sourcePackage.contains("messaging") || sourcePackage.contains("mms") || sourcePackage.contains("sms") || sourcePackage.contains("telephony") || sourcePackage.contains("truecaller")
-        val currentChannel = if (isSmsApp) "SMS" else if (accountName.contains("gmail", ignoreCase = true) || sourcePackage.contains("android.gm")) "Gmail" else accountName
+        val channel = resolveChannel(sourcePackage, accountName)
         val existing = recentOtps.find { it.code == sanitized }
 
         if (existing == null) {
-            recentOtps.add(CachedOtpRecord(sanitized, sender, currentChannel, now))
+            recentOtps.add(CachedOtpRecord(
+                code = sanitized,
+                sender = sender,
+                sources = mutableSetOf(channel),
+                initialTimestamp = now,
+                lastTimestamp = now
+            ))
             return OtpArrivalStatus.NEW
         }
 
-        val elapsed = now - existing.timestamp
+        val elapsed = now - existing.lastTimestamp
 
-        // 1. If this is an SMS notification (e.g. Google Messages) and we already handled this OTP via SMS within 30s:
-        if (isSmsApp && existing.source.equals("SMS", ignoreCase = true) && elapsed < 30_000L) {
-            return OtpArrivalStatus.SAME_SMS_DUPLICATE
+        // 1. If this channel is already in the sources list for this OTP:
+        if (channel in existing.sources) {
+            return if (elapsed < SAME_CHANNEL_DEBOUNCE_MS) {
+                OtpArrivalStatus.SAME_SMS_DUPLICATE
+            } else {
+                existing.lastTimestamp = now
+                OtpArrivalStatus.RESENT_SAME_CODE
+            }
         }
 
-        // 2. Notification from the EXACT SAME channel within 45s (e.g. Gmail notification refreshed or re-fired for the same email):
-        if (existing.source.equals(currentChannel, ignoreCase = true) && elapsed < SIMULTANEOUS_BURST_MS) {
-            return OtpArrivalStatus.SAME_SMS_DUPLICATE
-        }
+        // 2. Additional source channel arrived with the same OTP (e.g. came on SMS, now arrives on Truecaller or Gmail)
+        existing.sources.add(channel)
+        existing.lastTimestamp = now
+        return OtpArrivalStatus.SIMULTANEOUS_BURST
+    }
 
-        // 3. True cross-channel arrival (e.g. OTP received on SMS first, now arrives on Gmail, or vice-versa) within 45s:
-        if (!existing.source.equals(currentChannel, ignoreCase = true) && elapsed < SIMULTANEOUS_BURST_MS) {
-            existing.timestamp = now
-            return OtpArrivalStatus.SIMULTANEOUS_BURST
-        }
-
-        // 4. Re-sent code (> 45s)
-        existing.timestamp = now
-        return OtpArrivalStatus.RESENT_SAME_CODE
+    @Synchronized
+    fun getSourcesForCode(code: String): Set<String> {
+        val sanitized = code.replace("\\s".toRegex(), "")
+        return recentOtps.find { it.code == sanitized }?.sources?.toSet() ?: emptySet()
     }
 
     @Synchronized
@@ -89,38 +114,26 @@ object OtpCache {
         if (sanitizedCode.isBlank()) return OtpArrivalStatus.NEW
         val now = System.currentTimeMillis()
 
-        // Purge expired records older than 10 minutes
-        recentOtps.removeAll { now - it.timestamp > MAX_RETENTION_MS }
+        recentOtps.removeAll { now - it.lastTimestamp > MAX_RETENTION_MS }
 
-        val senderTokens = extractSignificantTokens(sender)
-
-        for (item in recentOtps) {
-            if (item.code == sanitizedCode) {
-                val elapsed = now - item.timestamp
-                
-                // 1. Exact same OTP code within 45 seconds is a concurrent dual arrival / system notification update (e.g. SMS -> Google Messages notification, SMS + Email)
-                if (elapsed <= SIMULTANEOUS_BURST_MS) {
-                    return OtpArrivalStatus.SIMULTANEOUS_BURST
-                }
-                
-                // 2. Re-sent OTP: exact same code resent after 45s (e.g. user requested resend), or matching brand within 2 minutes
-                val isMatchingSender = if (elapsed <= STRICT_IDENTICAL_WINDOW_MS) {
-                    true
-                } else if (elapsed <= DEDUP_WINDOW_MS) {
-                    val existingTokens = extractSignificantTokens(item.sender)
-                    val sharesBrand = senderTokens.any { it in existingTokens }
-                    sharesBrand || item.sender.equals(sender, ignoreCase = true)
-                } else false
-
-                if (isMatchingSender) {
-                    item.timestamp = now
-                    return OtpArrivalStatus.RESENT_SAME_CODE
-                }
+        val existing = recentOtps.find { it.code == sanitizedCode }
+        if (existing != null) {
+            val elapsed = now - existing.lastTimestamp
+            return if (elapsed <= SAME_CHANNEL_DEBOUNCE_MS) {
+                OtpArrivalStatus.SIMULTANEOUS_BURST
+            } else {
+                existing.lastTimestamp = now
+                OtpArrivalStatus.RESENT_SAME_CODE
             }
         }
 
-        // New fresh OTP — record it
-        recentOtps.add(CachedOtpRecord(sanitizedCode, sender, source, now))
+        recentOtps.add(CachedOtpRecord(
+            code = sanitizedCode,
+            sender = sender,
+            sources = mutableSetOf(source.takeIf { it.isNotBlank() } ?: "SMS"),
+            initialTimestamp = now,
+            lastTimestamp = now
+        ))
         return OtpArrivalStatus.NEW
     }
 
@@ -131,24 +144,15 @@ object OtpCache {
 
     @Synchronized
     fun shouldCopy(code: String): Boolean {
-        return checkStatus(code, "", "") != OtpArrivalStatus.SIMULTANEOUS_BURST
+        val sanitized = code.replace("\\s".toRegex(), "")
+        val existing = recentOtps.find { it.code == sanitized } ?: return true
+        val now = System.currentTimeMillis()
+        // Do not re-copy if already copied within the 10-minute window unless explicitly resent after cooldown
+        return (now - existing.initialTimestamp) > MAX_RETENTION_MS
     }
 
     @Synchronized
     fun clearForTesting() {
         recentOtps.clear()
-    }
-
-    private fun extractSignificantTokens(sender: String): Set<String> {
-        if (sender.isBlank()) return emptySet()
-        // Strip common 2-letter SMS telecom routing prefixes: e.g. "AX-SHEIN", "VM-HDFCBK", "JD-FLPKRT", "BZ-AMAZON"
-        var clean = sender.lowercase()
-        if (clean.length > 3 && (clean[2] == '-' || clean[2] == '_')) {
-            clean = clean.substring(3)
-        }
-        val ignoreList = setOf("sms", "otp", "code", "mail", "gmail", "service", "noreply", "team", "account", "info", "support")
-        return clean.split(Regex("[^a-z0-9]+"))
-            .filter { it.length >= 3 && it !in ignoreList }
-            .toSet()
     }
 }

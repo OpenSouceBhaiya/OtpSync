@@ -816,18 +816,6 @@ object OtpExtractor {
     }
 
     private fun extractExpiry(text: String, receivedTimeMs: Long): Long? {
-        val patterns = listOf(
-            Regex("(?i)expir(?:es?|ed|ing)\\s+in\\s+(\\d+)\\s*(second|sec|s|minute|min|m|hour|hr|h)s?"),
-            Regex("(?i)valid\\s+for\\s+(\\d+)\\s*(second|sec|s|minute|min|m|hour|hr|h)s?"),
-            Regex("(?i)(?:use|enter|verify|redeem)\\s+(?:it\\s+)?within\\s+(\\d+)\\s*(second|sec|s|minute|min|m|hour|hr|h)s?"),
-            Regex("(?i)(?:otp|code|pin)\\s+(?:is\\s+)?valid\\s+(\\d+)\\s*(second|sec|s|minute|min|m|hour|hr|h)s?"),
-            Regex("(?i)(\\d+)[- ]*(second|sec|s|minute|min|m|hour|hr|h)s?\\s+(?:otp|code|pin|password)"),
-            Regex("(?i)(?:expires?\\s+at|valid\\s+(?:till|until))\\s+(\\d{1,2}):(\\d{2})"),
-            Regex("(?i)(?:this\\s+)?(?:code|otp|pin)\\s+(?:will\\s+)?(?:expire|expir)\\s+in\\s+(\\d+)\\s*(second|sec|s|minute|min|m|hour|hr|h)s?"),
-            Regex("(?i)valid\\s+for\\s+(\\d+)\\s*(second|sec|s|minute|min|m|hour|hr|h)s?\\.?"),
-            Regex("(?i)\\b(\\d+)\\s*(mins?|secs?|hours?)\\b")
-        )
-        
         val absolutePattern = Regex("(?i)(?:expires?\\s+at|valid\\s+(?:till|until))\\s+(\\d{1,2}):(\\d{2})")
         absolutePattern.find(text)?.let { match ->
             try {
@@ -844,11 +832,24 @@ object OtpExtractor {
                 }
                 
                 val diffMs = expMs - receivedTimeMs
-                if (diffMs in 0L..86400000L) {
-                    return if (diffMs > 15 * 60 * 1000L) receivedTimeMs + 15 * 60 * 1000L else expMs
+                if (diffMs in 60000L..86400000L) {
+                    val finalExp = if (diffMs > 15 * 60 * 1000L) receivedTimeMs + 15 * 60 * 1000L else expMs
+                    if (finalExp > System.currentTimeMillis() + 30_000L) {
+                        return finalExp
+                    }
                 }
             } catch (_: Exception) { }
         }
+
+        val patterns = listOf(
+            Regex("(?i)expir(?:es?|ed|ing)\\s+in\\s+(\\d+)\\s*(second|sec|s|minute|min|m|hour|hr|h)s?"),
+            Regex("(?i)valid\\s+for\\s+(\\d+)\\s*(second|sec|s|minute|min|m|hour|hr|h)s?"),
+            Regex("(?i)(?:use|enter|verify|redeem)\\s+(?:it\\s+)?within\\s+(\\d+)\\s*(second|sec|s|minute|min|m|hour|hr|h)s?"),
+            Regex("(?i)(?:otp|code|pin)\\s+(?:is\\s+)?valid\\s+(\\d+)\\s*(second|sec|s|minute|min|m|hour|hr|h)s?"),
+            Regex("(?i)(\\d+)[- ]*(second|sec|s|minute|min|m|hour|hr|h)s?\\s+(?:otp|code|pin|password)"),
+            Regex("(?i)(?:this\\s+)?(?:code|otp|pin)\\s+(?:will\\s+)?(?:expire|expir)\\s+in\\s+(\\d+)\\s*(second|sec|s|minute|min|m|hour|hr|h)s?"),
+            Regex("(?i)valid\\s+for\\s+(\\d+)\\s*(second|sec|s|minute|min|m|hour|hr|h)s?\\.?")
+        )
         
         for (pattern in patterns) {
             val match = pattern.find(text) ?: continue
@@ -862,11 +863,15 @@ object OtpExtractor {
             }
             
             var diffMs = amount * multiplier
+            if (diffMs < 30_000L) continue // Discard 0 or sub-30s false matches
             if (diffMs > 15 * 60 * 1000L) {
                 diffMs = 15 * 60 * 1000L
             }
             
-            return receivedTimeMs + diffMs
+            val calculated = receivedTimeMs + diffMs
+            if (calculated > System.currentTimeMillis() + 30_000L) {
+                return calculated
+            }
         }
         return null
     }

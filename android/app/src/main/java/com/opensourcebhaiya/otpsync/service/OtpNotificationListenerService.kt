@@ -260,7 +260,8 @@ class OtpNotificationListenerService : NotificationListenerService() {
         val fullText = allTextBuilder.toString().trim()
         if (fullText.isBlank() && title.isBlank()) return
         
-        val isSmsApp = packageName.contains("messaging") || packageName.contains("mms") || packageName.contains(".sms") || packageName.contains("telephony") || packageName.contains("truecaller") || packageName.contains("message")
+        val isTruecaller = packageName.contains("truecaller")
+        val isSmsApp = !isTruecaller && (packageName.contains("messaging") || packageName.contains("mms") || packageName.contains(".sms") || packageName.contains("telephony") || packageName.contains("message"))
         com.opensourcebhaiya.otpsync.utils.FileLogger.log(this, "Notification Received - Pkg: $packageName, Title: $title, Text length: ${fullText.length}")
         
         if (fullText.contains("Sensitive notification content hidden") || title.contains("Sensitive notification content hidden")) {
@@ -327,12 +328,14 @@ class OtpNotificationListenerService : NotificationListenerService() {
             resolvedSender = betterSender
         }
 
-        val finalAccountName = if (isSmsApp) {
-            "SMS"
-        } else if (subText.isNotBlank()) {
-            "$subText ($appName)"
-        } else {
-            appName
+        val finalAccountName = when {
+            isTruecaller -> "Truecaller"
+            isSmsApp -> "SMS"
+            packageName.contains("com.google.android.gm") -> {
+                if (subText.isNotBlank() && subText.contains("@")) "$subText (Gmail)" else "Gmail"
+            }
+            subText.isNotBlank() -> "$subText ($appName)"
+            else -> appName
         }
 
         if (extractedOtp != null) {
@@ -403,17 +406,30 @@ class OtpNotificationListenerService : NotificationListenerService() {
             com.opensourcebhaiya.otpsync.utils.FileLogger.log(this, "Dual arrival OTP $otpCode from $finalAccountName merged.")
             Log.d("OtpNotification", "Dual arrival OTP $otpCode from $finalAccountName merged.")
             
-            val channel = if (finalAccountName.contains("gmail", ignoreCase = true)) "Gmail" else resolveSourceLabel(packageName)
-            com.opensourcebhaiya.otpsync.utils.ToastManager.show(this, "Same OTP also arrived on $channel", android.widget.Toast.LENGTH_SHORT)
+            val allSources = com.opensourcebhaiya.otpsync.utils.OtpCache.getSourcesForCode(otpCode)
+            val channelText = if (allSources.size > 1) allSources.joinToString(" + ") else finalAccountName
+            com.opensourcebhaiya.otpsync.utils.ToastManager.show(this, "Same OTP also arrived on $channelText", android.widget.Toast.LENGTH_SHORT)
 
-            // Update Room Database to merge account labels (e.g. "SMS" -> "SMS + Gmail")
+            // Update Room Database to merge account labels (e.g. "SMS" -> "SMS + Truecaller + Gmail")
             scope.launch {
                 try {
                     val db = AppDatabase.getDatabase(this@OtpNotificationListenerService)
                     AppDatabase.insertMutex.withLock {
-                        val existing = db.otpDao().getOtpByCodeRecent(otpCode, System.currentTimeMillis() - 3 * 60 * 1000L)
+                        val existing = db.otpDao().getOtpByCodeRecent(otpCode, System.currentTimeMillis() - 10 * 60 * 1000L)
                         if (existing != null) {
-                            val mergedAccount = if (!existing.account.contains(finalAccountName)) "${existing.account} + $finalAccountName" else existing.account
+                            val existingParts = existing.account.split(" + ").map { it.trim() }.toMutableList()
+                            val cleanNewSource = when {
+                                finalAccountName.contains("truecaller", ignoreCase = true) -> "Truecaller"
+                                finalAccountName.contains("whatsapp", ignoreCase = true) -> "WhatsApp"
+                                finalAccountName.contains("telegram", ignoreCase = true) -> "Telegram"
+                                finalAccountName.contains("gmail", ignoreCase = true) -> "Gmail"
+                                finalAccountName.contains("sms", ignoreCase = true) -> "SMS"
+                                else -> finalAccountName
+                            }
+                            if (cleanNewSource !in existingParts) {
+                                existingParts.add(cleanNewSource)
+                            }
+                            val mergedAccount = existingParts.distinct().joinToString(" + ")
                             val updated = existing.copy(account = mergedAccount, receivedAt = System.currentTimeMillis())
                             db.otpDao().updateOtp(updated)
                         }
@@ -456,11 +472,14 @@ class OtpNotificationListenerService : NotificationListenerService() {
                 val isLocked = keyguardManager?.isKeyguardLocked ?: false
                 val isPhoneInUse = isScreenOn && !isLocked
 
+                val defaultExpiry = System.currentTimeMillis() + 10 * 60 * 1000L
+                val validExpiry = extractedOtp.expiresAt?.takeIf { it > System.currentTimeMillis() + 30_000L } ?: defaultExpiry
+
                 val sentDeviceUuids = firebaseManager.broadcastOtp(
                     otpCode = otpCode,
                     sender = senderName,
                     activeDeviceKeys = keys,
-                    expiresAt = extractedOtp.expiresAt ?: (System.currentTimeMillis() + 5 * 60 * 1000L),
+                    expiresAt = validExpiry,
                     isPhoneInteractive = isPhoneInUse
                 )
 
@@ -482,7 +501,7 @@ class OtpNotificationListenerService : NotificationListenerService() {
                 // 3. ASYNC Room Database Insertion
                 val db = AppDatabase.getDatabase(this@OtpNotificationListenerService)
                 AppDatabase.insertMutex.withLock {
-                    var existing = db.otpDao().getOtpByCodeRecent(otpCode, System.currentTimeMillis() - 6 * 60 * 1000L)
+                    var existing = db.otpDao().getOtpByCodeRecent(otpCode, System.currentTimeMillis() - 10 * 60 * 1000L)
                     if (existing == null) {
                         db.otpDao().insertOtp(OtpEntity(
                             id = UUID.randomUUID().toString(),
@@ -491,16 +510,26 @@ class OtpNotificationListenerService : NotificationListenerService() {
                             subject = senderName,
                             account = finalAccountName,
                             receivedAt = System.currentTimeMillis(),
-                            expiresAt = extractedOtp.expiresAt ?: (System.currentTimeMillis() + 5 * 60 * 1000L),
+                            expiresAt = validExpiry,
                             sourcePackage = packageName,
                             sentToDevices = sentToDevicesString
                         ))
                     } else {
                         existing.receivedAt = System.currentTimeMillis()
-                        if (sentToDevicesString != null) {
-                            existing.sentToDevices = sentToDevicesString
+                        val existingParts = existing.account.split(" + ").map { it.trim() }.toMutableList()
+                        val cleanSource = when {
+                            finalAccountName.contains("truecaller", ignoreCase = true) -> "Truecaller"
+                            finalAccountName.contains("whatsapp", ignoreCase = true) -> "WhatsApp"
+                            finalAccountName.contains("telegram", ignoreCase = true) -> "Telegram"
+                            finalAccountName.contains("gmail", ignoreCase = true) -> "Gmail"
+                            finalAccountName.contains("sms", ignoreCase = true) -> "SMS"
+                            else -> finalAccountName
                         }
-                        db.otpDao().updateOtp(existing)
+                        if (cleanSource !in existingParts) {
+                            existingParts.add(cleanSource)
+                        }
+                        existing.sentToDevices = sentToDevicesString ?: existing.sentToDevices
+                        db.otpDao().updateOtp(existing.copy(account = existingParts.distinct().joinToString(" + ")))
                     }
                 }
             } catch (e: Exception) {
@@ -510,6 +539,7 @@ class OtpNotificationListenerService : NotificationListenerService() {
     }
 
     private fun resolveSourceLabel(pkg: String): String = when {
+        pkg.contains("truecaller") -> "Truecaller"
         pkg.contains("whatsapp") -> "WhatsApp"
         pkg.contains("telegram") -> "Telegram"
         pkg.contains("com.google.android.gm") -> "Gmail"
