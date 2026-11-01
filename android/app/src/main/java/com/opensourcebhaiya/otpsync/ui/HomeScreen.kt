@@ -96,17 +96,20 @@ fun HomeScreen(
     val needsNotificationPermission = !isInstantSyncEnabled || !isNotificationAccessGranted
     val needsClipboardPermission = !isClipboardCopyEnabled || !canDrawOverlays
     val isSmsDeclaredInManifest = remember {
-        try {
-            val info = context.packageManager.getPackageInfo(context.packageName, android.content.pm.PackageManager.GET_PERMISSIONS)
-            info.requestedPermissions?.contains(android.Manifest.permission.RECEIVE_SMS) == true
-        } catch (_: Exception) { false }
+        if (!com.opensourcebhaiya.otpsync.BuildConfig.SUPPORTS_DIRECT_SMS) false
+        else {
+            try {
+                val info = context.packageManager.getPackageInfo(context.packageName, android.content.pm.PackageManager.GET_PERMISSIONS)
+                info.requestedPermissions?.contains(android.Manifest.permission.RECEIVE_SMS) == true
+            } catch (_: Exception) { false }
+        }
     }
     val isSmsGranted = if (isSmsDeclaredInManifest) {
         androidx.core.content.ContextCompat.checkSelfPermission(
             context, android.Manifest.permission.RECEIVE_SMS
         ) == android.content.pm.PackageManager.PERMISSION_GRANTED
     } else true
-    val anyPermissionMissing = needsNotificationPermission || needsClipboardPermission || !isSmsGranted
+    val anyPermissionMissing = needsNotificationPermission || needsClipboardPermission || (isSmsDeclaredInManifest && !isSmsGranted)
     
     var showPermissionPrompt by remember { mutableStateOf(false) }
     var hasPromptedBatteryOpt by remember { mutableStateOf(false) }
@@ -212,9 +215,11 @@ fun HomeScreen(
 
     
     if (showPermissionPrompt) {
-        val isSmsGranted = androidx.core.content.ContextCompat.checkSelfPermission(
-            context, android.Manifest.permission.READ_SMS
-        ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        val isSmsPermissionValid = if (isSmsDeclaredInManifest) {
+            androidx.core.content.ContextCompat.checkSelfPermission(
+                context, android.Manifest.permission.RECEIVE_SMS
+            ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+        } else true
 
         // Build list of missing permissions
         data class PermInfo(val icon: ImageVector, val title: String, val desc: String, val highlightTarget: String)
@@ -231,7 +236,7 @@ fun HomeScreen(
                 desc = "Required to auto-copy OTPs to clipboard when your phone is locked or in another app.",
                 highlightTarget = "overlay"
             ))
-            if (!isSmsGranted) add(PermInfo(
+            if (isSmsDeclaredInManifest && !isSmsPermissionValid) add(PermInfo(
                 icon = Icons.Default.Sms,
                 title = "SMS Permission",
                 desc = "Required to extract OTPs from SMS messages (bank OTPs, carrier messages).",

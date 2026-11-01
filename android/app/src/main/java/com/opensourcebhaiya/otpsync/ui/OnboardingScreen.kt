@@ -323,11 +323,14 @@ fun OnboardingScreen(
                             }
                         )
                         val isSmsDeclaredInManifest = androidx.compose.runtime.remember {
-                            try {
-                                val info = context.packageManager.getPackageInfo(context.packageName, android.content.pm.PackageManager.GET_PERMISSIONS)
-                                info.requestedPermissions?.contains(android.Manifest.permission.RECEIVE_SMS) == true
-                            } catch (_: Exception) {
-                                false
+                            if (!com.opensourcebhaiya.otpsync.BuildConfig.SUPPORTS_DIRECT_SMS) false
+                            else {
+                                try {
+                                    val info = context.packageManager.getPackageInfo(context.packageName, android.content.pm.PackageManager.GET_PERMISSIONS)
+                                    info.requestedPermissions?.contains(android.Manifest.permission.RECEIVE_SMS) == true
+                                } catch (_: Exception) {
+                                    false
+                                }
                             }
                         }
                         var isSmsPermissionGranted by androidx.compose.runtime.remember { 

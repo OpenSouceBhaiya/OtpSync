@@ -75,11 +75,14 @@ fun SettingsScreen(
     val scrollState = rememberScrollState()
 
     val isSmsDeclaredInManifest = remember {
-        try {
-            val info = context.packageManager.getPackageInfo(context.packageName, android.content.pm.PackageManager.GET_PERMISSIONS)
-            info.requestedPermissions?.contains(android.Manifest.permission.RECEIVE_SMS) == true
-        } catch (_: Exception) {
-            false
+        if (!com.opensourcebhaiya.otpsync.BuildConfig.SUPPORTS_DIRECT_SMS) false
+        else {
+            try {
+                val info = context.packageManager.getPackageInfo(context.packageName, android.content.pm.PackageManager.GET_PERMISSIONS)
+                info.requestedPermissions?.contains(android.Manifest.permission.RECEIVE_SMS) == true
+            } catch (_: Exception) {
+                false
+            }
         }
     }
     var isNotificationAccessGranted = NotificationManagerCompat.getEnabledListenerPackages(context).contains(context.packageName)
@@ -790,9 +793,16 @@ fun SettingsItem(title: String, subtitle: String, icon: androidx.compose.ui.grap
     ) {
         Icon(icon, contentDescription = null, tint = TextPrimary, modifier = Modifier.size(24.dp))
         Spacer(modifier = Modifier.width(16.dp))
-        Column(modifier = Modifier.weight(1f)) {
-            Text(title, fontWeight = FontWeight.Bold, color = TextPrimary)
-            Text(subtitle, style = MaterialTheme.typography.bodySmall, color = TextSecondary)
+        Column(modifier = Modifier.weight(1f).padding(end = 8.dp)) {
+            Text(title, fontWeight = FontWeight.Bold, color = TextPrimary, fontSize = 15.sp)
+            Spacer(modifier = Modifier.height(2.dp))
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.bodySmall,
+                color = TextSecondary,
+                lineHeight = 16.sp,
+                softWrap = true
+            )
         }
         Icon(Icons.Default.ChevronRight, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(24.dp))
     }

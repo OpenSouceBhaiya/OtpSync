@@ -27,75 +27,91 @@ object OtpExtractor {
         "2fa code", "2-factor code", "two-factor", "two factor", "mfa code", "multi-factor",
         "here is your code", "here is your otp", "uber code", "uber otp",
         // Spanish (Español)
+        // Spanish (Español)
         "código de verificación", "codigo de verificacion", "código de seguridad", "codigo de seguridad",
         "código de confirmación", "codigo de confirmacion", "código de acceso", "codigo de acceso",
         "código de entrega", "codigo de entrega", "código de recogida", "codigo de recogida",
         "clave de seguridad", "clave de confirmación", "clave de verificacion", "clave de verificación",
-        "clave dinámica", "clave dinamica", "clave de firma",
+        "clave dinámica", "clave dinamica", "clave de firma", "clave de acceso",
         "contraseña de un solo uso", "su código es", "tu código es", "su codigo es", "tu codigo es",
-        "su código de", "tu código de", "código otp", "codigo otp", "use el código",
+        "su código de", "tu código de", "código otp", "codigo otp",
+        "use el código", "use el codigo", "utilice el código", "utilice el codigo", "ingrese el código", "ingrese el codigo",
+        "código para autorizar", "codigo para autorizar", "el código para autorizar", "el codigo para autorizar",
+        "código de validación", "codigo de validacion", "código de autenticación", "codigo de autenticacion",
         // French (Français)
         "code de vérification", "code de verification", "code de sécurité", "code de securite",
         "code de confirmation", "code de connexion", "code d'accès", "code d'activation",
         "code d'autorisation", "code de validation", "code de retrait", "code de livraison",
+        "code sms", "votre code sms", "code d'authentification",
         "mot de passe à usage unique", "mot de passe a usage unique", "mot de passe temporaire",
-        "votre code est", "votre code de", "code d'authentification", "utilisez le code",
+        "votre code est", "votre code de", "utilisez le code", "entrez le code",
         // German (Deutsch)
         "verifizierungscode", "sicherheitscode", "bestätigungscode", "bestatigungscode",
-        "aktivierungscode", "freigabecode", "abholcode", "liefercode", "buchungscode",
+        "aktivierungscode", "freigabecode", "abholcode", "liefercode", "buchungscode", "autorisierungscode",
         "einmalpasswort", "einmalkennwort", "ihr code lautet", "ihr sicherheitscode", "ihr bestätigungscode",
         "ihr einmalcode", "sicherheitsschlüssel",
+        "smstan", "sms-tan", "tan", "mobiletan", "pushtan", "ihre tan", "ihre smstan", "ihre tan lautet", "ihre smstan lautet", "einmal-code", "einmal-tan",
         // Portuguese (Português)
         "código de verificação", "codigo de verificacao", "código de segurança", "codigo de seguranca",
         "código de confirmação", "codigo de confirmacao", "senha de uso único", "senha de uso unico",
+        "código de autorização", "codigo de autorizacao", "código de validação", "código sms", "codigo sms",
+        "senha descartável", "senha descartavel", "código temporário", "código de uso único",
         "chave de segurança", "chave de seguranca", "código de entrega", "código de levantamento", "código de recolha",
         "seu código é", "seu codigo e", "código de acesso", "use a senha de uso único", "use o código",
         // Italian (Italiano)
         "codice di verifica", "codice di sicurezza", "codice di conferma", "codice di accesso",
         "codice di autorizzazione", "codice di consegna", "codice di ritiro", "codice dispositivo",
+        "codice sms", "codice usa e getta", "password usa e getta", "codice temporaneo", "codice di autenticazione",
         "il tuo codice è", "il tuo codice e", "il tuo codice:", "password monouso",
         // Russian (Русский)
-        "код подтверждения", "проверочный код", "код безопасности", "одноразовый пароль",
-        "код для подтверждения", "код получения", "код выдачи", "код для входа",
-        "пароль для входа", "ваш код:", "ваш проверочный код", "код авторизации",
+        "код подтверждения", "проверочный код", "код безопасности", "одноразовый пароль", "одноразовый код",
+        "смс-код", "смс код", "код из смс", "код для входа", "пароль для входа", "пароль из смс",
+        "код для подтверждения", "код получения", "код выдачи", "код доступа", "код операции",
+        "ваш код:", "ваш проверочный код", "код авторизации",
         // Arabic (العربية)
-        "رمز التحقق", "رمز التأكيد", "رمز الأمان", "كلمة مرور لمرة واحدة",
-        "رمز الدخول", "رمزك هو", "كود التأكيد", "كود التحقق", "كود الأمان", "كود الدخول",
+        "رمز التحقق", "رمز التأكيد", "رمز الأمان", "كلمة مرور لمرة واحدة", "كلمة المرور لمرة واحدة",
+        "رمز الدخول", "رمز تسجيل الدخول", "رمز التفعيل", "رمز السري", "رمز لمرة واحدة",
+        "رمزك هو", "كود التأكيد", "كود التحقق", "كود الأمان", "كود الدخول", "كود التفعيل",
         // Chinese (中文)
         "验证码", "驗證碼", "确认码", "確認碼", "安全码", "安全碼",
         "动态口令", "动态密码", "動態密碼", "您的验证码", "取件码", "提货码", "取件验证码", "核验验证码",
+        "短信验证码", "短信驗證碼", "登录验证码", "登錄驗證碼", "授权码", "一次性密码", "核验码", "激活码",
         // Japanese (日本語)
         "認証コード", "確認コード", "セキュリティコード", "ワンタイムパスワード",
-        "認証番号", "コードは", "ガードコード", "Steam ガード", "配達コード", "本人確認コード",
+        "認証番号", "確認番号", "SMS認証コード", "ワンタイム認証コード", "ログイン認証コード",
+        "コードは", "ガードコード", "Steam ガード", "配達コード", "本人確認コード", "アクセスコード",
         // Korean (한국어)
         "인증번호", "인증코드", "보안코드", "확인코드", "승인번호", "일회용 비밀번호", "일회용 인증번호",
+        "SMS 인증번호", "로그인 인증번호", "본인확인 인증번호", "휴대폰 인증번호", "보안번호",
         // Hindi & Hinglish (हिंदी)
         "ओटीपी", "सत्यापन कोड", "सुरक्षा कोड", "गुप्त कोड", "प्रमाणीकरण कोड", "पासकोड", "aapka otp", "apna otp",
-        "otp hai", "otp darj", "वन टाइम पासवर्ड", "वन-टाइम पासवर्ड", "डिलीवरी ओटीपी", "सत्यापन पिन", "डिलीवरी पिन", "गुप्त ओटीपी", "कोड:", "कोड ", "تصدیقی کوڈ", "او ٹی پی",
+        "otp hai", "otp darj", "वन टाइम पासवर्ड", "वन-टाइम पासवर्ड", "डिलीवरी ओटीपी", "सत्यापन पिन", "डिलीवरी पिन", "गुप्त ओटीपी", "लॉगिन ओटीपी", "लॉगिन कोड", "प्रमाणीकरण पिन", "कोड:", "कोड ", "تصدیقی کوڈ", "او ٹی پی",
         // Bengali (বাংলা)
-        "যাচাইকরণ কোড", "ওয়ান-টাইম পাসওয়ার্ড", "ওটিপি", "নিরাপত্তা কোড", "লগইন কোড",
-        "আপনার কোড হল", "লগইন ওটিপি", "ভেরিফিকেশন পিন", "ডেলিভারি ওটিপি", "যাচাইকরণ পিন", "রাইড শুরুর পিন",
+        "যাচাইকরণ কোড", "ওয়ান-টাইম পাসওয়ার্ড", "ওয়ান টাইম পাসওয়ার্ড", "ওটিপি", "নিরাপত্তা কোড", "লগইন কোড",
+        "আপনার কোড হল", "লগইন ওটিপি", "ভেরিফিকেশন কোড", "ভেরিফিকেশন পিন", "ডেলিভারি ওটিপি", "যাচাইকরণ পিন", "রাইড শুরুর পিন", "গোপন কোড",
         // Turkish (Türkçe)
         "doğrulama kodu", "dogrulama kodu", "güvenlik kodu", "guvenlik kodu",
-        "onay kodu", "onay kodun", "onay kodunuz", "doğrulama kodun", "güvenlik kodun", "tek kullanımlık şifre", "tek kullanimlik sifre",
+        "onay kodu", "onay kodun", "onay kodunuz", "doğrulama kodun", "güvenlik kodun",
+        "sms şifresi", "sms kodu", "giriş kodu", "tek kullanımlık kod", "mobil onay kodu", "tek kullanımlık şifre", "tek kullanimlik sifre",
         // Vietnamese (Tiếng Việt)
         "mã xác minh", "ma xac minh", "mã xác thực", "mã xác nhận",
         "mã bảo mật", "ma bao mat", "mã otp",
         // Indonesian / Malay (Bahasa)
         "kode verifikasi", "kode keamanan", "kode konfirmasi", "kata sandi sekali pakai",
+        "kode rahasia", "kod rahsia", "nomor verifikasi", "kode login", "kode akses", "kod otp",
         "kode otp anda adalah", "kode keamanan anda adalah", "kod pengesahan", "kod keselamatan",
         // Marathi (मराठी)
         "तुमचा ओटीपी", "सत्यापन कोड", "सुरक्षा कोड", "लॉगिन कोड", "ओटीपी आहे", "एकवेळचा पासवर्ड",
-        "डिलिव्हरी पिन", "डिलिव्हरी ओटीपी", "पडताळणी कोड", "पडताळणी ओटीपी",
+        "डिलिव्हरी पिन", "डिलिव्हरी ओटीपी", "पडताळणी कोड", "पडताळणी ओटीपी", "प्रमाणीकरण कोड", "खाजगी कोड",
         // Telugu (తెలుగు)
         "ధృవీకరణ కోడ్", "ధ్రువీకరణ కోడ్", "రహస్య కోడ్", "వన్-టైమ్ పాస్‌వర్డ్", "మీ ఓటీపీ", "లాగిన్ కోడ్",
-        "డెలివరీ పిన్", "భద్రతా కోడ్", "రహస్య ఓటీపీ",
+        "డెలివరీ పిన్", "భద్రతా కోడ్", "రహస్య ఓటీపీ", "రహస్య పిన్", "ధృవీకరణ పిన్",
         // Tamil (தமிழ்)
         "சரிபார்ப்புக் குறியீடு", "பாதுகாப்புக் குறியீடு", "ஒருமுறை கடவுச்சொல்", "உங்கள் ஓடிபி", "உள்நுழைவு குறியீடு",
-        "சரிபார்ப்பு பின்", "டெலிவரி பின்", "ரகசிய குறியீடு",
+        "சரிபார்ப்பு பின்", "டெலிவரி பின்", "ரகசிய குறியீடு", "உறுதிப்படுத்தல் குறியீடு",
         // Gujarati (ગુજરાતી)
         "ચકાસણી કોડ", "સુરક્ષા કોડ", "વન-ટાઇમ પાસવર્ડ", "તમારો ઓટીપી", "લોગિન કોડ",
-        "વેરિફિકેશન પિન", "ડિલિવરી પિન", "સિક્રેટ કોડ"
+        "વેરિફિકેશન પિન", "ડિલિવરી પિન", "સિક્રેટ કોડ", "ગુપ્ત કોડ", "પ્રમાણીકરણ કોડ"
     )
 
     private val proximityKeywords = listOf(
@@ -139,9 +155,9 @@ object OtpExtractor {
         // "849201 কোডটি ব্যবহার করুন", "829104 கோடைப் பயன்படுத்தவும்", "582914 ஐப் பயன்படுத்தவும்", "582914 కోడ్ ఉపయోగించండి", "918204 kodunu kullanın", "391820 을(를) 사용하세요"
         Regex("(?i)(?<![\\p{L}\\p{Nd}])([0-9A-Za-z]{4,10})\\s*(?:[^\\d\\n\\r]{0,30})?\\s*(?:பயன்படுத்தவும்|ఉపయోగించండి|વાપરો|વાપરા|ব্যবহার\\s+করুন|사용하세요|kodunu\\s+kullan(?:ın)?|kodunu\\s+kuryeye)(?![\\p{L}\\p{Nd}])"),
 
-        // 4d. Direct action verbs (multilingual): "Utilisez 918204 pour...", "Gunakan 918204 untuk...", "Используйте 618294 для..."
-        Regex("(?i)(?<![\\p{L}\\p{Nd}])(?:use|enter|input|utilisez|utilice|utilize|ingrese|entrez|geben\\s+sie|verwenden\\s+sie|use\\s+el|usa|gunakan|используйте|[Ии]спользуйте)\\s+(?:le\\s+code\\s+de\\s+\\w+|el\\s+código\\s+de\\s+\\w+|a\\s+senha\\s+de\\s+\\w+|код\\s+проверки|[Кк]од\\s+проверки|código\\s+de\\s+validação)?\\s*([0-9A-Za-z]{4,8})\\s+(?:as|to|for|para|pour|um|zu|on|untuk|pour|para|sich|в|входа|войти|для)(?![\\p{L}\\p{Nd}])"),
-        Regex("(?i)(?<![\\p{L}\\p{Nd}])(?:use|enter|input|utilisez|utilice|utilize|ingrese|entrez|geben\\s+sie|verwenden\\s+sie|use\\s+el|usa|gunakan|используйте|[Ии]спользуйте)\\s+(?:le\\s+code\\s+de\\s+\\w+|el\\s+código\\s+de\\s+\\w+|a\\s+senha\\s+de\\s+\\w+|код\\s+проверки|[Кк]од\\s+проверки|código\\s+de\\s+validação)?\\s*([0-9A-Za-z]{4,8})(?![0-9A-Za-z])"),
+        // 4d. Direct action verbs (multilingual): "Utilisez 918204 pour...", "Gunakan 918204 untuk...", "Используйте 618294 для...", "Use el código 391028 para autorizar"
+        Regex("(?i)(?<![\\p{L}\\p{Nd}])(?:use|enter|input|utilisez|utilice|utilize|ingrese|entrez|geben\\s+sie|verwenden\\s+sie|use\\s+el|usa|gunakan|используйте|[Ии]спользуйте)\\s+(?:le\\s+code(?:\\s+de\\s+\\w+)?|el\\s+c[oó]digo(?:\\s+de\\s+\\w+)?|a\\s+senha(?:\\s+de\\s+\\w+)?|код(?:\\s+проверки)?|[Кк]од(?:\\s+проверки)?|c[oó]digo\\s+de\\s+valida[cç][aã]o)?\\s*([0-9A-Za-z]{4,8})\\s+(?:as|to|for|para|pour|um|zu|on|untuk|sich|в|входа|войти|для)(?![\\p{L}\\p{Nd}])"),
+        Regex("(?i)(?<![\\p{L}\\p{Nd}])(?:use|enter|input|utilisez|utilice|utilize|ingrese|entrez|geben\\s+sie|verwenden\\s+sie|use\\s+el|usa|gunakan|используйте|[Ии]спользуйте)\\s+(?:le\\s+code(?:\\s+de\\s+\\w+)?|el\\s+c[oó]digo(?:\\s+de\\s+\\w+)?|a\\s+senha(?:\\s+de\\s+\\w+)?|код(?:\\s+проверки)?|[Кк]од(?:\\s+проверки)?|c[oó]digo\\s+de\\s+valida[cç][aã]o)?\\s*([0-9A-Za-z]{4,8})(?![0-9A-Za-z])"),
 
         // 4e. Direct action/use phrasing without 'to/for': "use one time password 7918", "enter one-time password 7918", "use code 7918", "your one-time password 7918", "One Time Password (OTP) 859878"
         // Catches SHEIN, Uber, banks worldwide in English, Spanish, French, Portuguese, etc.
@@ -182,23 +198,23 @@ object OtpExtractor {
         // 13. French: "Votre code de confirmation est le 739102", "Votre code d'autorisation est 739104"
         Regex("(?i)\\b(?:code\\s+d'(?:autorisation|accès|activation)|code\\s+de\\s+(?:confirmation|vérification|sécurité|validation|retrait|livraison)|mot\\s+de\\s+passe(?:\\s+(?:à\\s+usage\\s+unique|temporaire))?)\\s*(?:est(?:\\s+le)?|est\\s*:?|:|=|-|#)\\s*([0-9A-Za-z]{4,10})\\b"),
 
-        // 14. German: "Ihr Bestätigungscode lautet 829104", "Ihr VR-SecureGo Plus Freigabecode lautet 391028", "Ihr Buchungscode ist 849201"
-        Regex("(?i)\\b(?:(?:freigabe|sicherheits|bestätigungs|verifizierungs|aktivierungs|abhol|liefer|buchungs)?code|einmalpasswort|einmalkennwort|einmalcode)(?:[^.!\n\r]{0,35})?\\s*(?:lautet|ist|:|=|-|#)\\s*[:=]?\\s*([0-9A-Za-z]{4,10})\\b"),
-        Regex("(?i)\\blautet\\s+(?:ihr\\s+)?(?:sicherheits|bestätigungs|verifizierungs|freigabe)?(?:code|einmalpasswort|passwort)\\s*[:=—–-]?\\s*([0-9A-Za-z]{4,10})\\b"),
+        // 14. German: "Ihr Bestätigungscode lautet 829104", "Ihr VR-SecureGo Plus Freigabecode lautet 391028", "Ihr Buchungscode ist 849201", "Ihre smsTAN lautet 849201"
+        Regex("(?i)\\b(?:(?:freigabe|sicherheits|bestätigungs|verifizierungs|aktivierungs|abhol|liefer|buchungs|autorisierungs)?code|einmalpasswort|einmalkennwort|einmalcode|sms-?tan|mobiletan|pushtan|tan)(?:[^.!\n\r]{0,35})?\\s*(?:lautet|ist|:|=|-|#)\\s*[:=]?\\s*([0-9A-Za-z]{4,10})\\b"),
+        Regex("(?i)\\blautet\\s+(?:ihr\\s+)?(?:sicherheits|bestätigungs|verifizierungs|freigabe)?(?:code|einmalpasswort|passwort|tan|smstan)\\s*[:=—–-]?\\s*([0-9A-Za-z]{4,10})\\b"),
 
         // 15. Portuguese: "Seu código de verificação é 618294", "Chave de segurança 582910", "código de validação é 839104"
         Regex("(?i)\\b(?:código|codigo|chave)\\s+(?:de\\s+(?:verificación|verificacao|segurança|seguranca|confirmação|confirmacao|acesso|validação|validacao|entrega|levantamento|recolha))\\s*(?:é\\s*:?|e|:|=|-|#|\\s)\\s*([0-9A-Za-z]{4,10})\\b"),
         Regex("(?i)\\b(?:código|codigo|chave)\\s*(?:é\\s*:?|:|=|-|#)\\s*([0-9A-Za-z]{4,10})\\b"),
 
-        // 16. Italian: "Il tuo codice di verifica è 618294", "codice di autorizzazione"
-        Regex("(?i)\\b(?:codice\\s+di\\s+(?:verifica|sicurezza|conferma|autorizzazione|accesso|consegna|ritiro)|codice\\s+dispositivo|codice\\s+otp)\\s*(?:è\\s*:?|e|:|=|-|#)\\s*([0-9A-Za-z]{4,10})\\b"),
+        // 16. Italian: "Il tuo codice di verifica è 618294", "codice di autorizzazione", "codice sms: 849201", "codice usa e getta"
+        Regex("(?i)\\b(?:codice\\s+di\\s+(?:verifica|sicurezza|conferma|autorizzazione|accesso|consegna|ritiro)|codice\\s+dispositivo|codice\\s+sms|codice\\s+usa\\s+e\\s+getta|codice\\s+otp)\\s*(?:è\\s*:?|e|:|=|-|#)\\s*([0-9A-Za-z]{4,10})\\b"),
 
         // 17. Russian: "Ваш проверочный код: 391820", "Код 492018 для подтверждения платежа"
         Regex("(?i)[Кк]од\\s+([0-9A-Za-z]{4,10})\\s+для\\s+подтверждения(?![\\p{L}\\p{Nd}])"),
         Regex("(?i)[Кк]од\\s+(?:для\\s+получения|выдачи)[^0-9\\n\\r]{0,30}?\\s*([0-9A-Za-z]{4,10})\\b"),
         Regex("(?i)[Кк]од\\s+получения\\s+заказа[^:]*:\\s*([0-9]{4,10})\\b"),
         Regex("(?i)(?:заказа|посылки)[^0-9\\n\\r]{0,40}?:\\s*([0-9A-Za-z]{4,10})\\b"),
-        Regex("(?i)(?:[Вв]аш\\s+[Кк]од(?:\\s+для\\s+входа)?|[Кк]од\\s+(?:подтверждения(?:\\s+операции)?|безопасности|для\\s+входа|для\\s+подтверждения|получения|выдачи)|[Пп]роверочный\\s+[Кк]од|[Оо]дноразовый\\s+[Пп]ароль|[Пп]ароль)\\s*(?:[:=—–-]|это|для\\s+подтверждения|:)\\s*([0-9A-Za-z]{4,10})\\b"),
+        Regex("(?i)(?:[Вв]аш\\s+)?(?:[Кк]од|[Сс][Мм][Сс]-?[Кк]од|[Пп]роверочный\\s+[Кк]од|[Оо]дноразовый\\s+(?:[Пп]ароль|[Кк]од)|[Кк]од\\s+(?:подтверждения(?:\\s+операции)?|безопасности|для\\s+входа|для\\s+подтверждения|получения|выдачи|доступа))\\s*(?:[:=—–-]|это|для\\s+подтверждения|:)\\s*([0-9A-Za-z]{4,10})\\b"),
         Regex("(?i)(?:[Вв]аш\\s+(?:[Пп]роверочный\\s+)?[Кк]од)\\s*[:=—–-]\\s*([0-9A-Za-z]{4,10})\\b"),
 
         // 18. Chinese: "验证码：582910", "取件码是 839104"
@@ -208,7 +224,7 @@ object OtpExtractor {
         Regex("(?i)(?:認証コード|確認コード|セキュリティコード|ワンタイムパスワード|ガードコード|Steam\\s*ガードコード|認証番号|配達コード|本人確認コード)(?:は|：|:|=|\\s)*([0-9A-Za-z]{4,10})\\b"),
 
         // 20. Korean: "인증번호: 829104", "일회용 비밀번호 859878", "인증번호 [739104]", "본인인증 번호는 591028 입니다"
-        Regex("(?i)(?:\\[?\\s*(?:(?:본인)?인증\\s*번호(?:는)?|확인\\s*번호(?:는)?|확인\\s*코드(?:는)?|로그인\\s*인증\\s*코드(?:는)?|보안\\s*확인\\s*코드로|인증코드|보안코드|승인번호|일회용\\s*비밀번호|일회용\\s*인증번호)\\s*\\]?)[^0-9\\n\\r]{0,20}?\\s*\\[?([0-9A-Za-z]{4,10})\\]?\\b"),
+        Regex("(?i)(?:\\[?\\s*(?:(?:본인|휴대폰|로그인)?인증\\s*번호(?:는)?|확인\\s*번호(?:는)?|확인\\s*코드(?:는)?|로그인\\s*인증\\s*코드(?:는)?|보안\\s*확인\\s*코드로|인증코드|보안코드|승인번호|일회용\\s*비밀번호|일회용\\s*인증번호|SMS\\s*인증번호)\\s*\\]?)[^0-9\\n\\r]{0,20}?\\s*\\[?([0-9A-Za-z]{4,10})\\]?\\b"),
 
         // 21. Arabic: "رمز التحقق: 849201", "كود التأكيد هو 849201", "رمز أوبر الخاص بك هو 4918"
         Regex("(?i)(?:رمز|كود)[^0-9\\n\\r]{0,40}?(?:هو|:|—|-|=)\\s*([0-9A-Za-z]{4,10})\\b"),
@@ -222,7 +238,7 @@ object OtpExtractor {
         Regex("(?i)(?:mã\\s+(?:xác\\s+minh|xác\\s+thực|xác\\s+nhận|bảo\\s+mật|otp))[^0-9\\n\\r]{0,30}?(?:là|:|-|=)\\s*([0-9A-Za-z]{4,10})\\b"),
 
         // 24. Indonesian / Malay: "Kode verifikasi Anda adalah 829104", "Kode OTP Anda adalah 829104"
-        Regex("(?i)\\b(?:kode|kod)\\s+(?:verifikasi|keselamatan|pengesahan|konfirmasi|otp|keamanan)[^0-9\\n\\r]{0,35}?(?:adalah|:|-|=)\\s*([0-9A-Za-z]{4,10})\\b"),
+        Regex("(?i)\\b(?:kode|kod)\\s+(?:verifikasi|keselamatan|pengesahan|konfirmasi|otp|keamanan|rahasia|rahsia|akses|login)[^0-9\\n\\r]{0,35}?(?:adalah|:|-|=)\\s*([0-9A-Za-z]{4,10})\\b"),
 
         // 25. Marathi: "तुमचा लॉगिन ओटीपी 849201 आहे", "डिलिव्हरी पिन 8492 आहे"
         Regex("(?i)(?:तुमचा|आपला\\s+)?(?:लॉगिन\\s+)?(?:ओटीपी|सत्यापन\\s+код|सत्यापन\\s+कोड|सुरक्षा\\s+कोड|गुप्त\\s+कोड|पडताळणी\\s+कोड|पडताळणी\\s+ओटीपी|डिलिव्हरी\\s+पिन|डिलिव्हरी\\s+ओटीपी|एकवेळचा\\s+पासवर्ड)\\s*(?:आहे|वापरा|:|=|-|\\s)?\\s*([0-9A-Za-z]{4,10})\\b"),
