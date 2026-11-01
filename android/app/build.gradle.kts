@@ -34,7 +34,7 @@ android {
         create("playstore") {
             dimension = "distribution"
             buildConfigField("Boolean", "SUPPORTS_DIRECT_SMS", "false")
-            buildConfigField("Boolean", "SHOW_DIAGNOSTICS", "false")
+            buildConfigField("Boolean", "SHOW_DIAGNOSTICS", "true")
         }
         create("github") {
             dimension = "distribution"
