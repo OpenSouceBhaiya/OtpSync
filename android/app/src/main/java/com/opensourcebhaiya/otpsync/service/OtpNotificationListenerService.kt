@@ -162,45 +162,8 @@ class OtpNotificationListenerService : NotificationListenerService() {
         val summaryText = extras.getCharSequence(Notification.EXTRA_SUMMARY_TEXT)?.toString() ?: ""
         val conversationTitle = extras.getCharSequence("android.conversationTitle")?.toString() ?: ""
         
-        var messagesText = ""
-        try {
-            val messagingStyle = androidx.core.app.NotificationCompat.MessagingStyle.extractMessagingStyleFromNotification(sbn.notification)
-            if (messagingStyle != null) {
-                for (msg in messagingStyle.messages) {
-                    val msgText = msg.text?.toString()
-                    if (!msgText.isNullOrBlank()) {
-                        messagesText += "$msgText\n"
-                    }
-                }
-            }
-        } catch (_: Exception) {}
-
-        if (messagesText.isBlank()) {
-            try {
-                val messages = extras.getParcelableArray(Notification.EXTRA_MESSAGES)
-                if (messages != null) {
-                    for (msg in messages) {
-                        when (msg) {
-                            is android.os.Bundle -> {
-                                val msgText = msg.getCharSequence("text")?.toString()
-                                if (!msgText.isNullOrBlank()) {
-                                    messagesText += "$msgText\n"
-                                }
-                            }
-                            else -> {
-                                try {
-                                    val method = msg.javaClass.getMethod("getText")
-                                    val msgText = method.invoke(msg)?.toString()
-                                    if (!msgText.isNullOrBlank()) {
-                                        messagesText += "$msgText\n"
-                                    }
-                                } catch (_: Exception) {}
-                            }
-                        }
-                    }
-                }
-            } catch (_: Exception) {}
-        }
+        val messagingTexts = extractMessagingTexts(sbn.notification)
+        val textLinesList = extractTextLines(extras)
 
         val allTextBuilder = StringBuilder()
         
@@ -210,17 +173,29 @@ class OtpNotificationListenerService : NotificationListenerService() {
         if (title.isNotBlank()) allTextBuilder.append(title).append("\n")
         if (text.isNotBlank()) allTextBuilder.append(text).append("\n")
         if (bigText.isNotBlank() && bigText != text) allTextBuilder.append(bigText).append("\n")
-        if (messagesText.isNotBlank()) allTextBuilder.append(messagesText).append("\n")
+        for (m in messagingTexts) {
+            allTextBuilder.append(m).append("\n")
+        }
+        for (l in textLinesList) {
+            allTextBuilder.append(l).append("\n")
+        }
         if (subText.isNotBlank() && subText != title) allTextBuilder.append(subText).append("\n")
         if (summaryText.isNotBlank() && summaryText != title) allTextBuilder.append(summaryText).append("\n")
         if (conversationTitle.isNotBlank() && conversationTitle != title) allTextBuilder.append(conversationTitle).append("\n")
         
-        // Loop through all extras to catch hidden fields used by verified businesses / RCS
+        // Loop through all other extras to catch hidden fields used by verified businesses / RCS
         try {
+            val handledKeys = setOf(
+                Notification.EXTRA_TITLE, Notification.EXTRA_TITLE_BIG,
+                Notification.EXTRA_TEXT, Notification.EXTRA_BIG_TEXT,
+                Notification.EXTRA_MESSAGES, "android.messages",
+                Notification.EXTRA_HISTORIC_MESSAGES, "android.messages.historic",
+                Notification.EXTRA_TEXT_LINES, "android.textLines",
+                Notification.EXTRA_SUB_TEXT, Notification.EXTRA_SUMMARY_TEXT,
+                "android.conversationTitle"
+            )
             for (key in extras.keySet()) {
-                if (key == Notification.EXTRA_TITLE || key == Notification.EXTRA_TEXT || key == Notification.EXTRA_BIG_TEXT || key == Notification.EXTRA_MESSAGES) {
-                    continue
-                }
+                if (key in handledKeys) continue
                 val value = extras.get(key)
                 when (value) {
                     is CharSequence -> {
@@ -248,10 +223,12 @@ class OtpNotificationListenerService : NotificationListenerService() {
         }
 
         val actions = sbn.notification.actions
+        val actionTitles = mutableListOf<String>()
         if (actions != null) {
             for (action in actions) {
                 val actionTitle = action.title?.toString()
                 if (!actionTitle.isNullOrBlank()) {
+                    actionTitles.add(actionTitle)
                     allTextBuilder.append(actionTitle).append("\n")
                 }
             }
@@ -262,7 +239,7 @@ class OtpNotificationListenerService : NotificationListenerService() {
         
         val isTruecaller = packageName.contains("truecaller")
         val isSmsApp = !isTruecaller && (packageName.contains("messaging") || packageName.contains("mms") || packageName.contains(".sms") || packageName.contains("telephony") || packageName.contains("message"))
-        com.opensourcebhaiya.otpsync.utils.FileLogger.log(this, "Notification Received - Pkg: $packageName, Title: $title, Text length: ${fullText.length}")
+        com.opensourcebhaiya.otpsync.utils.FileLogger.log(this, "Notification Received - Pkg: $packageName, Title: $title, Text length: ${fullText.length}, MessagingCount: ${messagingTexts.size}, ActionsCount: ${actionTitles.size}")
         
         if (fullText.contains("Sensitive notification content hidden") || title.contains("Sensitive notification content hidden")) {
             com.opensourcebhaiya.otpsync.utils.FileLogger.log(this, "REDACTION DETECTED! OS blocked OTP extraction (Android 15+ restricted). Pkg: $packageName")
@@ -276,7 +253,21 @@ class OtpNotificationListenerService : NotificationListenerService() {
 
         // 1. Check clean, unpolluted message fields first
         var extractedOtp: com.opensourcebhaiya.otpsync.data.ExtractionResult? = null
-        if (bigText.isNotBlank()) {
+
+        // 1a. Check MessagingStyle chat messages (newest message first!) - Handles Google Messages & WhatsApp
+        if (messagingTexts.isNotEmpty()) {
+            for (mText in messagingTexts.asReversed()) {
+                val res = OtpExtractor.extractOtp(this, resolvedSender, mText, null, System.currentTimeMillis())
+                if (res != null) {
+                    extractedOtp = res
+                    com.opensourcebhaiya.otpsync.utils.FileLogger.log(this, "Found OTP in messagingText: ${res.code}")
+                    break
+                }
+            }
+        }
+
+        // 1b. Check bigText & text
+        if (extractedOtp == null && bigText.isNotBlank()) {
             extractedOtp = OtpExtractor.extractOtp(this, resolvedSender, bigText, null, System.currentTimeMillis())
             if (extractedOtp != null) {
                 com.opensourcebhaiya.otpsync.utils.FileLogger.log(this, "Found OTP in bigText: ${extractedOtp.code}")
@@ -288,18 +279,10 @@ class OtpNotificationListenerService : NotificationListenerService() {
                 com.opensourcebhaiya.otpsync.utils.FileLogger.log(this, "Found OTP in text: ${extractedOtp.code}")
             }
         }
-        if (extractedOtp == null && messagesText.isNotBlank()) {
-            extractedOtp = OtpExtractor.extractOtp(this, resolvedSender, messagesText, null, System.currentTimeMillis())
-            if (extractedOtp != null) {
-                com.opensourcebhaiya.otpsync.utils.FileLogger.log(this, "Found OTP in messagesText: ${extractedOtp.code}")
-            }
-        }
 
-        // 2. Check individual lines (handles Gmail, Outlook, WhatsApp with grouped messages)
-        val textLines = extras.getCharSequenceArray(Notification.EXTRA_TEXT_LINES)
-        if (extractedOtp == null && textLines != null && textLines.isNotEmpty()) {
-            for (line in textLines) {
-                val lineStr = line?.toString() ?: continue
+        // 2. Check individual lines (handles Gmail, Outlook, grouped summaries)
+        if (extractedOtp == null && textLinesList.isNotEmpty()) {
+            for (lineStr in textLinesList.asReversed()) {
                 val res = OtpExtractor.extractOtp(this, resolvedSender, lineStr, null, System.currentTimeMillis())
                 if (res != null) {
                     extractedOtp = res
@@ -313,7 +296,19 @@ class OtpNotificationListenerService : NotificationListenerService() {
             }
         }
 
-        // 3. Fallback to fullText evaluated as a whole
+        // 3. Check notification quick-actions (e.g. "Copy 888618", "Copy OTP 888618")
+        if (extractedOtp == null && actionTitles.isNotEmpty()) {
+            for (aTitle in actionTitles) {
+                val res = OtpExtractor.extractOtp(this, resolvedSender, aTitle, null, System.currentTimeMillis())
+                if (res != null) {
+                    extractedOtp = res
+                    com.opensourcebhaiya.otpsync.utils.FileLogger.log(this, "Found OTP in action button: ${res.code} (\"$aTitle\")")
+                    break
+                }
+            }
+        }
+
+        // 4. Fallback to fullText evaluated as a whole
         if (extractedOtp == null && fullText.isNotBlank()) {
             extractedOtp = OtpExtractor.extractOtp(this, resolvedSender, fullText, null, System.currentTimeMillis())
         }
@@ -587,6 +582,101 @@ class OtpNotificationListenerService : NotificationListenerService() {
             return colonSplit[0].trim()
         }
         return null
+    }
+
+    private fun extractMessagingTexts(notification: Notification): List<String> {
+        val list = mutableListOf<String>()
+
+        // 1. AndroidX NotificationCompat.MessagingStyle
+        try {
+            val compatStyle = androidx.core.app.NotificationCompat.MessagingStyle.extractMessagingStyleFromNotification(notification)
+            if (compatStyle != null) {
+                for (msg in compatStyle.messages) {
+                    val t = msg.text?.toString()
+                    if (!t.isNullOrBlank()) list.add(t)
+                }
+                for (msg in compatStyle.historicMessages) {
+                    val t = msg.text?.toString()
+                    if (!t.isNullOrBlank()) list.add(t)
+                }
+            }
+        } catch (_: Exception) {}
+
+        // 2. Framework extras (Notification.EXTRA_MESSAGES & Notification.EXTRA_HISTORIC_MESSAGES)
+        val extras = notification.extras ?: return list
+        val keys = listOf(
+            Notification.EXTRA_MESSAGES,
+            "android.messages",
+            Notification.EXTRA_HISTORIC_MESSAGES,
+            "android.messages.historic"
+        )
+
+        for (k in keys) {
+            val raw = extras.get(k) ?: continue
+            val bundles = mutableListOf<android.os.Bundle>()
+            when (raw) {
+                is Array<*> -> {
+                    for (item in raw) {
+                        if (item is android.os.Bundle) bundles.add(item)
+                    }
+                }
+                is Iterable<*> -> {
+                    for (item in raw) {
+                        if (item is android.os.Bundle) bundles.add(item)
+                    }
+                }
+            }
+
+            // Framework Notification.MessagingStyle.Message (API 24+)
+            if (bundles.isNotEmpty() && android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.N) {
+                try {
+                    val frameworkMessages = Notification.MessagingStyle.Message.getMessagesFromBundleArray(bundles.toTypedArray())
+                    for (m in frameworkMessages) {
+                        val t = m.text?.toString()
+                        if (!t.isNullOrBlank()) list.add(t)
+                    }
+                } catch (_: Exception) {}
+            }
+
+            // Direct Bundle inspection
+            for (b in bundles) {
+                val directText = b.getCharSequence("text")?.toString()
+                    ?: b.getCharSequence("android.text")?.toString()
+                    ?: b.getCharSequence("body")?.toString()
+                    ?: b.getCharSequence("message")?.toString()
+                if (!directText.isNullOrBlank()) {
+                    list.add(directText)
+                }
+                for (subKey in b.keySet()) {
+                    if (subKey in listOf("text", "android.text", "body", "message", "time", "sender", "type", "uri")) continue
+                    val v = b.get(subKey)
+                    if (v is CharSequence && v.isNotBlank()) {
+                        list.add(v.toString())
+                    }
+                }
+            }
+        }
+
+        return list.distinct()
+    }
+
+    private fun extractTextLines(extras: android.os.Bundle?): List<String> {
+        if (extras == null) return emptyList()
+        val list = mutableListOf<String>()
+        val raw = extras.get(Notification.EXTRA_TEXT_LINES) ?: extras.get("android.textLines")
+        when (raw) {
+            is Array<*> -> {
+                for (item in raw) {
+                    if (item is CharSequence && item.isNotBlank()) list.add(item.toString())
+                }
+            }
+            is Iterable<*> -> {
+                for (item in raw) {
+                    if (item is CharSequence && item.isNotBlank()) list.add(item.toString())
+                }
+            }
+        }
+        return list
     }
 }
 

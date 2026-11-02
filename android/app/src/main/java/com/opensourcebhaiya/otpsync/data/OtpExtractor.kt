@@ -22,7 +22,7 @@ object OtpExtractor {
         "code to log in", "code to verify", "code valid", "valid code", "your code is", "your code:", "pin is",
         "your pin", "secret pin", "temporary password", "delivery otp", "pickup otp",
         "verification pin", "security pin", "login otp", "signin otp", "sign-in otp", "verification otp",
-        "security otp", "bank otp", "transaction otp",
+        "security otp", "bank otp", "transaction otp", "copy otp", "copy code", "copy",
         "login pin", "auth pin", "passcode is", "one-time pin", "one time pin", "temporary pin",
         "2fa code", "2-factor code", "two-factor", "two factor", "mfa code", "multi-factor",
         "here is your code", "here is your otp", "uber code", "uber otp",
@@ -141,6 +141,9 @@ object OtpExtractor {
 
         // 2. Google and platform prefixes: "G-123456", "FB-12345", "TW-123456", "WL-123456" (never preceded by #)
         Regex("(?i)(?<![#@\\w])(?:G|C|B|V|FB|TW|WL|GH|MS|VK|TG)[- ]([0-9]{4,8})\\b"),
+
+        // 2b. Notification quick-action copy buttons: "Copy 888618", "Copy OTP: 888618", "Copy code 888618", "Copier le code 888618", "Copiar código 888618"
+        Regex("(?i)\\b(?:copy|copier|copiar|kopieren)\\s*(?:le\\s+code|el\\s+c[oó]digo|otp|code|pin|código|codigo|clave|код)?\\s*[:=–\\-#]?\\s*([0-9A-Za-z]{4,10})\\b"),
 
         // 3. Steam Guard specifically: 5 uppercase letters/digits
         Regex("(?i)\\b(?:steam\\s+guard(?:\\s+(?:code|код|коડ|код|코드|コード|કોડ))?)\\s*(?:is|:|：|=|\u2013|-|\\s)\\s*([0-9A-Z]{5})\\b"),

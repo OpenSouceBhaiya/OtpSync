@@ -636,5 +636,20 @@ class OtpExtractorTest {
         assertNotNull(result2)
         assertEquals("819184", result2?.code)
     }
+
+    @Test
+    fun testActionCopyButtons() {
+        val action1 = "Copy 888618"
+        assertEquals("888618", OtpExtractor.extractOtp(null, "AX-TMANGO-S", action1, null, 0L)?.code)
+
+        val action2 = "Copy OTP: 492019"
+        assertEquals("492019", OtpExtractor.extractOtp(null, "Google", action2, null, 0L)?.code)
+
+        val action3 = "Copy code 582910"
+        assertEquals("582910", OtpExtractor.extractOtp(null, "SMS", action3, null, 0L)?.code)
+
+        val action4 = "Copier le code 739102"
+        assertEquals("739102", OtpExtractor.extractOtp(null, "SMS", action4, null, 0L)?.code)
+    }
 }
 
