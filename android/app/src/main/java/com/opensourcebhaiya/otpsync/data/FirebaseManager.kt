@@ -112,7 +112,9 @@ class FirebaseManager {
         val uuid: String,
         val keyBase64: String,
         val tier: Int, // 1 = Explicit Intent/Login, 2 = Active Interaction/Focus, 3 = Standby/Heartbeat, 4 = Cold
-        val score: Long
+        val score: Long,
+        val lastActive: Long = 0L,
+        val lastSeen: Long = 0L
     )
 
     /**
@@ -155,8 +157,8 @@ class FirebaseManager {
                     Log.d("FirebaseManager", "Targeting primary requesting device ${top.uuid} with explicit OTP intent.")
                     listOf(top)
                 } else {
-                    Log.d("FirebaseManager", "Targeting ${sorted.size} devices with concurrent OTP intent.")
-                    sorted
+                    Log.d("FirebaseManager", "Targeting most recent intent device ${top.uuid}.")
+                    listOf(top)
                 }
             }
 
@@ -169,8 +171,19 @@ class FirebaseManager {
 
             // Case 3: Online Standby devices (seen in last 3 minutes)
             tier3.isNotEmpty() -> {
-                Log.d("FirebaseManager", "Targeting ${tier3.size} online standby device(s).")
-                tier3
+                // If one standby device was interacted with much more recently than other(s), route exclusively to it
+                val sortedByActive = tier3.sortedByDescending { it.lastActive }
+                val topActive = sortedByActive.first()
+                val secondActive = sortedByActive.getOrNull(1)
+                val topActiveAge = if (topActive.lastActive > 0L) timestamp - topActive.lastActive else Long.MAX_VALUE
+
+                if (topActiveAge < 15 * 60 * 1000L && (secondActive == null || (topActive.lastActive - secondActive.lastActive > 30_000L))) {
+                    Log.d("FirebaseManager", "Targeting most recently active laptop ${topActive.uuid} (active ${topActiveAge / 1000}s ago).")
+                    listOf(topActive)
+                } else {
+                    Log.d("FirebaseManager", "Targeting ${tier3.size} online standby device(s).")
+                    tier3
+                }
             }
 
             // Case 4: All linked devices are offline / shut down (Tier 4)
@@ -233,9 +246,9 @@ class FirebaseManager {
                         withTimeoutOrNull(800) {
                             val snapshot = devicesRef.child(uuid).get().await()
                             parseDeviceCandidate(uuid, key, snapshot, now)
-                        } ?: DeviceTargetCandidate(uuid, key, 4, 0L)
+                        } ?: DeviceTargetCandidate(uuid, key, 4, 0L, 0L, 0L)
                     } catch (e: Exception) {
-                        DeviceTargetCandidate(uuid, key, 4, 0L)
+                        DeviceTargetCandidate(uuid, key, 4, 0L, 0L, 0L)
                     }
                 }
             }
@@ -252,12 +265,12 @@ class FirebaseManager {
         now: Long
     ): DeviceTargetCandidate {
         if (!snapshot.exists()) {
-            return DeviceTargetCandidate(uuid, key, 4, 0L)
+            return DeviceTargetCandidate(uuid, key, 4, 0L, 0L, 0L)
         }
 
         val status = snapshot.child("status").getValue(String::class.java)
         if (status == "terminated" || status == "paused" || status == "inactive") {
-            return DeviceTargetCandidate(uuid, key, 4, 0L)
+            return DeviceTargetCandidate(uuid, key, 4, 0L, 0L, 0L)
         }
 
         val lastSeen = (snapshot.child("lastSeen").value as? Number)?.toLong() ?: 0L
@@ -279,24 +292,26 @@ class FirebaseManager {
         // Tier 1: Explicit Intent or Active Login Page within last 2 minutes
         if (hasRecentIntent || hasRecentLogin) {
             val score = Math.max(intentTs, loginTs)
-            return DeviceTargetCandidate(uuid, key, 1, score)
+            return DeviceTargetCandidate(uuid, key, 1, score, lastActive, lastSeen)
         }
 
-        // Tier 2: Active User Interaction (Focused window or activity within last 60s)
-        val isRecentlyActive = (now - lastActive in 0..60000)
-        if (isFocused || isRecentlyActive) {
-            val score = if (isFocused) lastActive + 100000 else lastActive
-            return DeviceTargetCandidate(uuid, key, 2, score)
+        // Tier 2: Active User Interaction (Focused window or activity within last 90s)
+        val isGenuineFocus = isFocused && (now - lastActive in 0..120_000 || now - lastSeen in 0..120_000)
+        val isRecentlyActive = (now - lastActive in 0..90_000)
+        if (isGenuineFocus || isRecentlyActive) {
+            val score = (if (isGenuineFocus) 1_000_000_000L else 0L) + lastActive
+            return DeviceTargetCandidate(uuid, key, 2, score, lastActive, lastSeen)
         }
 
-        // Tier 3: Recent Heartbeat (Seen or active within last 3 minutes)
-        val effectiveLastSeen = maxOf(lastSeen, lastActive)
-        if (effectiveLastSeen > 0L && now - effectiveLastSeen in 0..180000) {
-            return DeviceTargetCandidate(uuid, key, 3, effectiveLastSeen)
+        // Tier 3: Recent Heartbeat / Online Standby (Seen or active within last 3 minutes)
+        val isOnline = (now - lastSeen in 0..180_000) || (now - lastActive in 0..180_000)
+        if (isOnline) {
+            val score = lastActive
+            return DeviceTargetCandidate(uuid, key, 3, score, lastActive, lastSeen)
         }
 
         // Tier 4: Inactive / Cold
-        return DeviceTargetCandidate(uuid, key, 4, effectiveLastSeen)
+        return DeviceTargetCandidate(uuid, key, 4, 0L, lastActive, lastSeen)
     }
 
     private fun encryptAesGcm(otpCode: String, sender: String, timestamp: Long, expiresAt: Long, keyBase64: String, targetUuid: String = "ALL"): Map<String, String> {

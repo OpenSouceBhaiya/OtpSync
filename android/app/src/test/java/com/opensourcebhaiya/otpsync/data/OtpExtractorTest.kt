@@ -651,5 +651,38 @@ class OtpExtractorTest {
         val action4 = "Copier le code 739102"
         assertEquals("739102", OtpExtractor.extractOtp(null, "SMS", action4, null, 0L)?.code)
     }
+
+    @Test
+    fun testMultilingualOtpExtraction() {
+        // Japanese test cases
+        val ja1 = "セキュリティ認証コードは572916です。本人確認のため、このコードを入力してください。このコードは一度のみ使用できます。"
+        assertEquals("572916", OtpExtractor.extractOtp(null, "Service", ja1, null, 0L)?.code)
+
+        val ja2 = "認証コードは928301です。"
+        assertEquals("928301", OtpExtractor.extractOtp(null, "Service", ja2, null, 0L)?.code)
+
+        val ja3 = "【認証コード】582910 本人確認のため入力してください。"
+        assertEquals("582910", OtpExtractor.extractOtp(null, "Service", ja3, null, 0L)?.code)
+
+        // Chinese test cases
+        val zh1 = "您的验证码是572916，请勿将验证码泄露给他人。"
+        assertEquals("572916", OtpExtractor.extractOtp(null, "Service", zh1, null, 0L)?.code)
+
+        // Korean test cases
+        val ko1 = "인증번호 [572916]를 입력해주세요."
+        assertEquals("572916", OtpExtractor.extractOtp(null, "Service", ko1, null, 0L)?.code)
+
+        // Hindi test cases
+        val hi1 = "आपका लॉगिन ओटीपी 572916 है। इसे किसी के साथ साझा न करें।"
+        assertEquals("572916", OtpExtractor.extractOtp(null, "Service", hi1, null, 0L)?.code)
+
+        // Spanish test cases
+        val es1 = "Su código de verificación es 572916. No lo comparta con nadie."
+        assertEquals("572916", OtpExtractor.extractOtp(null, "Service", es1, null, 0L)?.code)
+
+        // German test cases
+        val de1 = "Ihr Bestätigungscode lautet 572916. Bitte geben Sie diesen Code ein."
+        assertEquals("572916", OtpExtractor.extractOtp(null, "Service", de1, null, 0L)?.code)
+    }
 }
 

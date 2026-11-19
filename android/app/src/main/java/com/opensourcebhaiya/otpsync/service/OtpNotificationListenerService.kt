@@ -192,10 +192,13 @@ class OtpNotificationListenerService : NotificationListenerService() {
                 Notification.EXTRA_HISTORIC_MESSAGES, "android.messages.historic",
                 Notification.EXTRA_TEXT_LINES, "android.textLines",
                 Notification.EXTRA_SUB_TEXT, Notification.EXTRA_SUMMARY_TEXT,
-                "android.conversationTitle"
+                "android.conversationTitle",
+                "android.publicVersion", "android.reducedContent", "android.appInfo",
+                "android.people.list", "android.support.actionExtras",
+                "android.wearable.EXTENSIONS"
             )
             for (key in extras.keySet()) {
-                if (key in handledKeys) continue
+                if (key in handledKeys || key.contains("publicVersion", ignoreCase = true) || key.contains("template", ignoreCase = true)) continue
                 val value = extras.get(key)
                 when (value) {
                     is CharSequence -> {
@@ -240,14 +243,6 @@ class OtpNotificationListenerService : NotificationListenerService() {
         val isTruecaller = packageName.contains("truecaller")
         val isSmsApp = !isTruecaller && (packageName.contains("messaging") || packageName.contains("mms") || packageName.contains(".sms") || packageName.contains("telephony") || packageName.contains("message"))
         com.opensourcebhaiya.otpsync.utils.FileLogger.log(this, "Notification Received - Pkg: $packageName, Title: $title, Text length: ${fullText.length}, MessagingCount: ${messagingTexts.size}, ActionsCount: ${actionTitles.size}")
-        
-        if (fullText.contains("Sensitive notification content hidden") || title.contains("Sensitive notification content hidden")) {
-            com.opensourcebhaiya.otpsync.utils.FileLogger.log(this, "REDACTION DETECTED! OS blocked OTP extraction (Android 15+ restricted). Pkg: $packageName")
-            if (isSmsApp) {
-                trySmsInboxFallback(packageName, delayMs = 1000)
-            }
-            return // Skip further extraction because the text is redacted anyway!
-        }
 
         var resolvedSender = title.takeIf { it.isNotBlank() } ?: packageName
 
@@ -338,10 +333,14 @@ class OtpNotificationListenerService : NotificationListenerService() {
             com.opensourcebhaiya.otpsync.utils.FileLogger.log(this, "[NOTIF_SUCCESS] Extracted OTP: ${extractedOtp.code} from $packageName (Sender: $resolvedSender, Channel: $finalAccountName)")
             handleExtractedOtp(extractedOtp, resolvedSender, finalAccountName, packageName)
         } else {
+            val isRedacted = fullText.contains("Sensitive notification content hidden") || title.contains("Sensitive notification content hidden")
+            if (isRedacted) {
+                com.opensourcebhaiya.otpsync.utils.FileLogger.log(this, "REDACTION DETECTED! OS blocked notification content (Android 15+ restricted). Pkg: $packageName")
+            }
             val snippet = fullText.take(150).replace("\n", " ")
             com.opensourcebhaiya.otpsync.utils.FileLogger.log(this, "[NOTIF_FAIL] No OTP recognized in notification from $packageName. Snippet: \"$snippet\"")
             if (isSmsApp) {
-                trySmsInboxFallback(packageName, delayMs = 500)
+                trySmsInboxFallback(packageName, delayMs = if (isRedacted) 1000 else 500)
             }
         }
     }
@@ -409,6 +408,8 @@ class OtpNotificationListenerService : NotificationListenerService() {
             scope.launch {
                 try {
                     val db = AppDatabase.getDatabase(this@OtpNotificationListenerService)
+                    val defaultExpiry = System.currentTimeMillis() + 10 * 60 * 1000L
+                    val validExpiry = extractedOtp.expiresAt?.takeIf { it > System.currentTimeMillis() + 30_000L } ?: defaultExpiry
                     AppDatabase.insertMutex.withLock {
                         val existing = db.otpDao().getOtpByCodeRecent(otpCode, System.currentTimeMillis() - 10 * 60 * 1000L)
                         if (existing != null) {
@@ -427,6 +428,18 @@ class OtpNotificationListenerService : NotificationListenerService() {
                             val mergedAccount = existingParts.distinct().joinToString(" + ")
                             val updated = existing.copy(account = mergedAccount, receivedAt = System.currentTimeMillis())
                             db.otpDao().updateOtp(updated)
+                        } else {
+                            db.otpDao().insertOtp(OtpEntity(
+                                id = UUID.randomUUID().toString(),
+                                code = otpCode,
+                                sender = senderName,
+                                subject = senderName,
+                                account = finalAccountName,
+                                receivedAt = System.currentTimeMillis(),
+                                expiresAt = validExpiry,
+                                sourcePackage = packageName,
+                                sentToDevices = null
+                            ))
                         }
                     }
                 } catch (e: Exception) {
@@ -456,47 +469,17 @@ class OtpNotificationListenerService : NotificationListenerService() {
             }
         }
 
-        // 2. INSTANT Firebase Cloud Broadcast & Room Database Insertion
+        // 2. INSTANT Room Database Insertion & Firebase Cloud Broadcast
+        val defaultExpiry = System.currentTimeMillis() + 10 * 60 * 1000L
+        val validExpiry = extractedOtp.expiresAt?.takeIf { it > System.currentTimeMillis() + 30_000L } ?: defaultExpiry
+
         scope.launch {
             try {
-                val firebaseManager = com.opensourcebhaiya.otpsync.data.FirebaseManager()
-                val keys = settingsManager.getAllLinkedDeviceKeys()
-                val powerManager = getSystemService(android.content.Context.POWER_SERVICE) as? android.os.PowerManager
-                val keyguardManager = getSystemService(android.content.Context.KEYGUARD_SERVICE) as? android.app.KeyguardManager
-                val isScreenOn = powerManager?.isInteractive ?: false
-                val isLocked = keyguardManager?.isKeyguardLocked ?: false
-                val isPhoneInUse = isScreenOn && !isLocked
-
-                val defaultExpiry = System.currentTimeMillis() + 10 * 60 * 1000L
-                val validExpiry = extractedOtp.expiresAt?.takeIf { it > System.currentTimeMillis() + 30_000L } ?: defaultExpiry
-
-                val sentDeviceUuids = firebaseManager.broadcastOtp(
-                    otpCode = otpCode,
-                    sender = senderName,
-                    activeDeviceKeys = keys,
-                    expiresAt = validExpiry,
-                    isPhoneInteractive = isPhoneInUse
-                )
-
-                val sentDeviceNames = if (sentDeviceUuids.isNotEmpty()) {
-                    val currentTime = java.text.SimpleDateFormat("MMM dd, hh:mm a", java.util.Locale.getDefault()).format(java.util.Date())
-                    for (deviceId in sentDeviceUuids) {
-                        settingsManager.updateLinkedDeviceLastOtpTime(deviceId, currentTime)
-                    }
-                    sentDeviceUuids.map { settingsManager.getLinkedDeviceName(it) }.distinct()
-                } else {
-                    emptyList()
-                }
-                val sentToDevicesString = if (sentDeviceNames.isNotEmpty()) {
-                    sentDeviceNames.joinToString(", ")
-                } else {
-                    null
-                }
-
-                // 3. ASYNC Room Database Insertion
                 val db = AppDatabase.getDatabase(this@OtpNotificationListenerService)
+
+                // 2a. INSTANT Room Database Insertion FIRST (0ms latency, runs FIRST before network)
                 AppDatabase.insertMutex.withLock {
-                    var existing = db.otpDao().getOtpByCodeRecent(otpCode, System.currentTimeMillis() - 10 * 60 * 1000L)
+                    val existing = db.otpDao().getOtpByCodeRecent(otpCode, System.currentTimeMillis() - 10 * 60 * 1000L)
                     if (existing == null) {
                         db.otpDao().insertOtp(OtpEntity(
                             id = UUID.randomUUID().toString(),
@@ -507,10 +490,9 @@ class OtpNotificationListenerService : NotificationListenerService() {
                             receivedAt = System.currentTimeMillis(),
                             expiresAt = validExpiry,
                             sourcePackage = packageName,
-                            sentToDevices = sentToDevicesString
+                            sentToDevices = null
                         ))
                     } else {
-                        existing.receivedAt = System.currentTimeMillis()
                         val existingParts = existing.account.split(" + ").map { it.trim() }.toMutableList()
                         val cleanSource = when {
                             finalAccountName.contains("truecaller", ignoreCase = true) -> "Truecaller"
@@ -523,12 +505,48 @@ class OtpNotificationListenerService : NotificationListenerService() {
                         if (cleanSource !in existingParts) {
                             existingParts.add(cleanSource)
                         }
-                        existing.sentToDevices = sentToDevicesString ?: existing.sentToDevices
-                        db.otpDao().updateOtp(existing.copy(account = existingParts.distinct().joinToString(" + ")))
+                        db.otpDao().updateOtp(existing.copy(
+                            account = existingParts.distinct().joinToString(" + "),
+                            receivedAt = System.currentTimeMillis()
+                        ))
+                    }
+                }
+
+                // 2b. PARALLEL Firebase Cloud Broadcast (Non-blocking network sync)
+                val firebaseManager = com.opensourcebhaiya.otpsync.data.FirebaseManager()
+                val keys = settingsManager.getAllLinkedDeviceKeys()
+                val powerManager = getSystemService(android.content.Context.POWER_SERVICE) as? android.os.PowerManager
+                val keyguardManager = getSystemService(android.content.Context.KEYGUARD_SERVICE) as? android.app.KeyguardManager
+                val isScreenOn = powerManager?.isInteractive ?: false
+                val isLocked = keyguardManager?.isKeyguardLocked ?: false
+                val isPhoneInUse = isScreenOn && !isLocked
+
+                val sentDeviceUuids = firebaseManager.broadcastOtp(
+                    otpCode = otpCode,
+                    sender = senderName,
+                    activeDeviceKeys = keys,
+                    expiresAt = validExpiry,
+                    isPhoneInteractive = isPhoneInUse
+                )
+
+                if (sentDeviceUuids.isNotEmpty()) {
+                    val currentTime = java.text.SimpleDateFormat("MMM dd, hh:mm a", java.util.Locale.getDefault()).format(java.util.Date())
+                    for (deviceId in sentDeviceUuids) {
+                        settingsManager.updateLinkedDeviceLastOtpTime(deviceId, currentTime)
+                    }
+                    val sentDeviceNames = sentDeviceUuids.map { settingsManager.getLinkedDeviceName(it) }.distinct()
+                    val sentToDevicesString = sentDeviceNames.joinToString(", ")
+
+                    // Update sentToDevices in Room Database
+                    AppDatabase.insertMutex.withLock {
+                        val currentEntry = db.otpDao().getOtpByCodeRecent(otpCode, System.currentTimeMillis() - 10 * 60 * 1000L)
+                        if (currentEntry != null) {
+                            db.otpDao().updateOtp(currentEntry.copy(sentToDevices = sentToDevicesString))
+                        }
                     }
                 }
             } catch (e: Exception) {
-                Log.e("OtpNotification", "Firebase broadcast or DB insert failed", e)
+                Log.e("OtpNotification", "Room DB insert or Firebase broadcast failed", e)
             }
         }
     }

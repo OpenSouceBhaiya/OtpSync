@@ -625,8 +625,8 @@ fun DiagnosticsScreen(
             }
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Filter lines
-            val allLogLines = remember(rawLogs) { rawLogs.lines().filter { it.isNotBlank() } }
+            // Filter lines (Newest First at the top)
+            val allLogLines = remember(rawLogs) { rawLogs.lines().filter { it.isNotBlank() }.asReversed() }
             val smsCount = remember(allLogLines) { allLogLines.count { it.contains("sms", ignoreCase = true) || it.contains("telephony", ignoreCase = true) } }
             val notifCount = remember(allLogLines) { allLogLines.count { it.contains("notification", ignoreCase = true) } }
             val errorCount = remember(allLogLines) { allLogLines.count { it.contains("error", ignoreCase = true) || it.contains("fail", ignoreCase = true) || it.contains("crash", ignoreCase = true) || it.contains("rejected", ignoreCase = true) } }
@@ -692,7 +692,7 @@ fun DiagnosticsScreen(
                         Box(modifier = Modifier.size(10.dp).clip(CircleShape).background(Color(0xFF27C93F)))
                     }
                     Text(
-                        text = "otpsync_engine.log (${filteredLines.size} records)",
+                        text = "otpsync_engine.log (${filteredLines.size} records • Newest First)",
                         color = TextSecondary,
                         fontSize = 11.sp,
                         fontFamily = FontFamily.Monospace
