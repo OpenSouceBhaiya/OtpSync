@@ -171,19 +171,16 @@ class FirebaseManager {
 
             // Case 3: Online Standby devices (seen in last 3 minutes)
             tier3.isNotEmpty() -> {
-                // If one standby device was interacted with much more recently than other(s), route exclusively to it
-                val sortedByActive = tier3.sortedByDescending { it.lastActive }
-                val topActive = sortedByActive.first()
-                val secondActive = sortedByActive.getOrNull(1)
-                val topActiveAge = if (topActive.lastActive > 0L) timestamp - topActive.lastActive else Long.MAX_VALUE
-
-                if (topActiveAge < 15 * 60 * 1000L && (secondActive == null || (topActive.lastActive - secondActive.lastActive > 30_000L))) {
-                    Log.d("FirebaseManager", "Targeting most recently active laptop ${topActive.uuid} (active ${topActiveAge / 1000}s ago).")
-                    listOf(topActive)
-                } else {
-                    Log.d("FirebaseManager", "Targeting ${tier3.size} online standby device(s).")
-                    tier3
-                }
+                // NEVER broadcast to multiple devices when multiple laptops are connected!
+                // Prioritize the device that has the most recent activity or heartbeat.
+                val sorted = tier3.sortedWith(
+                    compareByDescending<DeviceTargetCandidate> { it.score }
+                        .thenByDescending { it.lastActive }
+                        .thenByDescending { it.lastSeen }
+                )
+                val primaryLaptop = sorted.first()
+                Log.d("FirebaseManager", "Targeting single active standby laptop ${primaryLaptop.uuid} exclusively (preventing leakage to other laptops).")
+                listOf(primaryLaptop)
             }
 
             // Case 4: All linked devices are offline / shut down (Tier 4)
@@ -273,9 +270,13 @@ class FirebaseManager {
             return DeviceTargetCandidate(uuid, key, 4, 0L, 0L, 0L)
         }
 
+        val isIdle = snapshot.child("isIdle").getValue(Boolean::class.java) ?: false
+        val systemState = snapshot.child("systemState").getValue(String::class.java) ?: "active"
+        val isDeviceSystemIdle = isIdle || systemState == "idle" || systemState == "locked"
+
         val lastSeen = (snapshot.child("lastSeen").value as? Number)?.toLong() ?: 0L
         val lastActive = (snapshot.child("lastActive").value as? Number)?.toLong() ?: 0L
-        val isFocused = snapshot.child("isFocused").getValue(Boolean::class.java) ?: false
+        val isFocused = (snapshot.child("isFocused").getValue(Boolean::class.java) ?: false) && !isDeviceSystemIdle
 
         // Check otpIntent
         val intentSnap = snapshot.child("otpIntent")
@@ -289,15 +290,15 @@ class FirebaseManager {
         val loginTs = (loginSnap.child("ts").value as? Number)?.toLong() ?: 0L
         val hasRecentLogin = loginActive && (now - loginTs in 0..120000)
 
-        // Tier 1: Explicit Intent or Active Login Page within last 2 minutes
-        if (hasRecentIntent || hasRecentLogin) {
+        // Tier 1: Explicit Intent or Active Login Page within last 2 minutes (only if device is not idle)
+        if ((hasRecentIntent || hasRecentLogin) && !isDeviceSystemIdle) {
             val score = Math.max(intentTs, loginTs)
             return DeviceTargetCandidate(uuid, key, 1, score, lastActive, lastSeen)
         }
 
-        // Tier 2: Active User Interaction (Focused window or activity within last 90s)
-        val isGenuineFocus = isFocused && (now - lastActive in 0..120_000 || now - lastSeen in 0..120_000)
-        val isRecentlyActive = (now - lastActive in 0..90_000)
+        // Tier 2: Active User Interaction (Focused window or activity within last 90s, physically not idle)
+        val isGenuineFocus = isFocused && !isDeviceSystemIdle && (now - lastActive in 0..120_000)
+        val isRecentlyActive = !isDeviceSystemIdle && (now - lastActive in 0..90_000)
         if (isGenuineFocus || isRecentlyActive) {
             val score = (if (isGenuineFocus) 1_000_000_000L else 0L) + lastActive
             return DeviceTargetCandidate(uuid, key, 2, score, lastActive, lastSeen)
@@ -306,7 +307,8 @@ class FirebaseManager {
         // Tier 3: Recent Heartbeat / Online Standby (Seen or active within last 3 minutes)
         val isOnline = (now - lastSeen in 0..180_000) || (now - lastActive in 0..180_000)
         if (isOnline) {
-            val score = lastActive
+            val idlePenalty = if (isDeviceSystemIdle) -1_000_000_000L else 0L
+            val score = lastActive + idlePenalty
             return DeviceTargetCandidate(uuid, key, 3, score, lastActive, lastSeen)
         }
 

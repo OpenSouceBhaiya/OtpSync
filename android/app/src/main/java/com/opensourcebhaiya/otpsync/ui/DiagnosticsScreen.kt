@@ -239,7 +239,251 @@ fun DiagnosticsScreen(
 
             Spacer(modifier = Modifier.height(18.dp))
 
-            // ─── 1. Subsystem Health Status ──────────────────────────────────────────
+            // ─── 1. Live Log Terminal (Placed UP SIDE at the top as requested) ───────
+            val infiniteTransition = rememberInfiniteTransition(label = "terminal_pulse")
+            val liveAlpha by infiniteTransition.animateFloat(
+                initialValue = 0.4f,
+                targetValue = 1.0f,
+                animationSpec = infiniteRepeatable(
+                    animation = tween(1000, easing = FastOutSlowInEasing),
+                    repeatMode = RepeatMode.Reverse
+                ),
+                label = "live_alpha"
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = "LIVE ENGINE LOGS",
+                        style = MaterialTheme.typography.labelMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = PurpleAccent,
+                        letterSpacing = 1.sp
+                    )
+                    if (autoRefresh) {
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .clip(CircleShape)
+                                .background(SuccessGreen.copy(alpha = liveAlpha))
+                        )
+                    }
+                }
+
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = if (autoRefresh) "Auto-Refresh ON" else "Auto-Refresh OFF",
+                        color = TextSecondary,
+                        fontSize = 11.sp
+                    )
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Switch(
+                        checked = autoRefresh,
+                        onCheckedChange = { autoRefresh = it },
+                        modifier = Modifier.height(24.dp)
+                    )
+                }
+            }
+            Spacer(modifier = Modifier.height(8.dp))
+
+            // Filter lines (Newest First at the top)
+            val allLogLines = remember(rawLogs) { rawLogs.lines().filter { it.isNotBlank() }.asReversed() }
+            val smsCount = remember(allLogLines) { allLogLines.count { it.contains("sms", ignoreCase = true) || it.contains("telephony", ignoreCase = true) } }
+            val notifCount = remember(allLogLines) { allLogLines.count { it.contains("notification", ignoreCase = true) } }
+            val errorCount = remember(allLogLines) { allLogLines.count { it.contains("error", ignoreCase = true) || it.contains("fail", ignoreCase = true) || it.contains("crash", ignoreCase = true) || it.contains("rejected", ignoreCase = true) } }
+
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                FilterChip(
+                    selected = selectedFilter == "ALL",
+                    onClick = { selectedFilter = "ALL" },
+                    label = { Text("All (${allLogLines.size})", fontSize = 12.sp) }
+                )
+                FilterChip(
+                    selected = selectedFilter == "SMS",
+                    onClick = { selectedFilter = "SMS" },
+                    label = { Text("SMS ($smsCount)", fontSize = 12.sp) }
+                )
+                FilterChip(
+                    selected = selectedFilter == "NOTIF",
+                    onClick = { selectedFilter = "NOTIF" },
+                    label = { Text("Notifications ($notifCount)", fontSize = 12.sp) }
+                )
+                FilterChip(
+                    selected = selectedFilter == "ERROR",
+                    onClick = { selectedFilter = "ERROR" },
+                    label = { Text("Errors / Fails ($errorCount)", fontSize = 12.sp) }
+                )
+            }
+            Spacer(modifier = Modifier.height(10.dp))
+
+            val filteredLines = remember(allLogLines, selectedFilter) {
+                when (selectedFilter) {
+                    "SMS" -> allLogLines.filter { it.contains("sms", ignoreCase = true) || it.contains("telephony", ignoreCase = true) }
+                    "NOTIF" -> allLogLines.filter { it.contains("notification", ignoreCase = true) }
+                    "ERROR" -> allLogLines.filter { it.contains("error", ignoreCase = true) || it.contains("fail", ignoreCase = true) || it.contains("crash", ignoreCase = true) || it.contains("rejected", ignoreCase = true) }
+                    else -> allLogLines
+                }
+            }
+
+            // Log Console Box with Terminal Header
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(Color(0xFF090A0F))
+                    .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(16.dp))
+            ) {
+                // Terminal window topbar
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(Color(0xFF141620))
+                        .padding(horizontal = 14.dp, vertical = 8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween
+                ) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Box(modifier = Modifier.size(10.dp).clip(CircleShape).background(Color(0xFFFF5F56)))
+                        Box(modifier = Modifier.size(10.dp).clip(CircleShape).background(Color(0xFFFFBD2E)))
+                        Box(modifier = Modifier.size(10.dp).clip(CircleShape).background(Color(0xFF27C93F)))
+                    }
+                    Text(
+                        text = "otpsync_engine.log (${filteredLines.size} records • Newest First)",
+                        color = TextSecondary,
+                        fontSize = 11.sp,
+                        fontFamily = FontFamily.Monospace
+                    )
+                }
+
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .heightIn(min = 260.dp, max = 460.dp)
+                        .padding(12.dp)
+                ) {
+                    SelectionContainer {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize()
+                        ) {
+                            if (filteredLines.isEmpty()) {
+                                item {
+                                    Column(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(32.dp),
+                                        horizontalAlignment = Alignment.CenterHorizontally
+                                    ) {
+                                        Icon(Icons.Outlined.Info, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(28.dp))
+                                        Spacer(modifier = Modifier.height(8.dp))
+                                        Text(
+                                            text = "No log records found for '$selectedFilter'",
+                                            color = TextSecondary,
+                                            fontSize = 13.sp,
+                                            fontFamily = FontFamily.Monospace
+                                        )
+                                        Spacer(modifier = Modifier.height(4.dp))
+                                        Text(
+                                            text = "Trigger an SMS or notification to see live events in real-time.",
+                                            color = TextSecondary.copy(alpha = 0.6f),
+                                            fontSize = 11.sp,
+                                            softWrap = true,
+                                            lineHeight = 16.sp
+                                        )
+                                    }
+                                }
+                            } else {
+                                items(filteredLines) { line ->
+                                    val lineColor = when {
+                                        line.contains("SUCCESS", ignoreCase = true) || line.contains("Phase 1 Anchor Matched", ignoreCase = true) -> SuccessGreen
+                                        line.contains("FAILED", ignoreCase = true) || line.contains("ERROR", ignoreCase = true) || line.contains("CRASH", ignoreCase = true) -> ErrorRed
+                                        line.contains("SMS", ignoreCase = true) -> Color(0xFF60A5FA) // Blue
+                                        line.contains("Notification", ignoreCase = true) -> Color(0xFFFBBF24) // Yellow
+                                        line.contains("rejected", ignoreCase = true) -> Color(0xFFFF9800) // Orange
+                                        else -> Color(0xFFD1D5DB)
+                                    }
+                                    Text(
+                                        text = line,
+                                        color = lineColor,
+                                        fontSize = 11.sp,
+                                        fontFamily = FontFamily.Monospace,
+                                        lineHeight = 16.sp,
+                                        softWrap = true,
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .padding(vertical = 2.dp)
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // Action Buttons
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                OutlinedButton(
+                    onClick = { copyLogsToClipboard() },
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(46.dp),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(18.dp), tint = TextPrimary)
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Copy Logs", color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                }
+
+                Button(
+                    onClick = { FileLogger.exportLog(context) },
+                    colors = ButtonDefaults.buttonColors(containerColor = PurpleAccent),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(46.dp),
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color.White)
+                    Spacer(modifier = Modifier.width(6.dp))
+                    Text("Export Logs", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+
+            Spacer(modifier = Modifier.height(10.dp))
+
+            OutlinedButton(
+                onClick = {
+                    FileLogger.clearLog(context)
+                    rawLogs = FileLogger.getAllLogs(context)
+                    ToastManager.show(context, "Log history cleared", android.widget.Toast.LENGTH_SHORT)
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(44.dp),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = ErrorRed)
+            ) {
+                Icon(Icons.Default.DeleteOutline, contentDescription = null, modifier = Modifier.size(18.dp), tint = ErrorRed)
+                Spacer(modifier = Modifier.width(6.dp))
+                Text("Clear Engine Log Terminal", color = ErrorRed, fontSize = 13.sp, fontWeight = FontWeight.Medium)
+            }
+
+            Spacer(modifier = Modifier.height(20.dp))
+
+            // ─── 2. Subsystem Health Status ──────────────────────────────────────────
             Text(
                 text = "SUBSYSTEM HEALTH & PERMISSIONS",
                 style = MaterialTheme.typography.labelMedium,
@@ -340,7 +584,7 @@ fun DiagnosticsScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // ─── 2. Interactive SMS Extractor Tester ─────────────────────────────────
+            // ─── 3. Interactive SMS Extractor Tester ─────────────────────────────────
             Text(
                 text = "INTERACTIVE OTP EXTRACTOR TESTER",
                 style = MaterialTheme.typography.labelMedium,
@@ -573,251 +817,7 @@ fun DiagnosticsScreen(
 
             Spacer(modifier = Modifier.height(20.dp))
 
-            // ─── 3. Live Log Terminal ────────────────────────────────────────────────
-            val infiniteTransition = rememberInfiniteTransition(label = "terminal_pulse")
-            val liveAlpha by infiniteTransition.animateFloat(
-                initialValue = 0.4f,
-                targetValue = 1.0f,
-                animationSpec = infiniteRepeatable(
-                    animation = tween(1000, easing = FastOutSlowInEasing),
-                    repeatMode = RepeatMode.Reverse
-                ),
-                label = "live_alpha"
-            )
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = "LIVE ENGINE LOGS",
-                        style = MaterialTheme.typography.labelMedium,
-                        fontWeight = FontWeight.Bold,
-                        color = PurpleAccent,
-                        letterSpacing = 1.sp
-                    )
-                    if (autoRefresh) {
-                        Spacer(modifier = Modifier.width(8.dp))
-                        Box(
-                            modifier = Modifier
-                                .size(8.dp)
-                                .clip(CircleShape)
-                                .background(SuccessGreen.copy(alpha = liveAlpha))
-                        )
-                    }
-                }
-
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = if (autoRefresh) "Auto-Refresh ON" else "Auto-Refresh OFF",
-                        color = TextSecondary,
-                        fontSize = 11.sp
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Switch(
-                        checked = autoRefresh,
-                        onCheckedChange = { autoRefresh = it },
-                        modifier = Modifier.height(24.dp)
-                    )
-                }
-            }
-            Spacer(modifier = Modifier.height(8.dp))
-
-            // Filter lines (Newest First at the top)
-            val allLogLines = remember(rawLogs) { rawLogs.lines().filter { it.isNotBlank() }.asReversed() }
-            val smsCount = remember(allLogLines) { allLogLines.count { it.contains("sms", ignoreCase = true) || it.contains("telephony", ignoreCase = true) } }
-            val notifCount = remember(allLogLines) { allLogLines.count { it.contains("notification", ignoreCase = true) } }
-            val errorCount = remember(allLogLines) { allLogLines.count { it.contains("error", ignoreCase = true) || it.contains("fail", ignoreCase = true) || it.contains("crash", ignoreCase = true) || it.contains("rejected", ignoreCase = true) } }
-
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .horizontalScroll(rememberScrollState()),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                FilterChip(
-                    selected = selectedFilter == "ALL",
-                    onClick = { selectedFilter = "ALL" },
-                    label = { Text("All (${allLogLines.size})", fontSize = 12.sp) }
-                )
-                FilterChip(
-                    selected = selectedFilter == "SMS",
-                    onClick = { selectedFilter = "SMS" },
-                    label = { Text("SMS ($smsCount)", fontSize = 12.sp) }
-                )
-                FilterChip(
-                    selected = selectedFilter == "NOTIF",
-                    onClick = { selectedFilter = "NOTIF" },
-                    label = { Text("Notifications ($notifCount)", fontSize = 12.sp) }
-                )
-                FilterChip(
-                    selected = selectedFilter == "ERROR",
-                    onClick = { selectedFilter = "ERROR" },
-                    label = { Text("Errors / Fails ($errorCount)", fontSize = 12.sp) }
-                )
-            }
-            Spacer(modifier = Modifier.height(10.dp))
-
-            val filteredLines = remember(allLogLines, selectedFilter) {
-                when (selectedFilter) {
-                    "SMS" -> allLogLines.filter { it.contains("sms", ignoreCase = true) || it.contains("telephony", ignoreCase = true) }
-                    "NOTIF" -> allLogLines.filter { it.contains("notification", ignoreCase = true) }
-                    "ERROR" -> allLogLines.filter { it.contains("error", ignoreCase = true) || it.contains("fail", ignoreCase = true) || it.contains("crash", ignoreCase = true) || it.contains("rejected", ignoreCase = true) }
-                    else -> allLogLines
-                }
-            }
-
-            // Log Console Box with Terminal Header
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(Color(0xFF090A0F))
-                    .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(16.dp))
-            ) {
-                // Terminal window topbar
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .background(Color(0xFF141620))
-                        .padding(horizontal = 14.dp, vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.SpaceBetween
-                ) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Box(modifier = Modifier.size(10.dp).clip(CircleShape).background(Color(0xFFFF5F56)))
-                        Box(modifier = Modifier.size(10.dp).clip(CircleShape).background(Color(0xFFFFBD2E)))
-                        Box(modifier = Modifier.size(10.dp).clip(CircleShape).background(Color(0xFF27C93F)))
-                    }
-                    Text(
-                        text = "otpsync_engine.log (${filteredLines.size} records • Newest First)",
-                        color = TextSecondary,
-                        fontSize = 11.sp,
-                        fontFamily = FontFamily.Monospace
-                    )
-                }
-
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .heightIn(min = 260.dp, max = 460.dp)
-                        .padding(12.dp)
-                ) {
-                    SelectionContainer {
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize()
-                        ) {
-                            if (filteredLines.isEmpty()) {
-                                item {
-                                    Column(
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(32.dp),
-                                        horizontalAlignment = Alignment.CenterHorizontally
-                                    ) {
-                                        Icon(Icons.Outlined.Info, contentDescription = null, tint = TextSecondary, modifier = Modifier.size(28.dp))
-                                        Spacer(modifier = Modifier.height(8.dp))
-                                        Text(
-                                            text = "No log records found for '$selectedFilter'",
-                                            color = TextSecondary,
-                                            fontSize = 13.sp,
-                                            fontFamily = FontFamily.Monospace
-                                        )
-                                        Spacer(modifier = Modifier.height(4.dp))
-                                        Text(
-                                            text = "Trigger an SMS, notification, or use the tester above to see live events.",
-                                            color = TextSecondary.copy(alpha = 0.6f),
-                                            fontSize = 11.sp,
-                                            softWrap = true,
-                                            lineHeight = 16.sp
-                                        )
-                                    }
-                                }
-                            } else {
-                                items(filteredLines) { line ->
-                                    val lineColor = when {
-                                        line.contains("SUCCESS", ignoreCase = true) || line.contains("Phase 1 Anchor Matched", ignoreCase = true) -> SuccessGreen
-                                        line.contains("FAILED", ignoreCase = true) || line.contains("ERROR", ignoreCase = true) || line.contains("CRASH", ignoreCase = true) -> ErrorRed
-                                        line.contains("SMS", ignoreCase = true) -> Color(0xFF60A5FA) // Blue
-                                        line.contains("Notification", ignoreCase = true) -> Color(0xFFFBBF24) // Yellow
-                                        line.contains("rejected", ignoreCase = true) -> Color(0xFFFF9800) // Orange
-                                        else -> Color(0xFFD1D5DB)
-                                    }
-                                    Text(
-                                        text = line,
-                                        color = lineColor,
-                                        fontSize = 11.sp,
-                                        fontFamily = FontFamily.Monospace,
-                                        lineHeight = 16.sp,
-                                        softWrap = true,
-                                        modifier = Modifier
-                                            .fillMaxWidth()
-                                            .padding(vertical = 2.dp)
-                                    )
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            // ─── 4. Action Buttons ───────────────────────────────────────────────────
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(10.dp)
-            ) {
-                OutlinedButton(
-                    onClick = { copyLogsToClipboard() },
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(46.dp),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Icon(Icons.Default.ContentCopy, contentDescription = null, modifier = Modifier.size(18.dp), tint = TextPrimary)
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Copy Logs", color = TextPrimary, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                }
-
-                Button(
-                    onClick = { FileLogger.exportLog(context) },
-                    colors = ButtonDefaults.buttonColors(containerColor = PurpleAccent),
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(46.dp),
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Icon(Icons.Default.Share, contentDescription = null, modifier = Modifier.size(18.dp), tint = Color.White)
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text("Export Logs", color = Color.White, fontSize = 13.sp, fontWeight = FontWeight.Bold)
-                }
-            }
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            OutlinedButton(
-                onClick = {
-                    FileLogger.clearLog(context)
-                    rawLogs = FileLogger.getAllLogs(context)
-                    ToastManager.show(context, "Log history cleared", android.widget.Toast.LENGTH_SHORT)
-                },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .height(44.dp),
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.outlinedButtonColors(contentColor = ErrorRed)
-            ) {
-                Icon(Icons.Default.DeleteOutline, contentDescription = null, modifier = Modifier.size(18.dp), tint = ErrorRed)
-                Spacer(modifier = Modifier.width(6.dp))
-                Text("Clear Engine Log Terminal", color = ErrorRed, fontSize = 13.sp, fontWeight = FontWeight.Medium)
-            }
-
-            Spacer(modifier = Modifier.height(18.dp))
-
-            // ─── 5. Privacy & Security Guarantee Card ────────────────────────────────
+            // ─── 4. Privacy & Security Guarantee Card ────────────────────────────────
             Box(
                 modifier = Modifier
                     .fillMaxWidth()

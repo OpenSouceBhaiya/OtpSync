@@ -27,6 +27,29 @@ try {
 function sendDeviceHeartbeat(uuid, isUserActive = false) {
     if (!uuid) return;
     const now = Date.now();
+    try {
+        if (chrome.idle && typeof chrome.idle.queryState === 'function') {
+            chrome.idle.queryState(15, (state) => {
+                const isSystemActive = (state === 'active');
+                const payload = {
+                    lastSeen: now,
+                    status: "active",
+                    systemState: state,
+                    isIdle: !isSystemActive
+                };
+                if (isUserActive && isSystemActive) {
+                    payload.lastActive = now;
+                }
+                fetch(`https://otpsync-adf52-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${uuid}.json`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                }).catch(() => {});
+            });
+            return;
+        }
+    } catch (_) {}
+
     const payload = {
         lastSeen: now,
         status: "active"
@@ -40,6 +63,35 @@ function sendDeviceHeartbeat(uuid, isUserActive = false) {
         body: JSON.stringify(payload)
     }).catch(() => {});
 }
+
+// ─── System Idle & Active Interaction Tracking ───────────────────────────────
+try {
+    if (chrome.idle && typeof chrome.idle.setDetectionInterval === 'function') {
+        chrome.idle.setDetectionInterval(15);
+        chrome.idle.onStateChanged.addListener((newState) => {
+            chrome.storage.local.get(['uuid'], (data) => {
+                if (!data.uuid) return;
+                const isUserActive = (newState === 'active');
+                const now = Date.now();
+                const payload = {
+                    systemState: newState,
+                    isIdle: !isUserActive,
+                    lastSeen: now
+                };
+                if (isUserActive) {
+                    payload.lastActive = now;
+                } else {
+                    payload.isFocused = false;
+                }
+                fetch(`https://otpsync-adf52-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${data.uuid}.json`, {
+                    method: 'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                }).catch(() => {});
+            });
+        });
+    }
+} catch (_) {}
 
 // ─── Keep-Alive Alarm ────────────────────────────────────────────────────────
 chrome.alarms.create("keepAlive", { periodInMinutes: 1 });
@@ -197,12 +249,39 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 chrome.windows.onFocusChanged.addListener((windowId) => {
     chrome.storage.local.get(['uuid'], (data) => {
         if (!data.uuid) return;
-        const isFocused = windowId !== chrome.windows.WINDOW_ID_NONE;
-        fetch(`https://otpsync-adf52-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${data.uuid}/isFocused.json`, {
-            method: 'PUT',
-            body: isFocused ? 'true' : 'false'
-        }).catch(() => {});
-        if (isFocused) {
+        const hasWindowFocus = (windowId !== chrome.windows.WINDOW_ID_NONE);
+        if (!hasWindowFocus) {
+            fetch(`https://otpsync-adf52-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${data.uuid}.json`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ isFocused: false })
+            }).catch(() => {});
+        } else {
+            try {
+                if (chrome.idle && typeof chrome.idle.queryState === 'function') {
+                    chrome.idle.queryState(15, (state) => {
+                        const isSystemActive = (state === 'active');
+                        fetch(`https://otpsync-adf52-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${data.uuid}.json`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({
+                                isFocused: true,
+                                isIdle: !isSystemActive,
+                                systemState: state
+                            })
+                        }).catch(() => {});
+                        if (isSystemActive) {
+                            sendDeviceHeartbeat(data.uuid, true);
+                        }
+                    });
+                    return;
+                }
+            } catch (_) {}
+
+            fetch(`https://otpsync-adf52-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${data.uuid}/isFocused.json`, {
+                method: 'PUT',
+                body: 'true'
+            }).catch(() => {});
             sendDeviceHeartbeat(data.uuid, true);
         }
     });
