@@ -359,12 +359,19 @@ fun HomeScreen(
     }
 
     Scaffold { innerPadding ->
-        LazyColumn(
+        Box(
             modifier = Modifier
                 .fillMaxSize()
-                .background(Color(0xFF120F17))
-                .padding(innerPadding)
-                .padding(horizontal = 16.dp),
+                .background(Color(0xFF120F17)),
+            contentAlignment = Alignment.TopCenter
+        ) {
+            LazyColumn(
+                modifier = Modifier
+                    .fillMaxHeight()
+                    .widthIn(max = 680.dp)
+                    .fillMaxWidth()
+                    .padding(innerPadding)
+                    .padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 item { Spacer(modifier = Modifier.height(16.dp)) }
@@ -610,6 +617,7 @@ fun HomeScreen(
             }
             
             item { Spacer(modifier = Modifier.height(80.dp)) } // Bottom padding for navbar
+        }
         }
     }
 

@@ -812,30 +812,43 @@ async function deliverToastToTab(tabId, otpCode, sender, toastDuration, showUnti
 }
 
 let lastToastWindowId = null;
+let isOpeningToastPopup = false;
+
 function showToastPopup(otpCode, sender, duration = 6000, isDuplicate = false) {
+    if (isOpeningToastPopup) return;
+    if (lastToastWindowId !== null) return; // Already showing, never create duplicate windows!
+
+    isOpeningToastPopup = true;
     try {
-        if (lastToastWindowId !== null) {
-            chrome.windows.remove(lastToastWindowId).catch(() => {});
-            lastToastWindowId = null;
-        }
         const url = `toast_popup.html?otp=${encodeURIComponent(otpCode)}&sender=${encodeURIComponent(sender)}&dup=${isDuplicate}`;
         chrome.windows.getLastFocused((currWin) => {
-            const left = (currWin && currWin.left != null) ? (currWin.left + currWin.width - 380) : 1200;
-            const top = (currWin && currWin.top != null) ? (currWin.top + 50) : 50;
+            const left = (currWin && currWin.left != null) ? (currWin.left + currWin.width - 390) : 1200;
+            const top = (currWin && currWin.top != null) ? (currWin.top + 70) : 70;
             chrome.windows.create({
                 url: url,
                 type: 'popup',
-                width: 360,
-                height: 110,
+                width: 370,
+                height: 120,
                 left: Math.max(0, left),
                 top: Math.max(0, top),
                 focused: false
             }, (win) => {
-                if (win) lastToastWindowId = win.id;
+                isOpeningToastPopup = false;
+                if (win) {
+                    lastToastWindowId = win.id;
+                }
             });
         });
-    } catch (_) {}
+    } catch (_) {
+        isOpeningToastPopup = false;
+    }
 }
+
+chrome.windows.onRemoved.addListener((windowId) => {
+    if (windowId === lastToastWindowId) {
+        lastToastWindowId = null;
+    }
+});
 
 // ─── Re-show Pending Toast on Tab Reloads / Navigations / Switches ───────────
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
@@ -846,18 +859,13 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
         chrome.storage.local.get(['pendingToast'], (data) => {
             const pt = data.pendingToast;
             if (pt && pt.showUntil && Date.now() < pt.showUntil) {
-                const remaining = pt.showUntil - Date.now();
-                if (remaining > 300) {
-                    chrome.tabs.sendMessage(tabId, {
-                        action: "show_toast_and_copy",
-                        otp: pt.otp,
-                        sender: pt.sender,
-                        isCarryForward: true,
-                        timeRemaining: remaining,
-                        showUntil: pt.showUntil,
-                        isDuplicate: Boolean(pt.isDuplicate)
-                    }).catch(() => {});
-                }
+                chrome.tabs.sendMessage(tabId, {
+                    action: "ensure_pinned_toast",
+                    otp: pt.otp,
+                    sender: pt.sender,
+                    showUntil: pt.showUntil,
+                    isDuplicate: Boolean(pt.isDuplicate)
+                }).catch(() => {});
             }
         });
     }
@@ -870,48 +878,32 @@ chrome.tabs.onActivated.addListener((activeInfo) => {
         }
         chrome.tabs.get(activeInfo.tabId, (tab) => {
             if (chrome.runtime.lastError || !tab) return;
-            const pt = data.pendingToast;
-            const hasPendingToast = pt && pt.showUntil && (pt.showUntil - Date.now() > 300);
+            if (tab.url && tab.url.startsWith('chrome-extension://')) return;
 
-            const isRestrictedUrl = !tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://') || tab.url.startsWith('about:') || tab.url.startsWith('edge://');
+            const isRestrictedUrl = !tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('about:') || tab.url.startsWith('edge://');
             if (isRestrictedUrl) {
-                if (hasPendingToast) {
-                    const remaining = pt.showUntil - Date.now();
-                    showToastPopup(pt.otp, pt.sender, remaining, Boolean(pt.isDuplicate));
-                }
+                // Restricted tab: NEVER spawn popups from tab switch
                 return;
             }
 
-            // Normal tab activated: close popup window if open
+            // Normal tab activated: if popup window was open, close it cleanly
             if (lastToastWindowId !== null) {
                 chrome.windows.remove(lastToastWindowId).catch(() => {});
                 lastToastWindowId = null;
             }
 
-            if (hasPendingToast) {
-                const remaining = pt.showUntil - Date.now();
+            const pt = data.pendingToast;
+            if (pt && pt.showUntil && (pt.showUntil - Date.now() > 300)) {
                 chrome.tabs.sendMessage(activeInfo.tabId, {
-                    action: "show_toast_and_copy",
+                    action: "ensure_pinned_toast",
                     otp: pt.otp,
                     sender: pt.sender,
-                    isCarryForward: true,
-                    timeRemaining: remaining,
                     showUntil: pt.showUntil,
                     isDuplicate: Boolean(pt.isDuplicate)
                 }).catch(async () => {
                     try {
                         await chrome.scripting.insertCSS({ target: { tabId: activeInfo.tabId }, files: ["content.css"] });
                         await chrome.scripting.executeScript({ target: { tabId: activeInfo.tabId }, files: ["content.js"] });
-                        await new Promise(resolve => setTimeout(resolve, 80));
-                        await chrome.tabs.sendMessage(activeInfo.tabId, {
-                            action: "show_toast_and_copy",
-                            otp: pt.otp,
-                            sender: pt.sender,
-                            isCarryForward: true,
-                            timeRemaining: remaining,
-                            showUntil: pt.showUntil,
-                            isDuplicate: Boolean(pt.isDuplicate)
-                        });
                     } catch (_) {}
                 });
             }

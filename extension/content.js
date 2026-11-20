@@ -9,50 +9,44 @@
     }
     window.__otpsync_loaded = true;
 
-// ─── Persistent Toast: Re-show on page navigation or tab visibility ──────────
+// ─── Pinned Toast Engine: Seamlessly pinned across all tabs like a sticky navbar ───
+let currentToastTimer = null;
+let isDismissing = false;
+
 function checkAndDisplayPendingToast() {
     try {
-        if (document.hidden) return; // Tab is in background: NEVER display toast!
         chrome.storage.local.get(['pendingToast'], (data) => {
             if (chrome.runtime.lastError) return;
-            if (document.hidden) return; // Switched away while reading storage: ABORT
             const pt = data.pendingToast;
-            if (pt && pt.showUntil) {
-                const remaining = pt.showUntil - Date.now();
-                if (remaining > 300) {
-                    showToast(pt.otp, pt.sender, true, remaining, pt.showUntil, Boolean(pt.isDuplicate));
-                } else {
-                    dismissToast();
-                }
+            if (pt && pt.showUntil && pt.showUntil > Date.now()) {
+                renderPinnedToast(pt.otp, pt.sender, pt.showUntil, Boolean(pt.isDuplicate), false);
             } else {
-                dismissToast();
+                dismissToast(false);
             }
         });
     } catch (e) { }
 }
 
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-        if (!document.hidden) checkAndDisplayPendingToast();
-    });
+    document.addEventListener('DOMContentLoaded', checkAndDisplayPendingToast);
 } else {
-    if (!document.hidden) checkAndDisplayPendingToast();
+    checkAndDisplayPendingToast();
 }
 
 document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') {
         checkAndDisplayPendingToast();
-    } else {
-        // Tab is hidden (user switched away) - remove toast from this tab immediately!
-        dismissToast();
     }
 });
 
-// Listen for storage changes to dismiss toast when expired or cleared
+// Sync across tabs immediately via storage changes
 chrome.storage.onChanged.addListener((changes, area) => {
     if (area === 'local' && changes.pendingToast) {
-        if (!changes.pendingToast.newValue) {
-            dismissToast();
+        const pt = changes.pendingToast.newValue;
+        if (pt && pt.showUntil && pt.showUntil > Date.now()) {
+            renderPinnedToast(pt.otp, pt.sender, pt.showUntil, Boolean(pt.isDuplicate), false);
+        } else {
+            dismissToast(false);
         }
     }
 });
@@ -80,11 +74,11 @@ function playNotificationChime() {
     }
 }
 
-// ─── Guard: Don't inject twice ────────────────────────────────────────────────
+// ─── Message Listener: Show Toast & Copy ─────────────────────────────────────
 {
     chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
         if (request.action === "show_toast_and_copy") {
-            // ALWAYS write OTP to clipboard so the user is 100% guaranteed it is on their clipboard!
+            // Write OTP to clipboard immediately
             if (navigator.clipboard && navigator.clipboard.writeText) {
                 navigator.clipboard.writeText(request.otp).catch(() => {});
             } else {
@@ -101,35 +95,41 @@ function playNotificationChime() {
                 } catch (e) { }
             }
             
-            if (!document.hidden) {
-                showToast(request.otp, request.sender, request.isCarryForward, request.timeRemaining, request.showUntil, Boolean(request.isDuplicate));
-            }
+            playNotificationChime();
+            renderPinnedToast(request.otp, request.sender, request.showUntil, Boolean(request.isDuplicate), true);
+            sendResponse({success: true});
+            return true;
+        }
+
+        if (request.action === "ensure_pinned_toast") {
+            renderPinnedToast(request.otp, request.sender, request.showUntil, Boolean(request.isDuplicate), false);
             sendResponse({success: true});
             return true;
         }
     });
 }
 
-let currentToastTimer = null;
-let isDismissing = false;
-
-function dismissToast() {
+function dismissToast(withAnimation = true) {
     if (currentToastTimer) {
         clearTimeout(currentToastTimer);
         currentToastTimer = null;
     }
     const existing = document.getElementById('otpsync-toast');
-    if (existing && !isDismissing) {
+    if (!existing) return;
+
+    if (withAnimation && !isDismissing && !document.hidden) {
         isDismissing = true;
         snapThanos(existing);
+    } else {
+        existing.remove();
+        isDismissing = false;
     }
 }
 
-function showToast(otp, sender, isCarryForward = false, timeRemaining = 6000, showUntil = null, isDuplicate = false) {
-    if (document.hidden) return; // Tab is in background: NEVER render toast!
-    const calculatedRemaining = showUntil ? (showUntil - Date.now()) : timeRemaining;
+function renderPinnedToast(otp, sender, showUntil, isDuplicate = false, shouldSlideIn = false) {
+    const calculatedRemaining = showUntil ? (showUntil - Date.now()) : 6000;
     if (calculatedRemaining <= 300) {
-        dismissToast();
+        dismissToast(false);
         return;
     }
 
@@ -140,45 +140,38 @@ function showToast(otp, sender, isCarryForward = false, timeRemaining = 6000, sh
     const toastTitle = isDuplicate ? '✓ Same OTP Re-sent' : '✓ OTP Copied';
     const toastSender = isDuplicate ? `from ${displaySender} · Re-copied to Clipboard` : `from ${displaySender}`;
 
-    let existing = document.getElementById('otpsync-toast');
-    if (existing) {
+    let toast = document.getElementById('otpsync-toast');
+    if (toast) {
         // If the exact same OTP arrives again:
-        if (existing.dataset.otp === otp) {
-            const titleEl = existing.querySelector('.mailsync-toast-title');
+        if (toast.dataset.otp === otp) {
+            const titleEl = toast.querySelector('.mailsync-toast-title');
             if (titleEl) titleEl.textContent = toastTitle;
-            const senderEl = existing.querySelector('.mailsync-toast-sender');
+            const senderEl = toast.querySelector('.mailsync-toast-sender');
             if (senderEl) senderEl.textContent = toastSender;
-            if (isDuplicate) existing.dataset.duplicate = 'true';
-            if (showUntil) existing.dataset.showUntil = showUntil.toString();
+            if (isDuplicate) toast.dataset.duplicate = 'true';
+            toast.dataset.showUntil = showUntil.toString();
 
-            // Synchronize the single dismissal timer strictly with calculatedRemaining
             if (currentToastTimer) clearTimeout(currentToastTimer);
             currentToastTimer = setTimeout(() => {
-                dismissToast();
+                dismissToast(true);
             }, calculatedRemaining);
             return;
         }
 
-        // A new/different OTP arrived within seconds:
-        // Immediately remove the previous toast without exit animation
+        // Different OTP arrived: remove old one cleanly
         if (currentToastTimer) clearTimeout(currentToastTimer);
         currentToastTimer = null;
-        existing.remove();
+        toast.remove();
+        toast = null;
     }
 
-    // Reset dismissing state on fresh toast
     isDismissing = false;
 
-    // Play notification sound on fresh arrival only
-    if (!isCarryForward) {
-        playNotificationChime();
-    }
-
-    const toast = document.createElement('div');
+    toast = document.createElement('div');
     toast.id = 'otpsync-toast';
     toast.dataset.otp = otp;
     if (isDuplicate) toast.dataset.duplicate = 'true';
-    if (showUntil) toast.dataset.showUntil = showUntil.toString();
+    toast.dataset.showUntil = showUntil.toString();
 
     const iconUrl = chrome.runtime.getURL('icon48.png');
 
@@ -211,12 +204,20 @@ function showToast(otp, sender, isCarryForward = false, timeRemaining = 6000, sh
         }
         const titleEl = toast.querySelector('.mailsync-toast-title');
         if (titleEl) titleEl.textContent = '✓ Copied to Clipboard!';
+        chrome.storage.local.remove('pendingToast').catch(() => {});
         setTimeout(() => {
-            dismissToast();
-        }, 400);
+            dismissToast(true);
+        }, 350);
     });
 
-    if (isCarryForward) {
+    if (shouldSlideIn) {
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                toast.classList.add('show');
+            });
+        });
+    } else {
+        // Pinned sticky feel: instant presence with zero jitter across tab switches!
         toast.style.transition = 'none';
         toast.classList.add('show');
         requestAnimationFrame(() => {
@@ -224,18 +225,11 @@ function showToast(otp, sender, isCarryForward = false, timeRemaining = 6000, sh
                 toast.style.transition = '';
             });
         });
-    } else {
-        // Trigger slide-in cleanly
-        requestAnimationFrame(() => {
-            requestAnimationFrame(() => {
-                toast.classList.add('show');
-            });
-        });
     }
 
     if (currentToastTimer) clearTimeout(currentToastTimer);
     currentToastTimer = setTimeout(() => {
-        dismissToast();
+        dismissToast(true);
     }, calculatedRemaining);
 }
 

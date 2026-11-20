@@ -10,11 +10,11 @@
     const senderEl = document.getElementById('toast-sender');
     const cardEl = document.getElementById('toast-card');
 
-    if (titleEl) titleEl.textContent = isDuplicate ? '✓ SAME OTP RE-SENT' : '✓ OTP COPIED';
+    if (titleEl) titleEl.textContent = isDuplicate ? '✓ Same OTP Re-sent' : '✓ OTP Copied';
     if (codeEl) codeEl.textContent = otp;
     if (senderEl) {
         const displaySender = sender.length > 25 ? sender.substring(0, 23) + '…' : sender;
-        senderEl.textContent = isDuplicate ? `from ${displaySender} · Re-copied to Clipboard` : `from ${displaySender} · Copied to Clipboard`;
+        senderEl.textContent = isDuplicate ? `from ${displaySender} · Re-copied to Clipboard` : `from ${displaySender}`;
     }
 
     try {
@@ -28,7 +28,10 @@
             if (navigator.clipboard && navigator.clipboard.writeText) {
                 navigator.clipboard.writeText(otp).catch(() => {});
             }
-            if (titleEl) titleEl.textContent = '✓ COPIED TO CLIPBOARD!';
+            if (titleEl) titleEl.textContent = '✓ Copied to Clipboard!';
+            try {
+                chrome.storage.local.remove('pendingToast');
+            } catch (_) {}
             setTimeout(() => {
                 window.close();
             }, 350);

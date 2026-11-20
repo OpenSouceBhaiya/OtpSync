@@ -245,11 +245,16 @@ fun AppNavigation(
                         }
                     }
                 } else {
-                    SplashScreen(onTimeout = {
-                        navController.navigate(Screen.Home.route) {
-                            popUpTo("splash") { inclusive = true }
+                    val otpUiState by otpViewModel.uiState.collectAsState()
+                    val isBackendReady = otpUiState !is OtpUiState.Loading
+                    SplashScreen(
+                        isReady = isBackendReady,
+                        onTimeout = {
+                            navController.navigate(Screen.Home.route) {
+                                popUpTo("splash") { inclusive = true }
+                            }
                         }
-                    })
+                    )
                 }
             }
             composable("onboarding") {
@@ -396,7 +401,10 @@ fun AppNavigation(
 }
 
 @Composable
-fun SplashScreen(onTimeout: () -> Unit) {
+fun SplashScreen(
+    isReady: Boolean = true,
+    onTimeout: () -> Unit
+) {
     var startAnimation by remember { mutableStateOf(false) }
     
     val quotes = listOf(
@@ -461,7 +469,14 @@ fun SplashScreen(onTimeout: () -> Unit) {
 
     LaunchedEffect(key1 = true) {
         startAnimation = true
-        // Immediate transition into app — dismiss splash/loading as soon as initial frame renders
+        val minDelay = 1300L // 1.3s minimum display time for quotes & branding smoothly
+        val startTime = System.currentTimeMillis()
+        kotlinx.coroutines.delay(minDelay)
+        
+        // On slower devices where backend is still loading, wait until ready (safety cap of 4.5s)
+        while (!isReady && (System.currentTimeMillis() - startTime) < 4500L) {
+            kotlinx.coroutines.delay(100)
+        }
         onTimeout()
     }
 
@@ -474,7 +489,10 @@ fun SplashScreen(onTimeout: () -> Unit) {
     ) {
         androidx.compose.foundation.layout.Column(
             horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.padding(32.dp)
+            modifier = Modifier
+                .widthIn(max = 560.dp)
+                .fillMaxWidth()
+                .padding(32.dp)
         ) {
             val rotation by infiniteTransition.animateFloat(
                 initialValue = 0f,
