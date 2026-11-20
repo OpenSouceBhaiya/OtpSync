@@ -80,8 +80,6 @@ try {
                 };
                 if (isUserActive) {
                     payload.lastActive = now;
-                } else {
-                    payload.isFocused = false;
                 }
                 fetch(`https://otpsync-adf52-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${data.uuid}.json`, {
                     method: 'PATCH',

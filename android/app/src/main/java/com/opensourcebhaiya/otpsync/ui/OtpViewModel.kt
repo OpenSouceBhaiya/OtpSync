@@ -76,18 +76,16 @@ class OtpViewModel(
 
     fun fetchOtps() {
         if (_isSyncing.value) return
-        _uiState.value = OtpUiState.Loading
         viewModelScope.launch {
             if (!settingsManager.isSyncEnabled()) {
                 _uiState.value = OtpUiState.Error("Notification Engine is currently paused.")
             } else {
                 _isSyncing.value = true
-                kotlinx.coroutines.delay(800) // Visual effect
-                _isSyncing.value = false
                 val latest = repository.fetchLatestOtp()
+                _isSyncing.value = false
                 if (latest != null) {
                     _uiState.value = OtpUiState.Success(latest)
-                } else {
+                } else if (_uiState.value is OtpUiState.Loading) {
                     _uiState.value = OtpUiState.Empty
                 }
             }

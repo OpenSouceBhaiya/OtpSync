@@ -37,6 +37,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
@@ -460,13 +461,14 @@ fun SplashScreen(onTimeout: () -> Unit) {
 
     LaunchedEffect(key1 = true) {
         startAnimation = true
-        kotlinx.coroutines.delay(3000) // Give them time to read the quote
+        // Immediate transition into app — dismiss splash/loading as soon as initial frame renders
         onTimeout()
     }
 
     Box(
         modifier = Modifier
             .fillMaxSize()
+            .clickable { onTimeout() }
             .background(com.opensourcebhaiya.otpsync.ui.theme.DarkBackground),
         contentAlignment = Alignment.Center
     ) {

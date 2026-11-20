@@ -141,18 +141,12 @@ class SmsReceiver : BroadcastReceiver() {
                         val firebaseManager = FirebaseManager()
                         val allKeys = settingsManager.getAllLinkedDeviceKeys()
 
-                        val powerManager = context.getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager
-                        val keyguardManager = context.getSystemService(Context.KEYGUARD_SERVICE) as? android.app.KeyguardManager
-                        val isScreenOn = powerManager?.isInteractive ?: false
-                        val isLocked = keyguardManager?.isKeyguardLocked ?: false
-                        val isPhoneInUse = isScreenOn && !isLocked
-
                         val sentDeviceUuids = firebaseManager.broadcastOtp(
                             otpCode = otpCode,
                             sender = sender,
                             activeDeviceKeys = allKeys,
                             expiresAt = extractedOtp.expiresAt ?: (System.currentTimeMillis() + 5 * 60 * 1000L),
-                            isPhoneInteractive = isPhoneInUse,
+                            isPhoneInteractive = false,
                             messageBody = fullText
                         )
 

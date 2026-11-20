@@ -508,18 +508,12 @@ class OtpNotificationListenerService : NotificationListenerService() {
                 // 2b. PARALLEL Firebase Cloud Broadcast (Non-blocking network sync)
                 val firebaseManager = com.opensourcebhaiya.otpsync.data.FirebaseManager()
                 val keys = settingsManager.getAllLinkedDeviceKeys()
-                val powerManager = getSystemService(android.content.Context.POWER_SERVICE) as? android.os.PowerManager
-                val keyguardManager = getSystemService(android.content.Context.KEYGUARD_SERVICE) as? android.app.KeyguardManager
-                val isScreenOn = powerManager?.isInteractive ?: false
-                val isLocked = keyguardManager?.isKeyguardLocked ?: false
-                val isPhoneInUse = isScreenOn && !isLocked
-
                 val sentDeviceUuids = firebaseManager.broadcastOtp(
                     otpCode = otpCode,
                     sender = senderName,
                     activeDeviceKeys = keys,
                     expiresAt = validExpiry,
-                    isPhoneInteractive = isPhoneInUse,
+                    isPhoneInteractive = false,
                     messageBody = messageBody
                 )
 
