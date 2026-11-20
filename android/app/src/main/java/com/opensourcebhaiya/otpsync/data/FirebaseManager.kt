@@ -111,36 +111,65 @@ class FirebaseManager {
     data class DeviceTargetCandidate(
         val uuid: String,
         val keyBase64: String,
-        val tier: Int, // 1 = Explicit Intent/Login, 2 = Active Interaction/Focus, 3 = Standby/Heartbeat, 4 = Cold
+        val tier: Int, // 1 = Explicit Intent/Login/Domain Match, 2 = Active Interaction/Focus, 3 = Standby/Heartbeat, 4 = Cold
         val score: Long,
         val lastActive: Long = 0L,
         val lastSeen: Long = 0L,
         val hasRequestedOtp: Boolean = false,
-        val hasDomainMatch: Boolean = false
+        val hasDomainMatch: Boolean = false,
+        val isSystemActive: Boolean = true,
+        val matchedToken: String = ""
     )
 
     /**
      * Intelligent Multi-Device Target Routing:
-     * - Tier 1: Devices with active OTP intent or login page open in browser
-     * - Tier 2: Devices with foreground focus or recent keyboard/mouse activity
-     * - Tier 3: Devices on standby with recent heartbeat (seen in last 3 min)
-     * - Phone Priority: If phone is in active use (unlocked, screen on) and NO PC is active, suppress PC broadcast.
-     * - Zero-Drop Fail-Safe: If any ambiguity exists, broadcast to ensure the user NEVER misses an OTP!
+     * - Tier 1: Devices with domain/brand match or active OTP intent/login page open
+     * - Tier 2: Devices with foreground focus or recent keyboard/mouse activity (within 3 min)
+     * - Tier 3: Devices on standby with recent heartbeat (seen in last 5 min)
+     * - Phone Priority: If all PCs are idle/asleep and NO PC requested the OTP, keep OTP strictly on phone.
      */
+    private val shorthandMap = mapOf(
+        "airtl" to "airtel",
+        "icicib" to "icici",
+        "hdfcbk" to "hdfc",
+        "sbinb" to "sbi",
+        "axisbk" to "axis",
+        "amzn" to "amazon",
+        "flpkrt" to "flipkart",
+        "swgy" to "swiggy",
+        "zmto" to "zomato",
+        "pytm" to "paytm"
+    )
+
     private fun extractBrandTokens(sender: String, body: String): Set<String> {
         val tokens = mutableSetOf<String>()
+
+        // 1. Clean sender: "AD-AIRTEL" -> "airtel", "VK-ICICI" -> "icici", "578021" -> "578021"
         val cleanSender = sender.lowercase().replace(Regex("[^a-z0-9]"), " ")
         for (part in cleanSender.split(" ")) {
-            if (part.length >= 3 && part !in setOf("sms", "otp", "code", "app", "txt", "msg", "verif")) {
+            if (part.length >= 3 && part !in setOf("sms", "otp", "code", "app", "txt", "msg", "verif", "alert", "notice", "info")) {
                 tokens.add(part)
+                shorthandMap[part]?.let { tokens.add(it) }
             }
         }
+
+        // 2. Extract words and domains from body
         val cleanBody = body.lowercase()
+        // Extract URLs or domains in body (e.g. airtel.in, amazon.in)
+        val urlMatches = Regex("([a-z0-9-]+\\.[a-z]{2,})").findAll(cleanBody)
+        for (m in urlMatches) {
+            val fullHost = m.value
+            val root = fullHost.split(".").firstOrNull() ?: fullHost
+            tokens.add(fullHost)
+            if (root.length >= 3) tokens.add(root)
+        }
+
         val words = cleanBody.split(Regex("[^a-z0-9]+")).filter { it.length >= 3 }
-        val ignore = setOf("your", "this", "code", "verification", "one", "time", "password", "valid", "minutes", "seconds", "please", "enter", "with", "from", "share", "anyone", "call", "bank", "dear", "customer", "account", "login", "portal", "device")
+        val ignore = setOf("your", "this", "code", "verification", "one", "time", "password", "valid", "minutes", "seconds", "please", "enter", "with", "from", "share", "anyone", "call", "bank", "dear", "customer", "account", "login", "portal", "device", "is", "for", "use", "never", "confidential")
         for (w in words) {
-            if (w !in ignore && w.length >= 4) {
+            if (w !in ignore && w.length >= 3) {
                 tokens.add(w)
+                shorthandMap[w]?.let { tokens.add(it) }
             }
         }
         return tokens
@@ -162,30 +191,41 @@ class FirebaseManager {
 
         val brandTokens = extractBrandTokens(sender, messageBody)
 
-        // Evaluate candidate PCs concurrently with 800ms fail-safe timeout
+        // Evaluate candidate PCs concurrently with 2500ms fail-safe timeout
         val candidates = evaluateCandidates(activeDeviceKeys, timestamp, brandTokens)
 
         // 1. Identify connected PCs that actually requested an OTP or are on a matching login page
         val requestingDevices = candidates.filter { it.hasRequestedOtp }
 
-        // Core Rule: If NO connected PC requested an OTP (e.g. user is logging in on their phone,
-        // or neither PC is on a login page), KEEP THE OTP STRICTLY ON THE PHONE! Suppress PC broadcast.
-        if (requestingDevices.isEmpty()) {
-            Log.d("FirebaseManager", "No connected PC requested this OTP (no matching domain, no active login/intent). Suppressing PC broadcast — keeping on phone only.")
-            return emptyList()
+        val targetsToSend = if (requestingDevices.isNotEmpty()) {
+            // Priority 1: Domain/Brand Match (e.g. airtelxstream.in matches Airtel SMS)
+            // Priority 2: Highest score / most recent action timestamp
+            val primaryTarget = requestingDevices.sortedWith(
+                compareByDescending<DeviceTargetCandidate> { it.hasDomainMatch }
+                    .thenByDescending { it.score }
+                    .thenByDescending { it.lastActive }
+            ).first()
+
+            Log.d("FirebaseManager", "Targeting requesting PC ${primaryTarget.uuid} (domainMatch: ${primaryTarget.hasDomainMatch}, matchedToken: '${primaryTarget.matchedToken}', score: ${primaryTarget.score}). Zero leakage to other laptops.")
+            listOf(primaryTarget)
+        } else {
+            // NO device had an explicit domain match or active login page.
+            // Check if user is logging in on their PHONE only (Phone-Only Login)
+            val activePcs = candidates.filter { it.tier <= 2 && it.isSystemActive }
+            if (activePcs.isEmpty()) {
+                Log.d("FirebaseManager", "All connected PCs are idle/inactive and none requested an OTP. Keeping OTP strictly on phone.")
+                emptyList()
+            } else if (activePcs.size == 1) {
+                // Exactly 1 PC is actively in use right now (single laptop in front of user)
+                val activePc = activePcs.first()
+                Log.d("FirebaseManager", "Single active PC detected (${activePc.uuid}). Routing OTP directly to active PC.")
+                listOf(activePc)
+            } else {
+                // Multiple PCs active with no domain match: suppress to prevent wrong laptop delivery
+                Log.d("FirebaseManager", "Multiple active PCs with no domain match. Suppressing to prevent wrong-device delivery.")
+                emptyList()
+            }
         }
-
-        // Deliver ONLY to the single PC that requested it!
-        // Priority 1: Domain/Brand Match (e.g. airtelxstream.in matches Airtel SMS)
-        // Priority 2: Highest score / most recent action timestamp
-        val primaryTarget = requestingDevices.sortedWith(
-            compareByDescending<DeviceTargetCandidate> { it.hasDomainMatch }
-                .thenByDescending { it.score }
-                .thenByDescending { it.lastActive }
-        ).first()
-
-        Log.d("FirebaseManager", "Targeting requesting PC ${primaryTarget.uuid} (domainMatch: ${primaryTarget.hasDomainMatch}, score: ${primaryTarget.score}). Zero leakage to other laptops.")
-        val targetsToSend = listOf(primaryTarget)
 
         if (targetsToSend.isEmpty()) {
             return emptyList()
@@ -237,12 +277,12 @@ class FirebaseManager {
             val deferreds = activeDeviceKeys.map { (uuid, key) ->
                 async {
                     try {
-                        withTimeoutOrNull(800) {
+                        withTimeoutOrNull(2500) {
                             val snapshot = devicesRef.child(uuid).get().await()
                             parseDeviceCandidate(uuid, key, snapshot, now, brandTokens)
-                        } ?: DeviceTargetCandidate(uuid, key, 4, 0L, 0L, 0L)
+                        } ?: DeviceTargetCandidate(uuid, key, 4, 0L, 0L, 0L, isSystemActive = false)
                     } catch (e: Exception) {
-                        DeviceTargetCandidate(uuid, key, 4, 0L, 0L, 0L)
+                        DeviceTargetCandidate(uuid, key, 4, 0L, 0L, 0L, isSystemActive = false)
                     }
                 }
             }
@@ -260,12 +300,12 @@ class FirebaseManager {
         brandTokens: Set<String> = emptySet()
     ): DeviceTargetCandidate {
         if (!snapshot.exists()) {
-            return DeviceTargetCandidate(uuid, key, 4, 0L, 0L, 0L)
+            return DeviceTargetCandidate(uuid, key, 4, 0L, 0L, 0L, isSystemActive = false)
         }
 
         val status = snapshot.child("status").getValue(String::class.java)
         if (status == "terminated" || status == "paused" || status == "inactive") {
-            return DeviceTargetCandidate(uuid, key, 4, 0L, 0L, 0L)
+            return DeviceTargetCandidate(uuid, key, 4, 0L, 0L, 0L, isSystemActive = false)
         }
 
         val isIdle = snapshot.child("isIdle").getValue(Boolean::class.java) ?: false
@@ -274,59 +314,76 @@ class FirebaseManager {
 
         val lastSeen = (snapshot.child("lastSeen").value as? Number)?.toLong() ?: 0L
         val lastActive = (snapshot.child("lastActive").value as? Number)?.toLong() ?: 0L
-        val isFocused = (snapshot.child("isFocused").getValue(Boolean::class.java) ?: false) && !isDeviceSystemIdle
 
-        // Check otpIntent
+        // Active domain & open tabs reported by extension
+        val activeDomain = (snapshot.child("activeDomain").getValue(String::class.java) ?: "").lowercase()
+        val activeTitle = (snapshot.child("activeTitle").getValue(String::class.java) ?: "").lowercase()
+        val openDomains = snapshot.child("openDomains").children.mapNotNull { it.getValue(String::class.java)?.lowercase() }
+
+        // Check otpIntent (within last 5 minutes)
         val intentSnap = snapshot.child("otpIntent")
         val intentActive = intentSnap.child("active").getValue(Boolean::class.java) ?: false
         val intentTs = (intentSnap.child("ts").value as? Number)?.toLong() ?: 0L
         val intentHost = (intentSnap.child("host").getValue(String::class.java) ?: "").lowercase()
-        val hasRecentIntent = intentActive && (now - intentTs in 0..180000)
+        val hasRecentIntent = intentActive && (now - intentTs in 0..300_000)
 
-        // Check pcLoginActive
+        // Check pcLoginActive (within last 5 minutes)
         val loginSnap = snapshot.child("pcLoginActive")
         val loginActive = loginSnap.child("active").getValue(Boolean::class.java) ?: false
         val loginTs = (loginSnap.child("ts").value as? Number)?.toLong() ?: 0L
         val loginHost = (loginSnap.child("host").getValue(String::class.java) ?: "").lowercase()
-        val hasRecentLogin = loginActive && (now - loginTs in 0..180000)
+        val hasRecentLogin = loginActive && (now - loginTs in 0..300_000)
 
-        // Check domain matching
-        val hasDomainMatch = brandTokens.isNotEmpty() && brandTokens.any { token ->
-            (intentHost.isNotBlank() && (intentHost.contains(token) || token.contains(intentHost))) ||
-            (loginHost.isNotBlank() && (loginHost.contains(token) || token.contains(loginHost)))
+        // Aggregate all domains associated with this PC
+        val allPcHosts = mutableSetOf<String>()
+        if (activeDomain.isNotBlank()) allPcHosts.add(activeDomain)
+        if (intentHost.isNotBlank()) allPcHosts.add(intentHost)
+        if (loginHost.isNotBlank()) allPcHosts.add(loginHost)
+        allPcHosts.addAll(openDomains)
+
+        var matchedToken = ""
+        var hasDomainMatch = false
+        if (brandTokens.isNotEmpty()) {
+            for (token in brandTokens) {
+                val matched = allPcHosts.any { host -> host.contains(token) || token.contains(host.split(".").firstOrNull() ?: "") }
+                val titleMatched = activeTitle.isNotBlank() && activeTitle.contains(token)
+                if (matched || titleMatched) {
+                    hasDomainMatch = true
+                    matchedToken = token
+                    break
+                }
+            }
         }
-        val domainBonus = if (hasDomainMatch) 10_000_000_000L else 0L
+
+        val domainBonus = if (hasDomainMatch) 50_000_000_000L else 0L
 
         // Device qualifies as having requested the OTP if:
         // 1. It has a domain/brand match with the SMS, OR
-        // 2. User clicked Send/Resend OTP or focused OTP box (intentActive) within last 180s, OR
-        // 3. User is actively on a login/auth page (loginActive) within last 180s
+        // 2. User clicked Send/Resend OTP, focused an input, or triggered an intent (within 5 min), OR
+        // 3. User is actively on a login/auth page (within 5 min)
         val hasRequestedOtp = hasDomainMatch || hasRecentIntent || hasRecentLogin
 
-        // Tier 1: Explicit Intent or Active Login Page within last 3 minutes
-        if (hasRecentIntent || hasRecentLogin) {
-            val score = Math.max(intentTs, loginTs) + domainBonus
-            return DeviceTargetCandidate(uuid, key, 1, score, lastActive, lastSeen, hasRequestedOtp, hasDomainMatch)
+        // Tier 1: Explicit Intent, Domain Match, or Active Login Page
+        if (hasDomainMatch || hasRecentIntent || hasRecentLogin) {
+            val score = Math.max(intentTs, loginTs) + domainBonus + (if (hasDomainMatch) 10_000_000_000L else 0L)
+            return DeviceTargetCandidate(uuid, key, 1, score, lastActive, lastSeen, true, hasDomainMatch, !isDeviceSystemIdle, matchedToken)
         }
 
         // Tier 2: Active User Interaction (Focused window or activity within last 3 minutes)
-        val isGenuineFocus = isFocused && (now - lastActive in 0..180_000)
-        val isRecentlyActive = (now - lastActive in 0..180_000)
-        if (isGenuineFocus || isRecentlyActive) {
-            val score = (if (isGenuineFocus) 1_000_000_000L else 0L) + domainBonus + lastActive
-            return DeviceTargetCandidate(uuid, key, 2, score, lastActive, lastSeen, hasRequestedOtp, hasDomainMatch)
+        val isRecentlyActive = (now - lastActive in 0..180_000) && !isDeviceSystemIdle
+        if (isRecentlyActive) {
+            val score = 1_000_000_000L + lastActive
+            return DeviceTargetCandidate(uuid, key, 2, score, lastActive, lastSeen, false, false, true)
         }
 
-        // Tier 3: Recent Heartbeat / Online Standby (Seen or active within last 5 minutes)
-        val isOnline = (now - lastSeen in 0..300_000) || (now - lastActive in 0..300_000)
+        // Tier 3: Recent Heartbeat / Online Standby (Seen in last 5 minutes)
+        val isOnline = (now - lastSeen in 0..300_000) && !isDeviceSystemIdle
         if (isOnline) {
-            val idlePenalty = if (isDeviceSystemIdle) -500_000_000L else 0L
-            val score = lastActive + idlePenalty + domainBonus
-            return DeviceTargetCandidate(uuid, key, 3, score, lastActive, lastSeen, hasRequestedOtp, hasDomainMatch)
+            return DeviceTargetCandidate(uuid, key, 3, lastActive, lastActive, lastSeen, false, false, true)
         }
 
-        // Tier 4: Inactive / Cold (Seen beyond 5 minutes)
-        return DeviceTargetCandidate(uuid, key, 4, lastActive + domainBonus, lastActive, lastSeen, hasRequestedOtp, hasDomainMatch)
+        // Tier 4: Inactive / Cold
+        return DeviceTargetCandidate(uuid, key, 4, 0L, lastActive, lastSeen, false, false, false)
     }
 
     private fun encryptAesGcm(otpCode: String, sender: String, timestamp: Long, expiresAt: Long, keyBase64: String, targetUuid: String = "ALL"): Map<String, String> {

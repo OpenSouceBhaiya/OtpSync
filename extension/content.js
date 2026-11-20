@@ -393,70 +393,63 @@ function snapThanos(element) {
     });
 }
 
-    // ─── Ultra-Advanced Login & OTP Detection Engine ─────────────────────────────
+    // ─── Ultra-Advanced Universal Login & OTP Detection Engine ───────────────────
     let hasSignaledLogin = false;
     let detectionTimeout = null;
 
-    function canAutoFill(input) {
-        if (!input) return false;
-        if (input.disabled || input.readOnly || input.type === 'hidden') return false;
-        const type = (input.type || '').toLowerCase();
-        if (type === 'password') return true;
-        if (type !== 'text' && type !== 'number' && type !== 'tel') return false;
-
-        const name = (input.name || '').toLowerCase();
-        const id = (input.id || '').toLowerCase();
-        const placeholder = (input.placeholder || '').toLowerCase();
-        const aria = (input.getAttribute('aria-label') || '').toLowerCase();
-        const autocomplete = (input.getAttribute('autocomplete') || '').toLowerCase();
-        const className = (input.className || '').toLowerCase();
-
-        if (autocomplete === 'one-time-code' || autocomplete === 'current-password') return true;
-
-        const maxLen = input.maxLength;
-        const isReasonableLength = maxLen === -1 || (maxLen >= 3 && maxLen <= 10);
-        const isNumericType = type === 'number' || input.inputMode === 'numeric' || input.pattern === '[0-9]*';
-        
-        const keywords = ['otp', 'code', 'pin', '2fa', 'mfa', 'token', 'verify', 'verification', 'passcode', 'security-code', 'auth'];
-        const hasKeyword = keywords.some(k => name.includes(k) || id.includes(k) || placeholder.includes(k) || aria.includes(k) || className.includes(k));
-        return (hasKeyword && isReasonableLength) || (isNumericType && hasKeyword);
-    }
-
-    function checkPageForOtpPrompts() {
+    function isAuthOrLoginPage() {
         try {
-            // 1. Password input on page
+            // 1. URL Analysis (catches 95% of login/signin portals worldwide)
+            const pathname = (window.location.pathname || '').toLowerCase();
+            const search = (window.location.search || '').toLowerCase();
+            const isAuthUrl = /(login|signin|sign-in|auth|account|portal|verify|verification|otp|2fa|mfa|checkout|session|register|signup|passcode|security|gateway|payment|sso|identify)/i.test(pathname) ||
+                              /(login|signin|sign-in|auth|account|verify|verification|otp|2fa|mfa)/i.test(search);
+            if (isAuthUrl) return true;
+
+            // 2. Mobile / Phone number input detection (Airtel, Amazon, Flipkart, banks, IRCTC, etc.)
+            const phoneInputs = document.querySelectorAll('input[type="tel"], input[name*="mobile" i], input[name*="phone" i], input[placeholder*="mobile" i], input[placeholder*="phone" i], input[id*="mobile" i], input[id*="phone" i], input[aria-label*="mobile" i]');
+            if (phoneInputs.length > 0) return true;
+
+            // 3. Password input on page
             if (document.querySelector('input[type="password"]')) return true;
 
-            // 2. Segmented OTP inputs (e.g. 3-8 single char boxes)
+            // 4. Segmented OTP inputs (e.g. 3-8 single char boxes)
             const segmented = document.querySelectorAll('input[maxlength="1"], input[maxlength="2"]');
             if (segmented.length >= 3 && segmented.length <= 8) return true;
 
-            // 3. Any input matching canAutoFill
-            const inputs = document.querySelectorAll('input');
-            for (let i = 0; i < inputs.length; i++) {
-                if (canAutoFill(inputs[i])) return true;
+            // 5. Inputs with OTP or Auth keywords
+            const keywords = ['otp', 'code', 'pin', '2fa', 'mfa', 'token', 'verify', 'verification', 'passcode', 'security-code', 'auth', 'mobile', 'phone', 'login', 'signin', 'username'];
+            const inputs = document.querySelectorAll('input:not([type="hidden"]):not([disabled])');
+            for (let i = 0; i < Math.min(inputs.length, 25); i++) {
+                const inp = inputs[i];
+                const n = (inp.name || '').toLowerCase();
+                const id = (inp.id || '').toLowerCase();
+                const ph = (inp.placeholder || '').toLowerCase();
+                const aria = (inp.getAttribute('aria-label') || '').toLowerCase();
+                const ac = (inp.getAttribute('autocomplete') || '').toLowerCase();
+                if (ac === 'one-time-code' || ac === 'current-password' || ac === 'username') return true;
+                if (keywords.some(k => n.includes(k) || id.includes(k) || ph.includes(k) || aria.includes(k))) return true;
             }
 
-            // 4. Form actions / classes indicating auth/login/otp
-            const forms = document.querySelectorAll('form');
-            for (let i = 0; i < forms.length; i++) {
-                const action = (forms[i].getAttribute('action') || '').toLowerCase();
-                const cls = (forms[i].className || '').toLowerCase();
-                if (action.includes('login') || action.includes('otp') || action.includes('verify') || action.includes('auth') ||
-                    cls.includes('login') || cls.includes('otp') || cls.includes('verify')) {
-                    if (forms[i].querySelectorAll('input').length > 0) return true;
-                }
+            // 6. Action buttons (e.g. "Get OTP", "Send OTP", "Login", "Continue")
+            const buttons = document.querySelectorAll('button, input[type="submit"], input[type="button"], a[role="button"], [role="button"]');
+            const btnRegex = /(send\s*otp|get\s*otp|request\s*otp|resend|verify|continue|sign\s*in|log\s*in|proceed|submit|next|authenticate)/i;
+            for (let i = 0; i < Math.min(buttons.length, 25); i++) {
+                const text = (buttons[i].textContent || buttons[i].value || '').toLowerCase().trim();
+                if (btnRegex.test(text)) return true;
             }
 
-            // 5. Page text snippets (headings, labels, instructions)
+            // 7. Page Headings & Instructions
             const headings = document.querySelectorAll('h1, h2, h3, h4, label, p, .title, .subtitle');
-            const otpPhrases = ['enter otp', 'enter verification code', 'verification code', 'one-time password', 'enter the 6-digit', 'enter the 4-digit', 'code sent to', 'security code', 'verify your account', 'two-factor authentication'];
-            for (let i = 0; i < Math.min(headings.length, 30); i++) {
+            const otpPhrases = ['login', 'sign in', 'enter mobile', 'enter phone', 'enter otp', 'enter verification code', 'verification code', 'one-time password', '6-digit', '4-digit', 'code sent to', 'security code', 'verify your account', 'two-factor'];
+            for (let i = 0; i < Math.min(headings.length, 25); i++) {
                 const text = (headings[i].textContent || '').toLowerCase();
-                if (otpPhrases.some(p => text.includes(p))) {
-                    return true;
-                }
+                if (otpPhrases.some(p => text.includes(p))) return true;
             }
+
+            // 8. Document Title
+            const docTitle = (document.title || '').toLowerCase();
+            if (/(login|sign\s*in|verify|verification|otp|authenticate)/i.test(docTitle)) return true;
         } catch (_) {}
         return false;
     }
@@ -477,38 +470,19 @@ function snapThanos(element) {
     function detectLoginPage() {
         if (detectionTimeout) clearTimeout(detectionTimeout);
         detectionTimeout = setTimeout(() => {
-            const isLogin = checkPageForOtpPrompts();
+            const isLogin = isAuthOrLoginPage();
             if (isLogin) {
                 if (!hasSignaledLogin) {
                     hasSignaledLogin = true;
-                    safeSendMessage({ action: "pc_login_detected", url: window.location.hostname });
+                    safeSendMessage({ action: "pc_login_detected", url: window.location.hostname, title: document.title });
                     
                     if (window.loginPingInterval) clearInterval(window.loginPingInterval);
                     window.loginPingInterval = setInterval(() => {
-                        safeSendMessage({ action: "pc_login_detected", url: window.location.hostname });
-                    }, 4000);
-                    
-                    if (!window.loginUnloadListener) {
-                        window.loginUnloadListener = () => {
-                            safeSendMessage({ action: "pc_login_cleared" });
-                        };
-                        window.addEventListener('beforeunload', window.loginUnloadListener);
-                        window.addEventListener('pagehide', window.loginUnloadListener);
-                    }
-                }
-            } else {
-                if (hasSignaledLogin) {
-                    hasSignaledLogin = false;
-                    if (window.loginPingInterval) clearInterval(window.loginPingInterval);
-                    if (window.loginUnloadListener) {
-                        window.removeEventListener('beforeunload', window.loginUnloadListener);
-                        window.removeEventListener('pagehide', window.loginUnloadListener);
-                        window.loginUnloadListener = null;
-                    }
-                    safeSendMessage({ action: "pc_login_cleared" });
+                        safeSendMessage({ action: "pc_login_detected", url: window.location.hostname, title: document.title });
+                    }, 5000);
                 }
             }
-        }, 300);
+        }, 250);
     }
 
     // ─── Active User Activity & OTP Intent Reporting ──────────────────────────────
@@ -524,37 +498,38 @@ function snapThanos(element) {
     window.addEventListener('keydown', reportUserActivity, { passive: true });
     window.addEventListener('pointerdown', reportUserActivity, { passive: true });
 
-    // Listen to user clicking "Send OTP", "Request OTP", "Resend Code" buttons
+    // Listen to user clicking "Send OTP", "Request OTP", "Resend Code", "Login", "Continue"
     document.addEventListener('click', (e) => {
         reportUserActivity();
         const target = e.target;
         if (!target) return;
-        const el = target.closest('button, a, input[type="button"], input[type="submit"], [role="button"]');
+        const el = target.closest('button, a, input[type="button"], input[type="submit"], [role="button"], div[role="button"], span[role="button"]');
         if (el) {
             const btnText = (el.textContent || el.value || el.getAttribute('aria-label') || '').toLowerCase().trim();
             const isOtpButton = /(send|get|request|resend|verify|submit|continue|next|proceed|login|signin|sign in|auth)\s*(otp|code|pin|passcode|verification)?/i.test(btnText) ||
-                                /^(resend|send otp|get otp|request otp|verify|continue|proceed|submit|next|login)$/i.test(btnText) ||
-                                (el.id && /otp|resend|verify|login/i.test(el.id)) ||
-                                (typeof el.className === 'string' && /otp|resend|verify|login/i.test(el.className));
+                                /^(resend|send otp|get otp|request otp|verify|continue|proceed|submit|next|login|sign in)$/i.test(btnText) ||
+                                (el.id && /otp|resend|verify|login|submit/i.test(el.id)) ||
+                                (typeof el.className === 'string' && /otp|resend|verify|login|submit/i.test(el.className));
             if (isOtpButton) {
                 safeSendMessage({
                     action: "otp_intent",
-                    host: window.location.hostname
+                    host: window.location.hostname,
+                    title: document.title
                 });
             }
         }
     }, { passive: true });
 
+    // When focusing ANY input on a webpage, report OTP intent with current domain
     document.addEventListener('focusin', (e) => {
         reportUserActivity();
         const target = e.target;
         if (target && target.tagName === 'INPUT') {
-            if (canAutoFill(target) || target.type === 'password' || target.getAttribute('autocomplete') === 'one-time-code') {
-                safeSendMessage({
-                    action: "otp_intent",
-                    host: window.location.hostname
-                });
-            }
+            safeSendMessage({
+                action: "otp_intent",
+                host: window.location.hostname,
+                title: document.title
+            });
         }
     }, { passive: true });
 
