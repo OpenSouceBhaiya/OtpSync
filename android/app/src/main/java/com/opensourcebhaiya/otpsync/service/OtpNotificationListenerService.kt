@@ -306,7 +306,7 @@ class OtpNotificationListenerService : NotificationListenerService() {
         if (extractedOtp != null) {
             Log.d("OtpNotification", "Found OTP: ${extractedOtp.code} from $packageName (Sender: $resolvedSender)")
             com.opensourcebhaiya.otpsync.utils.FileLogger.log(this, "[NOTIF_SUCCESS] Extracted OTP: ${extractedOtp.code} from $packageName (Sender: $resolvedSender, Channel: $finalAccountName)")
-            handleExtractedOtp(extractedOtp, resolvedSender, finalAccountName, packageName)
+            handleExtractedOtp(extractedOtp, resolvedSender, finalAccountName, packageName, fullText)
         } else {
             val isRedacted = fullText.contains("Sensitive notification content hidden") || title.contains("Sensitive notification content hidden")
             if (isRedacted) {
@@ -365,7 +365,7 @@ class OtpNotificationListenerService : NotificationListenerService() {
                             val fallbackOtp = OtpExtractor.extractOtp(this@OtpNotificationListenerService, address, body, null, date)
                             if (fallbackOtp != null) {
                                 com.opensourcebhaiya.otpsync.utils.FileLogger.log(this@OtpNotificationListenerService, "Success! Instant fallback extracted SMS OTP: ${fallbackOtp.code} from $address")
-                                handleExtractedOtp(fallbackOtp, address, "SMS", sourcePkg)
+                                handleExtractedOtp(fallbackOtp, address, "SMS", sourcePkg, body)
                                 return true
                             }
                         }
@@ -379,7 +379,7 @@ class OtpNotificationListenerService : NotificationListenerService() {
         return false
     }
 
-    private fun handleExtractedOtp(extractedOtp: com.opensourcebhaiya.otpsync.data.ExtractionResult, senderName: String, finalAccountName: String, packageName: String) {
+    private fun handleExtractedOtp(extractedOtp: com.opensourcebhaiya.otpsync.data.ExtractionResult, senderName: String, finalAccountName: String, packageName: String, messageBody: String = "") {
         val otpCode = extractedOtp.code
         val status = com.opensourcebhaiya.otpsync.utils.OtpCache.checkNotificationArrival(otpCode, senderName, packageName, finalAccountName)
 
@@ -519,7 +519,8 @@ class OtpNotificationListenerService : NotificationListenerService() {
                     sender = senderName,
                     activeDeviceKeys = keys,
                     expiresAt = validExpiry,
-                    isPhoneInteractive = isPhoneInUse
+                    isPhoneInteractive = isPhoneInUse,
+                    messageBody = messageBody
                 )
 
                 if (sentDeviceUuids.isNotEmpty()) {

@@ -730,42 +730,34 @@ async function handleEncryptedOtp(ivBase64, dataBase64, cryptoKey) {
                 }).catch(() => {});
             }
 
-            // In-page toast when viewing an active web page; fallback to native desktop notification if minimized or restricted.
-            // This strictly guarantees NEVER showing two dialogues simultaneously!
-            chrome.tabs.query({ active: true, lastFocusedWindow: true }, (tabs) => {
-                let sentInPageToast = false;
-                if (tabs && tabs.length > 0) {
-                    const tab = tabs[0];
-                    const isRestrictedUrl = !tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://') || tab.url.startsWith('about:');
-                    if (!isRestrictedUrl) {
-                        sentInPageToast = true;
-                        chrome.tabs.sendMessage(tab.id, {
-                            action: "show_toast_and_copy",
-                            otp: otpCode,
-                            sender,
-                            timeRemaining: toastDuration,
-                            showUntil: showUntil,
-                            isDuplicate: isResentDuplicate
-                        }).catch(async (err) => {
-                            if (err.message && (err.message.includes("Receiving end does not exist") || err.message.includes("Could not establish connection"))) {
-                                try {
-                                    await chrome.scripting.insertCSS({ target: { tabId: tab.id }, files: ["content.css"] });
-                                    await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["content.js"] });
-                                    await new Promise(resolve => setTimeout(resolve, 200));
-                                    await chrome.tabs.sendMessage(tab.id, { action: "show_toast_and_copy", otp: otpCode, sender, timeRemaining: toastDuration, showUntil: showUntil, isDuplicate: isResentDuplicate });
-                                } catch (_) {
-                                    showNativeNotification(otpCode, sender, isResentDuplicate);
-                                }
-                            } else {
-                                showNativeNotification(otpCode, sender, isResentDuplicate);
-                            }
-                        });
-                    }
-                }
+            // 1. ALWAYS trigger Windows Native Notification banner so user sees OTP even if Chrome is minimized or on another app
+            showNativeNotification(otpCode, sender, isResentDuplicate);
 
-                // If not viewing an active webpage (e.g. Chrome minimized or on system page), show native notification
-                if (!sentInPageToast) {
-                    showNativeNotification(otpCode, sender, isResentDuplicate);
+            // 2. In-page floating toast banner on currently active tab(s) in all open windows
+            chrome.tabs.query({ active: true }, (tabs) => {
+                if (tabs && tabs.length > 0) {
+                    for (const tab of tabs) {
+                        const isRestrictedUrl = !tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://') || tab.url.startsWith('about:');
+                        if (!isRestrictedUrl) {
+                            chrome.tabs.sendMessage(tab.id, {
+                                action: "show_toast_and_copy",
+                                otp: otpCode,
+                                sender,
+                                timeRemaining: toastDuration,
+                                showUntil: showUntil,
+                                isDuplicate: isResentDuplicate
+                            }).catch(async (err) => {
+                                if (err.message && (err.message.includes("Receiving end does not exist") || err.message.includes("Could not establish connection"))) {
+                                    try {
+                                        await chrome.scripting.insertCSS({ target: { tabId: tab.id }, files: ["content.css"] });
+                                        await chrome.scripting.executeScript({ target: { tabId: tab.id }, files: ["content.js"] });
+                                        await new Promise(resolve => setTimeout(resolve, 150));
+                                        await chrome.tabs.sendMessage(tab.id, { action: "show_toast_and_copy", otp: otpCode, sender, timeRemaining: toastDuration, showUntil: showUntil, isDuplicate: isResentDuplicate });
+                                    } catch (_) {}
+                                }
+                            });
+                        }
+                    }
                 }
             });
         });
@@ -790,6 +782,15 @@ function showNativeNotification(otpCode, sender, isDuplicate = false) {
         }, () => {});
     } catch (_) {}
 }
+
+chrome.notifications.onClicked.addListener((notifId) => {
+    chrome.storage.local.get(['pendingToast', 'otpHistory'], (data) => {
+        const code = (data.pendingToast && data.pendingToast.otp) || (data.otpHistory && data.otpHistory[0] && data.otpHistory[0].otp);
+        if (code) {
+            copyToClipboard(code);
+        }
+    });
+});
 
 // ─── Re-show Pending Toast on Tab Reloads / Navigations / Switches ───────────
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {

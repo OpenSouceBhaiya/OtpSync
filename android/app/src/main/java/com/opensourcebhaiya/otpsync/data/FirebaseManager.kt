@@ -125,12 +125,32 @@ class FirebaseManager {
      * - Phone Priority: If phone is in active use (unlocked, screen on) and NO PC is active, suppress PC broadcast.
      * - Zero-Drop Fail-Safe: If any ambiguity exists, broadcast to ensure the user NEVER misses an OTP!
      */
+    private fun extractBrandTokens(sender: String, body: String): Set<String> {
+        val tokens = mutableSetOf<String>()
+        val cleanSender = sender.lowercase().replace(Regex("[^a-z0-9]"), " ")
+        for (part in cleanSender.split(" ")) {
+            if (part.length >= 3 && part !in setOf("sms", "otp", "code", "app", "txt", "msg", "verif")) {
+                tokens.add(part)
+            }
+        }
+        val cleanBody = body.lowercase()
+        val words = cleanBody.split(Regex("[^a-z0-9]+")).filter { it.length >= 3 }
+        val ignore = setOf("your", "this", "code", "verification", "one", "time", "password", "valid", "minutes", "seconds", "please", "enter", "with", "from", "share", "anyone", "call", "bank", "dear", "customer", "account", "login", "portal", "device")
+        for (w in words) {
+            if (w !in ignore && w.length >= 4) {
+                tokens.add(w)
+            }
+        }
+        return tokens
+    }
+
     suspend fun broadcastOtp(
         otpCode: String,
         sender: String,
         activeDeviceKeys: Map<String, String>,
         expiresAt: Long,
-        @Suppress("UNUSED_PARAMETER") isPhoneInteractive: Boolean = false
+        isPhoneInteractive: Boolean = false,
+        messageBody: String = ""
     ): List<String> {
         if (activeDeviceKeys.isEmpty()) return emptyList()
 
@@ -138,16 +158,25 @@ class FirebaseManager {
         val timestamp = System.currentTimeMillis()
         val sentDeviceUuids = mutableListOf<String>()
 
+        val brandTokens = extractBrandTokens(sender, messageBody)
+
         // Evaluate candidate PCs concurrently with 800ms fail-safe timeout
-        val candidates = evaluateCandidates(activeDeviceKeys, timestamp)
+        val candidates = evaluateCandidates(activeDeviceKeys, timestamp, brandTokens)
 
         val tier1 = candidates.filter { it.tier == 1 }
         val tier2 = candidates.filter { it.tier == 2 }
         val tier3 = candidates.filter { it.tier == 3 }
 
+        // Phone Priority: If phone is actively being used (screen on, unlocked),
+        // and no PC explicitly asked for an OTP (Tier 1 is empty), suppress PC broadcast
+        if (isPhoneInteractive && tier1.isEmpty()) {
+            Log.d("FirebaseManager", "Phone is in active user interaction and no PC requested OTP. Suppressing PC broadcast.")
+            return emptyList()
+        }
+
         val targetsToSend: List<DeviceTargetCandidate> = when {
             // Case 1: Devices explicitly signaled OTP intent / active login page
-            // Prioritize the specific device that most recently requested or focused the OTP
+            // Prioritize the specific device that most recently requested or focused the OTP (with domain match bonus)
             tier1.isNotEmpty() -> {
                 val sorted = tier1.sortedByDescending { it.score }
                 val top = sorted.first()
@@ -172,7 +201,7 @@ class FirebaseManager {
             // Case 3: Online Standby devices (seen in last 3 minutes)
             tier3.isNotEmpty() -> {
                 // NEVER broadcast to multiple devices when multiple laptops are connected!
-                // Prioritize the device that has the most recent activity or heartbeat.
+                // Prioritize the device that has domain match or most recent activity.
                 val sorted = tier3.sortedWith(
                     compareByDescending<DeviceTargetCandidate> { it.score }
                         .thenByDescending { it.lastActive }
@@ -232,7 +261,8 @@ class FirebaseManager {
 
     private suspend fun evaluateCandidates(
         activeDeviceKeys: Map<String, String>,
-        now: Long
+        now: Long,
+        brandTokens: Set<String> = emptySet()
     ): List<DeviceTargetCandidate> {
         val candidates = mutableListOf<DeviceTargetCandidate>()
 
@@ -242,7 +272,7 @@ class FirebaseManager {
                     try {
                         withTimeoutOrNull(800) {
                             val snapshot = devicesRef.child(uuid).get().await()
-                            parseDeviceCandidate(uuid, key, snapshot, now)
+                            parseDeviceCandidate(uuid, key, snapshot, now, brandTokens)
                         } ?: DeviceTargetCandidate(uuid, key, 4, 0L, 0L, 0L)
                     } catch (e: Exception) {
                         DeviceTargetCandidate(uuid, key, 4, 0L, 0L, 0L)
@@ -259,7 +289,8 @@ class FirebaseManager {
         uuid: String,
         key: String,
         snapshot: DataSnapshot,
-        now: Long
+        now: Long,
+        brandTokens: Set<String> = emptySet()
     ): DeviceTargetCandidate {
         if (!snapshot.exists()) {
             return DeviceTargetCandidate(uuid, key, 4, 0L, 0L, 0L)
@@ -282,17 +313,26 @@ class FirebaseManager {
         val intentSnap = snapshot.child("otpIntent")
         val intentActive = intentSnap.child("active").getValue(Boolean::class.java) ?: false
         val intentTs = (intentSnap.child("ts").value as? Number)?.toLong() ?: 0L
+        val intentHost = (intentSnap.child("host").getValue(String::class.java) ?: "").lowercase()
         val hasRecentIntent = intentActive && (now - intentTs in 0..120000)
 
         // Check pcLoginActive
         val loginSnap = snapshot.child("pcLoginActive")
         val loginActive = loginSnap.child("active").getValue(Boolean::class.java) ?: false
         val loginTs = (loginSnap.child("ts").value as? Number)?.toLong() ?: 0L
+        val loginHost = (loginSnap.child("host").getValue(String::class.java) ?: "").lowercase()
         val hasRecentLogin = loginActive && (now - loginTs in 0..120000)
+
+        // Check domain matching
+        val hasDomainMatch = brandTokens.isNotEmpty() && brandTokens.any { token ->
+            (intentHost.isNotBlank() && (intentHost.contains(token) || token.contains(intentHost))) ||
+            (loginHost.isNotBlank() && (loginHost.contains(token) || token.contains(loginHost)))
+        }
+        val domainBonus = if (hasDomainMatch) 5_000_000_000L else 0L
 
         // Tier 1: Explicit Intent or Active Login Page within last 2 minutes (only if device is not idle)
         if ((hasRecentIntent || hasRecentLogin) && !isDeviceSystemIdle) {
-            val score = Math.max(intentTs, loginTs)
+            val score = Math.max(intentTs, loginTs) + domainBonus
             return DeviceTargetCandidate(uuid, key, 1, score, lastActive, lastSeen)
         }
 
@@ -300,7 +340,7 @@ class FirebaseManager {
         val isGenuineFocus = isFocused && !isDeviceSystemIdle && (now - lastActive in 0..120_000)
         val isRecentlyActive = !isDeviceSystemIdle && (now - lastActive in 0..90_000)
         if (isGenuineFocus || isRecentlyActive) {
-            val score = (if (isGenuineFocus) 1_000_000_000L else 0L) + lastActive
+            val score = (if (isGenuineFocus) 1_000_000_000L else 0L) + domainBonus + lastActive
             return DeviceTargetCandidate(uuid, key, 2, score, lastActive, lastSeen)
         }
 
@@ -308,7 +348,7 @@ class FirebaseManager {
         val isOnline = (now - lastSeen in 0..180_000) || (now - lastActive in 0..180_000)
         if (isOnline) {
             val idlePenalty = if (isDeviceSystemIdle) -1_000_000_000L else 0L
-            val score = lastActive + idlePenalty
+            val score = lastActive + idlePenalty + domainBonus
             return DeviceTargetCandidate(uuid, key, 3, score, lastActive, lastSeen)
         }
 

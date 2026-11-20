@@ -152,7 +152,8 @@ class SmsReceiver : BroadcastReceiver() {
                             sender = sender,
                             activeDeviceKeys = allKeys,
                             expiresAt = extractedOtp.expiresAt ?: (System.currentTimeMillis() + 5 * 60 * 1000L),
-                            isPhoneInteractive = isPhoneInUse
+                            isPhoneInteractive = isPhoneInUse,
+                            messageBody = fullText
                         )
 
                         val sentDeviceNames = if (sentDeviceUuids.isNotEmpty()) {

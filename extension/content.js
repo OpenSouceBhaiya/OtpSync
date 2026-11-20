@@ -11,6 +11,7 @@ function checkAndDisplayPendingToast() {
                 const remaining = pt.showUntil - Date.now();
                 if (remaining > 300) {
                     showToast(pt.otp, pt.sender, true, remaining, pt.showUntil, Boolean(pt.isDuplicate));
+                    tryAutoFillOtp(pt.otp);
                 } else {
                     dismissToast();
                 }
@@ -19,6 +20,51 @@ function checkAndDisplayPendingToast() {
             }
         });
     } catch (e) { }
+}
+
+function tryAutoFillOtp(otpCode) {
+    if (!otpCode || typeof otpCode !== 'string') return false;
+    const cleanCode = otpCode.trim();
+    if (cleanCode.length < 3 || cleanCode.length > 10) return false;
+
+    try {
+        // 1. Segmented single-digit boxes (e.g. 4-6 individual input cells)
+        const segmented = Array.from(document.querySelectorAll('input[maxlength="1"], input[data-index], .otp-input, .digit-input'))
+            .filter(el => el.offsetWidth > 0 && el.offsetHeight > 0 && !el.disabled && !el.readOnly);
+        
+        if (segmented.length >= 3 && segmented.length <= 8 && cleanCode.length >= segmented.length) {
+            for (let i = 0; i < segmented.length; i++) {
+                segmented[i].value = cleanCode[i];
+                segmented[i].dispatchEvent(new Event('input', { bubbles: true }));
+                segmented[i].dispatchEvent(new Event('change', { bubbles: true }));
+            }
+            if (segmented.length > 0) segmented[segmented.length - 1].focus();
+            return true;
+        }
+
+        // 2. Focused input or explicit one-time-code / OTP field
+        const focused = document.activeElement;
+        if (focused && focused.tagName === 'INPUT' && canAutoFill(focused)) {
+            focused.value = cleanCode;
+            focused.dispatchEvent(new Event('input', { bubbles: true }));
+            focused.dispatchEvent(new Event('change', { bubbles: true }));
+            return true;
+        }
+
+        // 3. First visible viable OTP field on page
+        const allInputs = Array.from(document.querySelectorAll('input'))
+            .filter(el => el.offsetWidth > 0 && el.offsetHeight > 0 && !el.disabled && !el.readOnly && canAutoFill(el));
+        
+        if (allInputs.length > 0) {
+            const targetInput = allInputs[0];
+            targetInput.value = cleanCode;
+            targetInput.dispatchEvent(new Event('input', { bubbles: true }));
+            targetInput.dispatchEvent(new Event('change', { bubbles: true }));
+            targetInput.focus();
+            return true;
+        }
+    } catch (_) {}
+    return false;
 }
 
 if (document.readyState === 'loading') {
@@ -97,6 +143,7 @@ function playNotificationChime() {
             }
             
             showToast(request.otp, request.sender, request.isCarryForward, request.timeRemaining, request.showUntil, Boolean(request.isDuplicate));
+            tryAutoFillOtp(request.otp);
             sendResponse({success: true});
             return true;
         }
@@ -201,8 +248,9 @@ function showToast(otp, sender, isCarryForward = false, timeRemaining = 6000, sh
         if (navigator.clipboard && navigator.clipboard.writeText) {
             navigator.clipboard.writeText(otp).catch(() => {});
         }
+        const filled = tryAutoFillOtp(otp);
         const titleEl = toast.querySelector('.mailsync-toast-title');
-        if (titleEl) titleEl.textContent = '✓ Copied to Clipboard!';
+        if (titleEl) titleEl.textContent = filled ? '✓ Pasted & Copied!' : '✓ Copied to Clipboard!';
         setTimeout(() => {
             dismissToast();
         }, 400);
