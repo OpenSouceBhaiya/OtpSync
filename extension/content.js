@@ -1,5 +1,13 @@
 // content.js — OTP Sync Companion
 // CSS is injected via content.css (manifest), NOT inline here.
+(function() {
+    if (window.__otpsync_loaded) {
+        if (typeof window.__otpsync_checkToast === 'function') {
+            window.__otpsync_checkToast();
+        }
+        return;
+    }
+    window.__otpsync_loaded = true;
 
 // ─── Persistent Toast: Re-show on page navigation or tab visibility ──────────
 function checkAndDisplayPendingToast() {
@@ -563,3 +571,6 @@ function snapThanos(element) {
         const observer = new MutationObserver(() => detectLoginPage());
         observer.observe(targetRoot, { childList: true, subtree: true, attributes: true, attributeFilter: ['type', 'class', 'style'] });
     }
+
+    window.__otpsync_checkToast = checkAndDisplayPendingToast;
+})();
