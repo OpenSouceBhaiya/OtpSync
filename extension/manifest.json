@@ -10,7 +10,6 @@
     "alarms",
     "scripting",
     "activeTab",
-    "notifications",
     "idle"
   ],
   "host_permissions": [

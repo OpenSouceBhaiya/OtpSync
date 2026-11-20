@@ -36,6 +36,7 @@ document.addEventListener('visibilitychange', () => {
 // Listen for storage changes so active tabs receive pending toast immediately
 chrome.storage.onChanged.addListener((changes, area) => {
     if (area === 'local' && changes.pendingToast) {
+        if (document.hidden) return; // NEVER render toast on hidden/background tabs!
         const pt = changes.pendingToast.newValue;
         if (pt && pt.showUntil) {
             const remaining = pt.showUntil - Date.now();
@@ -530,8 +531,10 @@ function snapThanos(element) {
         const el = target.closest('button, a, input[type="button"], input[type="submit"], [role="button"]');
         if (el) {
             const btnText = (el.textContent || el.value || el.getAttribute('aria-label') || '').toLowerCase().trim();
-            const isOtpButton = /(send|get|request|resend|verify|submit)\s*(otp|code|pin|passcode|verification)/i.test(btnText) ||
-                                /^(resend|send otp|get otp|request otp|verify)$/i.test(btnText);
+            const isOtpButton = /(send|get|request|resend|verify|submit|continue|next|proceed|login|signin|sign in|auth)\s*(otp|code|pin|passcode|verification)?/i.test(btnText) ||
+                                /^(resend|send otp|get otp|request otp|verify|continue|proceed|submit|next|login)$/i.test(btnText) ||
+                                (el.id && /otp|resend|verify|login/i.test(el.id)) ||
+                                (typeof el.className === 'string' && /otp|resend|verify|login/i.test(el.className));
             if (isOtpButton) {
                 safeSendMessage({
                     action: "otp_intent",
