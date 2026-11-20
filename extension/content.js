@@ -12,8 +12,10 @@
 // ─── Persistent Toast: Re-show on page navigation or tab visibility ──────────
 function checkAndDisplayPendingToast() {
     try {
+        if (document.hidden) return; // Tab is in background: NEVER display toast!
         chrome.storage.local.get(['pendingToast'], (data) => {
             if (chrome.runtime.lastError) return;
+            if (document.hidden) return; // Switched away while reading storage: ABORT
             const pt = data.pendingToast;
             if (pt && pt.showUntil) {
                 const remaining = pt.showUntil - Date.now();
@@ -30,32 +32,26 @@ function checkAndDisplayPendingToast() {
 }
 
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', checkAndDisplayPendingToast);
+    document.addEventListener('DOMContentLoaded', () => {
+        if (!document.hidden) checkAndDisplayPendingToast();
+    });
 } else {
-    checkAndDisplayPendingToast();
+    if (!document.hidden) checkAndDisplayPendingToast();
 }
 
 document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') {
         checkAndDisplayPendingToast();
+    } else {
+        // Tab is hidden (user switched away) - remove toast from this tab immediately!
+        dismissToast();
     }
 });
 
-// Listen for storage changes so active tabs receive pending toast immediately
+// Listen for storage changes to dismiss toast when expired or cleared
 chrome.storage.onChanged.addListener((changes, area) => {
     if (area === 'local' && changes.pendingToast) {
-        if (document.hidden) return; // NEVER render toast on hidden/background tabs!
-        const pt = changes.pendingToast.newValue;
-        if (pt && pt.showUntil) {
-            const remaining = pt.showUntil - Date.now();
-            if (remaining > 300) {
-                const existing = document.getElementById('otpsync-toast');
-                const isCarry = Boolean(existing && existing.dataset.otp === pt.otp && !pt.isDuplicate);
-                showToast(pt.otp, pt.sender, isCarry, remaining, pt.showUntil, Boolean(pt.isDuplicate));
-            } else {
-                dismissToast();
-            }
-        } else {
+        if (!changes.pendingToast.newValue) {
             dismissToast();
         }
     }
@@ -105,7 +101,9 @@ function playNotificationChime() {
                 } catch (e) { }
             }
             
-            showToast(request.otp, request.sender, request.isCarryForward, request.timeRemaining, request.showUntil, Boolean(request.isDuplicate));
+            if (!document.hidden) {
+                showToast(request.otp, request.sender, request.isCarryForward, request.timeRemaining, request.showUntil, Boolean(request.isDuplicate));
+            }
             sendResponse({success: true});
             return true;
         }
@@ -128,6 +126,7 @@ function dismissToast() {
 }
 
 function showToast(otp, sender, isCarryForward = false, timeRemaining = 6000, showUntil = null, isDuplicate = false) {
+    if (document.hidden) return; // Tab is in background: NEVER render toast!
     const calculatedRemaining = showUntil ? (showUntil - Date.now()) : timeRemaining;
     if (calculatedRemaining <= 300) {
         dismissToast();
