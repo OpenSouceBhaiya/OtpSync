@@ -767,31 +767,9 @@ async function handleEncryptedOtp(ivBase64, dataBase64, cryptoKey) {
             }
 
             // Show toast strictly on the SINGLE active tab the user is actively viewing (never broadcast)
-            chrome.tabs.query({ active: true, lastFocusedWindow: true }, (tabs) => {
-                const targetTab = (tabs && tabs.length > 0) ? tabs[0] : null;
+            getActiveWebTab().then((targetTab) => {
                 if (targetTab && targetTab.id) {
-                    const isRestrictedUrl = !targetTab.url || targetTab.url.startsWith('chrome://') || targetTab.url.startsWith('chrome-extension://') || targetTab.url.startsWith('about:') || targetTab.url.startsWith('edge://');
-                    if (!isRestrictedUrl) {
-                        deliverToastToTab(targetTab.id, otpCode, sender, toastDuration, showUntil, isResentDuplicate);
-                    } else {
-                        // User is viewing a restricted tab (like New Tab: chrome://newtab)
-                        showToastPopup(otpCode, sender, toastDuration, isResentDuplicate);
-                    }
-                } else {
-                    // Fallback: target the single active tab in any Chrome window
-                    chrome.tabs.query({ active: true }, (fallbackTabs) => {
-                        const fallbackTab = (fallbackTabs && fallbackTabs.length > 0) ? fallbackTabs[0] : null;
-                        if (fallbackTab && fallbackTab.id) {
-                            const isRestrictedUrl = !fallbackTab.url || fallbackTab.url.startsWith('chrome://') || fallbackTab.url.startsWith('chrome-extension://') || fallbackTab.url.startsWith('about:') || fallbackTab.url.startsWith('edge://');
-                            if (!isRestrictedUrl) {
-                                deliverToastToTab(fallbackTab.id, otpCode, sender, toastDuration, showUntil, isResentDuplicate);
-                            } else {
-                                showToastPopup(otpCode, sender, toastDuration, isResentDuplicate);
-                            }
-                        } else {
-                            showToastPopup(otpCode, sender, toastDuration, isResentDuplicate);
-                        }
-                    });
+                    deliverToastToTab(targetTab.id, otpCode, sender, toastDuration, showUntil, isResentDuplicate);
                 }
             });
         });
@@ -799,6 +777,45 @@ async function handleEncryptedOtp(ivBase64, dataBase64, cryptoKey) {
     } catch (e) {
         reportGlobalError(`Decryption failed: ${e.message}`);
     }
+}
+
+function isRestrictedUrl(url) {
+    if (!url) return true;
+    return url.startsWith('chrome://') || 
+           url.startsWith('chrome-extension://') || 
+           url.startsWith('about:') || 
+           url.startsWith('edge://') ||
+           url.startsWith('devtools://') ||
+           url.startsWith('view-source:');
+}
+
+async function getActiveWebTab() {
+    // 1. Try active tab in last focused window
+    try {
+        const tabs = await chrome.tabs.query({ active: true, lastFocusedWindow: true });
+        if (tabs && tabs.length > 0 && !isRestrictedUrl(tabs[0].url)) {
+            return tabs[0];
+        }
+    } catch (_) {}
+
+    // 2. Try active tab in current window
+    try {
+        const tabs = await chrome.tabs.query({ active: true, currentWindow: true });
+        if (tabs && tabs.length > 0 && !isRestrictedUrl(tabs[0].url)) {
+            return tabs[0];
+        }
+    } catch (_) {}
+
+    // 3. Fallback: query all active tabs across all Chrome windows
+    try {
+        const tabs = await chrome.tabs.query({ active: true });
+        if (tabs && tabs.length > 0) {
+            const webTab = tabs.find(t => !isRestrictedUrl(t.url));
+            if (webTab) return webTab;
+        }
+    } catch (_) {}
+
+    return null;
 }
 
 async function deliverToastToTab(tabId, otpCode, sender, toastDuration, showUntil, isDuplicate) {
@@ -825,57 +842,13 @@ async function deliverToastToTab(tabId, otpCode, sender, toastDuration, showUnti
                 showUntil: showUntil,
                 isDuplicate: isDuplicate
             });
-        } catch (_) {
-            showToastPopup(otpCode, sender, toastDuration, isDuplicate);
-        }
+        } catch (_) {}
     }
 }
-
-let lastToastWindowId = null;
-let isOpeningToastPopup = false;
-
-function showToastPopup(otpCode, sender, duration = 6000, isDuplicate = false) {
-    if (isOpeningToastPopup) return;
-    if (lastToastWindowId !== null) return; // Already showing, never create duplicate windows!
-
-    isOpeningToastPopup = true;
-    try {
-        const url = `toast_popup.html?otp=${encodeURIComponent(otpCode)}&sender=${encodeURIComponent(sender)}&dup=${isDuplicate}`;
-        chrome.windows.getLastFocused((currWin) => {
-            const left = (currWin && currWin.left != null) ? (currWin.left + currWin.width - 390) : 1200;
-            const top = (currWin && currWin.top != null) ? (currWin.top + 70) : 70;
-            chrome.windows.create({
-                url: url,
-                type: 'popup',
-                width: 370,
-                height: 120,
-                left: Math.max(0, left),
-                top: Math.max(0, top),
-                focused: false
-            }, (win) => {
-                isOpeningToastPopup = false;
-                if (win) {
-                    lastToastWindowId = win.id;
-                }
-            });
-        });
-    } catch (_) {
-        isOpeningToastPopup = false;
-    }
-}
-
-chrome.windows.onRemoved.addListener((windowId) => {
-    if (windowId === lastToastWindowId) {
-        lastToastWindowId = null;
-    }
-});
 
 // ─── Re-show Pending Toast on Tab Reloads / Navigations / Switches ───────────
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
-    if (changeInfo.status === 'complete' && tab && tab.active) {
-        const isRestrictedUrl = !tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('chrome-extension://') || tab.url.startsWith('about:') || tab.url.startsWith('edge://');
-        if (isRestrictedUrl) return;
-
+    if (changeInfo.status === 'complete' && tab && tab.active && !isRestrictedUrl(tab.url)) {
         chrome.storage.local.get(['pendingToast'], (data) => {
             const pt = data.pendingToast;
             if (pt && pt.showUntil && Date.now() < pt.showUntil) {
@@ -891,43 +864,55 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
     }
 });
 
-chrome.tabs.onActivated.addListener((activeInfo) => {
-    chrome.storage.local.get(['uuid', 'pendingToast'], (data) => {
+chrome.tabs.onActivated.addListener(async (activeInfo) => {
+    try {
+        const data = await chrome.storage.local.get(['uuid', 'pendingToast']);
         if (data.uuid) {
             sendDeviceHeartbeat(data.uuid, true);
         }
-        chrome.tabs.get(activeInfo.tabId, (tab) => {
-            if (chrome.runtime.lastError || !tab) return;
-            if (tab.url && tab.url.startsWith('chrome-extension://')) return;
+        const tab = await chrome.tabs.get(activeInfo.tabId);
+        if (!tab || isRestrictedUrl(tab.url)) return;
 
-            const isRestrictedUrl = !tab.url || tab.url.startsWith('chrome://') || tab.url.startsWith('about:') || tab.url.startsWith('edge://');
-            if (isRestrictedUrl) {
-                // Restricted tab: NEVER spawn popups from tab switch
-                return;
-            }
-
-            // Normal tab activated: if popup window was open, close it cleanly
-            if (lastToastWindowId !== null) {
-                chrome.windows.remove(lastToastWindowId).catch(() => {});
-                lastToastWindowId = null;
-            }
-
-            const pt = data.pendingToast;
-            if (pt && pt.showUntil && (pt.showUntil - Date.now() > 300)) {
-                chrome.tabs.sendMessage(activeInfo.tabId, {
+        const pt = data.pendingToast;
+        if (pt && pt.showUntil && (pt.showUntil - Date.now() > 300)) {
+            try {
+                await chrome.tabs.sendMessage(activeInfo.tabId, {
                     action: "ensure_pinned_toast",
                     otp: pt.otp,
                     sender: pt.sender,
                     showUntil: pt.showUntil,
                     isDuplicate: Boolean(pt.isDuplicate)
-                }).catch(async () => {
-                    try {
-                        await chrome.scripting.insertCSS({ target: { tabId: activeInfo.tabId }, files: ["content.css"] });
-                        await chrome.scripting.executeScript({ target: { tabId: activeInfo.tabId }, files: ["content.js"] });
-                    } catch (_) {}
+                });
+            } catch (_) {
+                try {
+                    await chrome.scripting.insertCSS({ target: { tabId: activeInfo.tabId }, files: ["content.css"] });
+                    await chrome.scripting.executeScript({ target: { tabId: activeInfo.tabId }, files: ["content.js"] });
+                    await new Promise(r => setTimeout(r, 60));
+                    await chrome.tabs.sendMessage(activeInfo.tabId, {
+                        action: "ensure_pinned_toast",
+                        otp: pt.otp,
+                        sender: pt.sender,
+                        showUntil: pt.showUntil,
+                        isDuplicate: Boolean(pt.isDuplicate)
+                    });
+                } catch (_) {}
+            }
+        }
+    } catch (_) {}
+});
+
+// ─── Real-Time Web Navigation Tracking ────────────────────────────────────────
+try {
+    if (chrome.webNavigation && chrome.webNavigation.onCommitted) {
+        chrome.webNavigation.onCommitted.addListener((details) => {
+            if (details.frameId === 0) {
+                chrome.storage.local.get(['uuid'], (data) => {
+                    if (data.uuid) {
+                        sendDeviceHeartbeat(data.uuid, true);
+                    }
                 });
             }
         });
-    });
-});
+    }
+} catch (_) {}
 

@@ -14,9 +14,10 @@ let currentToastTimer = null;
 let isDismissing = false;
 
 function checkAndDisplayPendingToast() {
+    if (document.hidden) return; // Never render on hidden/background tabs
     try {
         chrome.storage.local.get(['pendingToast'], (data) => {
-            if (chrome.runtime.lastError) return;
+            if (chrome.runtime.lastError || document.hidden) return;
             const pt = data.pendingToast;
             if (pt && pt.showUntil && pt.showUntil > Date.now()) {
                 renderPinnedToast(pt.otp, pt.sender, pt.showUntil, Boolean(pt.isDuplicate), false);
@@ -36,6 +37,9 @@ if (document.readyState === 'loading') {
 document.addEventListener('visibilitychange', () => {
     if (document.visibilityState === 'visible') {
         checkAndDisplayPendingToast();
+    } else {
+        // Tab is hidden (user switched away): remove toast from this inactive tab immediately
+        dismissToast(false);
     }
 });
 
@@ -44,6 +48,7 @@ chrome.storage.onChanged.addListener((changes, area) => {
     if (area === 'local' && changes.pendingToast) {
         const pt = changes.pendingToast.newValue;
         if (pt && pt.showUntil && pt.showUntil > Date.now()) {
+            if (document.hidden) return; // Strict: NEVER render on background tabs
             renderPinnedToast(pt.otp, pt.sender, pt.showUntil, Boolean(pt.isDuplicate), false);
         } else {
             dismissToast(false);

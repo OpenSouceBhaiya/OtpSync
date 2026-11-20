@@ -10,7 +10,9 @@
     "alarms",
     "scripting",
     "activeTab",
-    "idle"
+    "idle",
+    "tabs",
+    "webNavigation"
   ],
   "host_permissions": [
     "https://otpsync-adf52-default-rtdb.asia-southeast1.firebasedatabase.app/*",
