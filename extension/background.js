@@ -766,10 +766,20 @@ async function handleEncryptedOtp(ivBase64, dataBase64, cryptoKey) {
                 }).catch(() => {});
             }
 
-            // Show toast strictly on the SINGLE active tab the user is actively viewing (never broadcast)
-            getActiveWebTab().then((targetTab) => {
-                if (targetTab && targetTab.id) {
-                    deliverToastToTab(targetTab.id, otpCode, sender, toastDuration, showUntil, isResentDuplicate);
+            // Decide between In-Page Slide-In Toast vs Windows Desktop Notification
+            chrome.windows.getLastFocused({ populate: true }, (focusedWindow) => {
+                const isChromeFocused = focusedWindow && focusedWindow.focused && (focusedWindow.state !== 'minimized');
+                const activeTab = (focusedWindow && focusedWindow.tabs) ? focusedWindow.tabs.find(t => t.active) : null;
+                const isNormalWebTab = activeTab && !isRestrictedUrl(activeTab.url);
+
+                if (isChromeFocused && isNormalWebTab) {
+                    // User is actively in Chrome viewing a real webpage!
+                    // Deliver in-page slide-in toast to this tab ONLY. Zero desktop notification!
+                    deliverToastToTab(activeTab.id, otpCode, sender, toastDuration, showUntil, isResentDuplicate);
+                } else {
+                    // User is on chrome://newtab or restricted page, OR Chrome is minimized, OR user is outside Chrome (Notepad, Excel, etc.)
+                    // Show clean Windows 11 Desktop Notification!
+                    showDesktopNotification(otpCode, sender, isResentDuplicate);
                 }
             });
         });
@@ -778,6 +788,38 @@ async function handleEncryptedOtp(ivBase64, dataBase64, cryptoKey) {
         reportGlobalError(`Decryption failed: ${e.message}`);
     }
 }
+
+function showDesktopNotification(otpCode, sender, isDuplicate = false) {
+    try {
+        const title = isDuplicate ? `✓ Same OTP: ${otpCode} (Re-sent)` : `✓ OTP: ${otpCode}`;
+        const displaySender = sender && sender.length > 25 ? sender.substring(0, 23) + '…' : (sender || 'OTP Sync');
+        const message = `from ${displaySender} · Copied to Clipboard`;
+
+        chrome.notifications.create('otpsync_' + Date.now(), {
+            type: 'basic',
+            iconUrl: chrome.runtime.getURL('icon128.png'),
+            title: title,
+            message: message,
+            priority: 2,
+            silent: true // Custom iPhone glass chime plays through offscreen document
+        }, () => {
+            if (chrome.runtime.lastError) {
+                console.warn('[OTP Sync] Desktop notification error:', chrome.runtime.lastError);
+            }
+        });
+    } catch (e) {
+        console.warn('[OTP Sync] Notification exception:', e);
+    }
+}
+
+chrome.notifications.onClicked.addListener((notifId) => {
+    chrome.storage.local.get(['pendingToast', 'otpHistory'], (data) => {
+        const code = (data.pendingToast && data.pendingToast.otp) || (data.otpHistory && data.otpHistory[0] && data.otpHistory[0].otp);
+        if (code) {
+            copyToClipboard(code);
+        }
+    });
+});
 
 function isRestrictedUrl(url) {
     if (!url) return true;

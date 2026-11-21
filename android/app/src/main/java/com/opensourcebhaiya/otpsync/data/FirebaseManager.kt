@@ -134,28 +134,50 @@ class FirebaseManager {
         "hdfcbk" to "hdfc",
         "sbinb" to "sbi",
         "axisbk" to "axis",
+        "kotakb" to "kotak",
+        "pnb" to "pnb",
+        "bob" to "bob",
+        "idbi" to "idbi",
         "amzn" to "amazon",
         "flpkrt" to "flipkart",
         "swgy" to "swiggy",
         "zmto" to "zomato",
-        "pytm" to "paytm"
+        "pytm" to "paytm",
+        "myntra" to "myntra",
+        "tatasky" to "tataplay",
+        "tmango" to "tataplay",
+        "tata" to "tataplay",
+        "jio" to "jio",
+        "cred" to "cred",
+        "zerodh" to "zerodha",
+        "groww" to "groww",
+        "upstox" to "upstox",
+        "uber" to "uber",
+        "ola" to "ola",
+        "irctc" to "irctc"
     )
 
     private fun extractBrandTokens(sender: String, body: String): Set<String> {
         val tokens = mutableSetOf<String>()
 
-        // 1. Clean sender: "AD-AIRTEL" -> "airtel", "VK-ICICI" -> "icici", "578021" -> "578021"
+        // 1. Clean sender: "AD-AIRTEL" -> "airtel", "VK-ICICI" -> "icici", "AX-TMANGO-S" -> "tmango", "tataplay", "578021"
         val cleanSender = sender.lowercase().replace(Regex("[^a-z0-9]"), " ")
         for (part in cleanSender.split(" ")) {
             if (part.length >= 3 && part !in setOf("sms", "otp", "code", "app", "txt", "msg", "verif", "alert", "notice", "info")) {
                 tokens.add(part)
                 shorthandMap[part]?.let { tokens.add(it) }
+                // Handle common prefixes like 't' for Tata (e.g. tmango -> mango, tataplay)
+                if (part.startsWith("t") && part.length >= 5) {
+                    val stripped = part.substring(1)
+                    tokens.add(stripped)
+                    shorthandMap[stripped]?.let { tokens.add(it) }
+                }
             }
         }
 
         // 2. Extract words and domains from body
         val cleanBody = body.lowercase()
-        // Extract URLs or domains in body (e.g. airtel.in, amazon.in)
+        // Extract URLs or domains in body (e.g. airtelxstream.in, amazon.in)
         val urlMatches = Regex("([a-z0-9-]+\\.[a-z]{2,})").findAll(cleanBody)
         for (m in urlMatches) {
             val fullHost = m.value
@@ -209,22 +231,11 @@ class FirebaseManager {
             Log.d("FirebaseManager", "Targeting requesting PC ${primaryTarget.uuid} (domainMatch: ${primaryTarget.hasDomainMatch}, matchedToken: '${primaryTarget.matchedToken}', score: ${primaryTarget.score}). Zero leakage to other laptops.")
             listOf(primaryTarget)
         } else {
-            // NO device had an explicit domain match or active login page.
-            // Check if user is logging in on their PHONE only (Phone-Only Login)
-            val activePcs = candidates.filter { it.tier <= 2 && it.isSystemActive }
-            if (activePcs.isEmpty()) {
-                Log.d("FirebaseManager", "All connected PCs are idle/inactive and none requested an OTP. Keeping OTP strictly on phone.")
-                emptyList()
-            } else if (activePcs.size == 1) {
-                // Exactly 1 PC is actively in use right now (single laptop in front of user)
-                val activePc = activePcs.first()
-                Log.d("FirebaseManager", "Single active PC detected (${activePc.uuid}). Routing OTP directly to active PC.")
-                listOf(activePc)
-            } else {
-                // Multiple PCs active with no domain match: suppress to prevent wrong laptop delivery
-                Log.d("FirebaseManager", "Multiple active PCs with no domain match. Suppressing to prevent wrong-device delivery.")
-                emptyList()
-            }
+            // NO device had an explicit domain match or active OTP intent/login page.
+            // That means user is receiving an OTP on their PHONE for a mobile app or phone-based service.
+            // Keep the OTP strictly on the phone — DO NOT send to any PC.
+            Log.d("FirebaseManager", "No PC requested an OTP and no domain match. Keeping OTP strictly on phone.")
+            emptyList()
         }
 
         if (targetsToSend.isEmpty()) {
@@ -325,6 +336,7 @@ class FirebaseManager {
         val intentActive = intentSnap.child("active").getValue(Boolean::class.java) ?: false
         val intentTs = (intentSnap.child("ts").value as? Number)?.toLong() ?: 0L
         val intentHost = (intentSnap.child("host").getValue(String::class.java) ?: "").lowercase()
+        val intentTitle = (intentSnap.child("title").getValue(String::class.java) ?: "").lowercase()
         val hasRecentIntent = intentActive && (now - intentTs in 0..300_000)
 
         // Check pcLoginActive (within last 5 minutes)
@@ -332,6 +344,7 @@ class FirebaseManager {
         val loginActive = loginSnap.child("active").getValue(Boolean::class.java) ?: false
         val loginTs = (loginSnap.child("ts").value as? Number)?.toLong() ?: 0L
         val loginHost = (loginSnap.child("host").getValue(String::class.java) ?: "").lowercase()
+        val loginTitle = (loginSnap.child("title").getValue(String::class.java) ?: "").lowercase()
         val hasRecentLogin = loginActive && (now - loginTs in 0..300_000)
 
         // Aggregate all domains associated with this PC
@@ -341,13 +354,19 @@ class FirebaseManager {
         if (loginHost.isNotBlank()) allPcHosts.add(loginHost)
         allPcHosts.addAll(openDomains)
 
+        // Aggregate all titles associated with this PC
+        val allPcTitles = mutableSetOf<String>()
+        if (activeTitle.isNotBlank()) allPcTitles.add(activeTitle)
+        if (intentTitle.isNotBlank()) allPcTitles.add(intentTitle)
+        if (loginTitle.isNotBlank()) allPcTitles.add(loginTitle)
+
         var matchedToken = ""
         var hasDomainMatch = false
         if (brandTokens.isNotEmpty()) {
             for (token in brandTokens) {
-                val matched = allPcHosts.any { host -> host.contains(token) || token.contains(host.split(".").firstOrNull() ?: "") }
-                val titleMatched = activeTitle.isNotBlank() && activeTitle.contains(token)
-                if (matched || titleMatched) {
+                val hostMatched = allPcHosts.any { host -> host.contains(token) || token.contains(host.split(".").firstOrNull() ?: "") }
+                val titleMatched = allPcTitles.any { title -> title.contains(token) }
+                if (hostMatched || titleMatched) {
                     hasDomainMatch = true
                     matchedToken = token
                     break

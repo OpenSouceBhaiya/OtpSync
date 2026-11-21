@@ -503,7 +503,7 @@ function snapThanos(element) {
     window.addEventListener('keydown', reportUserActivity, { passive: true });
     window.addEventListener('pointerdown', reportUserActivity, { passive: true });
 
-    // Listen to user clicking "Send OTP", "Request OTP", "Resend Code", "Login", "Continue"
+    // Listen to user clicking "Send OTP", "Request OTP", "Resend Code", "Login", "Continue", etc.
     document.addEventListener('click', (e) => {
         reportUserActivity();
         const target = e.target;
@@ -511,10 +511,10 @@ function snapThanos(element) {
         const el = target.closest('button, a, input[type="button"], input[type="submit"], [role="button"], div[role="button"], span[role="button"]');
         if (el) {
             const btnText = (el.textContent || el.value || el.getAttribute('aria-label') || '').toLowerCase().trim();
-            const isOtpButton = /(send|get|request|resend|verify|submit|continue|next|proceed|login|signin|sign in|auth)\s*(otp|code|pin|passcode|verification)?/i.test(btnText) ||
-                                /^(resend|send otp|get otp|request otp|verify|continue|proceed|submit|next|login|sign in)$/i.test(btnText) ||
-                                (el.id && /otp|resend|verify|login|submit/i.test(el.id)) ||
-                                (typeof el.className === 'string' && /otp|resend|verify|login|submit/i.test(el.className));
+            const isOtpButton = /(send|get|request|resend|verify|submit|continue|next|proceed|login|signin|sign in|auth|confirm|generate|pay|checkout)\s*(otp|code|pin|passcode|verification)?/i.test(btnText) ||
+                                /^(resend|send otp|get otp|request otp|verify|continue|proceed|submit|next|login|sign in|confirm|generate otp|pay|checkout)$/i.test(btnText) ||
+                                (el.id && /otp|resend|verify|login|submit|auth|confirm|checkout/i.test(el.id)) ||
+                                (typeof el.className === 'string' && /otp|resend|verify|login|submit|auth|confirm|checkout/i.test(el.className));
             if (isOtpButton) {
                 safeSendMessage({
                     action: "otp_intent",
@@ -525,7 +525,7 @@ function snapThanos(element) {
         }
     }, { passive: true });
 
-    // When focusing ANY input on a webpage, report OTP intent with current domain
+    // When focusing or typing in ANY input on a webpage, report OTP intent with current domain
     document.addEventListener('focusin', (e) => {
         reportUserActivity();
         const target = e.target;
@@ -537,6 +537,32 @@ function snapThanos(element) {
             });
         }
     }, { passive: true });
+
+    document.addEventListener('input', (e) => {
+        reportUserActivity();
+        const target = e.target;
+        if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) {
+            safeSendMessage({
+                action: "otp_intent",
+                host: window.location.hostname,
+                title: document.title
+            });
+        }
+    }, { passive: true });
+
+    // Form submission is an unmistakable sign of user intent
+    document.addEventListener('submit', () => {
+        reportUserActivity();
+        safeSendMessage({
+            action: "otp_intent",
+            host: window.location.hostname,
+            title: document.title
+        });
+    }, { passive: true });
+
+    // SPA routing changes (React / Vue / Angular / Next.js)
+    window.addEventListener('popstate', () => detectLoginPage(), { passive: true });
+    window.addEventListener('hashchange', () => detectLoginPage(), { passive: true });
 
     detectLoginPage();
     const targetRoot = document.body || document.documentElement;
