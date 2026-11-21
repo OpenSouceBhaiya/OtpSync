@@ -786,6 +786,10 @@ async function handleEncryptedOtp(ivBase64, dataBase64, cryptoKey) {
 
 function showDesktopNotification(otpCode, sender, isDuplicate = false) {
     try {
+        if (!chrome.notifications || !chrome.notifications.create) {
+            console.warn('[OTP Sync] chrome.notifications API not available');
+            return;
+        }
         const title = isDuplicate ? `✓ Same OTP: ${otpCode} (Re-sent)` : `✓ OTP: ${otpCode}`;
         const displaySender = sender && sender.length > 25 ? sender.substring(0, 23) + '…' : (sender || 'OTP Sync');
         const message = `from ${displaySender} · Copied to Clipboard`;
@@ -804,7 +808,9 @@ function showDesktopNotification(otpCode, sender, isDuplicate = false) {
             }
             // Auto-dismiss Windows desktop notification after 5 seconds
             setTimeout(() => {
-                chrome.notifications.clear(notifId, () => {});
+                if (chrome.notifications && chrome.notifications.clear) {
+                    chrome.notifications.clear(notifId, () => {});
+                }
             }, 5000);
         });
     } catch (e) {
@@ -812,14 +818,16 @@ function showDesktopNotification(otpCode, sender, isDuplicate = false) {
     }
 }
 
-chrome.notifications.onClicked.addListener((notifId) => {
-    chrome.storage.local.get(['pendingToast', 'otpHistory'], (data) => {
-        const code = (data.pendingToast && data.pendingToast.otp) || (data.otpHistory && data.otpHistory[0] && data.otpHistory[0].otp);
-        if (code) {
-            copyToClipboard(code);
-        }
+if (typeof chrome !== 'undefined' && chrome.notifications && chrome.notifications.onClicked) {
+    chrome.notifications.onClicked.addListener((notifId) => {
+        chrome.storage.local.get(['pendingToast', 'otpHistory'], (data) => {
+            const code = (data.pendingToast && data.pendingToast.otp) || (data.otpHistory && data.otpHistory[0] && data.otpHistory[0].otp);
+            if (code) {
+                copyToClipboard(code);
+            }
+        });
     });
-});
+}
 
 function isRestrictedUrl(url) {
     if (!url) return true;
