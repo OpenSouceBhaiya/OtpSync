@@ -12,13 +12,13 @@ enum class OtpArrivalStatus {
     NEW,                   // Brand new OTP
     SIMULTANEOUS_BURST,    // Received from an additional source/channel within retention window
     SAME_SMS_DUPLICATE,    // Duplicate notification from an already-handled channel (suppress)
-    RESENT_SAME_CODE       // Exact same code re-sent after cooldown (> 45s) from same channel
+    RESENT_SAME_CODE       // Exact same code re-sent after cooldown (> 5s) from same channel
 }
 
 object OtpCache {
     private val recentOtps = mutableListOf<CachedOtpRecord>()
     private const val MAX_RETENTION_MS = 600_000L // 10-minute maximum retention window. After 10 mins, resets to fresh normal OTP
-    private const val SAME_CHANNEL_DEBOUNCE_MS = 45_000L // 45s debounce window for identical channel re-triggers
+    private const val SAME_CHANNEL_DEBOUNCE_MS = 5_000L // 5s debounce window for duplicate notification bursts
 
     fun resolveChannel(sourcePackage: String, accountName: String): String {
         val pkg = sourcePackage.lowercase()
@@ -35,10 +35,10 @@ object OtpCache {
     }
 
     @Synchronized
-    fun recordSmsArrival(code: String, sender: String): OtpArrivalStatus {
+    fun recordSmsArrival(code: String, sender: String, currentTimeMs: Long = System.currentTimeMillis()): OtpArrivalStatus {
         val sanitized = code.replace("\\s".toRegex(), "")
         if (sanitized.isBlank()) return OtpArrivalStatus.NEW
-        val now = System.currentTimeMillis()
+        val now = currentTimeMs
         recentOtps.removeAll { now - it.lastTimestamp > MAX_RETENTION_MS }
 
         val existing = recentOtps.find { it.code == sanitized }
@@ -52,10 +52,14 @@ object OtpCache {
             ))
             OtpArrivalStatus.NEW
         } else {
+            val elapsed = now - existing.lastTimestamp
             if ("SMS" !in existing.sources) {
                 existing.sources.add("SMS")
                 existing.lastTimestamp = now
                 OtpArrivalStatus.SIMULTANEOUS_BURST
+            } else if (elapsed < SAME_CHANNEL_DEBOUNCE_MS) {
+                // Duplicate SMS intent burst within 5 seconds
+                OtpArrivalStatus.SAME_SMS_DUPLICATE
             } else {
                 existing.lastTimestamp = now
                 OtpArrivalStatus.RESENT_SAME_CODE
@@ -64,10 +68,10 @@ object OtpCache {
     }
 
     @Synchronized
-    fun checkNotificationArrival(code: String, sender: String, sourcePackage: String, accountName: String): OtpArrivalStatus {
+    fun checkNotificationArrival(code: String, sender: String, sourcePackage: String, accountName: String, currentTimeMs: Long = System.currentTimeMillis()): OtpArrivalStatus {
         val sanitized = code.replace("\\s".toRegex(), "")
         if (sanitized.isBlank()) return OtpArrivalStatus.NEW
-        val now = System.currentTimeMillis()
+        val now = currentTimeMs
         recentOtps.removeAll { now - it.lastTimestamp > MAX_RETENTION_MS }
 
         val channel = resolveChannel(sourcePackage, accountName)

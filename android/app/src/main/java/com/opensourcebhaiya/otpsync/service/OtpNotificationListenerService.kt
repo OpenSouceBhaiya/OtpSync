@@ -1,6 +1,7 @@
 package com.opensourcebhaiya.otpsync.service
 
 import android.app.Notification
+import android.content.Context
 import android.service.notification.NotificationListenerService
 import android.service.notification.StatusBarNotification
 import android.util.Log
@@ -487,20 +488,30 @@ class OtpNotificationListenerService : NotificationListenerService() {
         val defaultExpiry = System.currentTimeMillis() + 10 * 60 * 1000L
         val validExpiry = extractedOtp.expiresAt?.takeIf { it > System.currentTimeMillis() + 30_000L } ?: defaultExpiry
 
+        val powerManager = getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager
+        val wakeLock = powerManager?.newWakeLock(
+            android.os.PowerManager.PARTIAL_WAKE_LOCK,
+            "OtpSync:NotifListener"
+        )?.apply {
+            setReferenceCounted(false)
+            acquire(15_000L)
+        }
+
         scope.launch {
             try {
                 val db = AppDatabase.getDatabase(this@OtpNotificationListenerService)
 
                 // 2a. INSTANT Room Database Insertion FIRST (0ms latency, runs FIRST before network)
+                // Fresh OTPs and genuine Re-sends ALWAYS insert a distinct new card in the inbox with current timestamp
                 AppDatabase.insertMutex.withLock {
                     val existing = db.otpDao().getOtpByCodeRecent(otpCode, System.currentTimeMillis() - 10 * 60 * 1000L)
-                    if (existing == null) {
+                    if (existing == null || isResentDuplicate) {
                         db.otpDao().insertOtp(OtpEntity(
                             id = UUID.randomUUID().toString(),
                             code = otpCode,
                             sender = senderName,
                             subject = senderName,
-                            account = finalAccountName,
+                            account = if (isResentDuplicate) "$finalAccountName (Re-sent)" else finalAccountName,
                             receivedAt = System.currentTimeMillis(),
                             expiresAt = validExpiry,
                             sourcePackage = packageName,
@@ -556,6 +567,12 @@ class OtpNotificationListenerService : NotificationListenerService() {
                 }
             } catch (e: Exception) {
                 Log.e("OtpNotification", "Room DB insert or Firebase broadcast failed", e)
+            } finally {
+                try {
+                    if (wakeLock?.isHeld == true) {
+                        wakeLock.release()
+                    }
+                } catch (_: Exception) {}
             }
         }
     }

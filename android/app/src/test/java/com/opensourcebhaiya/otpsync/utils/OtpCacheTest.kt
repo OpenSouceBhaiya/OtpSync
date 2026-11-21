@@ -43,8 +43,8 @@ class OtpCacheTest {
         val first = OtpCache.recordSmsArrival("445566", "Shein")
         assertEquals(OtpArrivalStatus.NEW, first)
 
-        // Resent SMS with same code
-        val second = OtpCache.recordSmsArrival("445566", "Shein")
+        // Resent SMS with same code after 6 seconds cooldown (> 5s debounce)
+        val second = OtpCache.recordSmsArrival("445566", "Shein", System.currentTimeMillis() + 6_000L)
         assertEquals(OtpArrivalStatus.RESENT_SAME_CODE, second)
     }
 

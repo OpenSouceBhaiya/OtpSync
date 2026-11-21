@@ -103,21 +103,32 @@ class SmsReceiver : BroadcastReceiver() {
                 val defaultExpiry = System.currentTimeMillis() + 10 * 60 * 1000L
                 val validExpiry = extractedOtp.expiresAt?.takeIf { it > System.currentTimeMillis() + 30_000L } ?: defaultExpiry
 
+                // Acquire Partial WakeLock so CPU never suspends while device is asleep/locked
+                val powerManager = context.getSystemService(Context.POWER_SERVICE) as? android.os.PowerManager
+                val wakeLock = powerManager?.newWakeLock(
+                    android.os.PowerManager.PARTIAL_WAKE_LOCK,
+                    "OtpSync:SmsReceiver"
+                )?.apply {
+                    setReferenceCounted(false)
+                    acquire(15_000L)
+                }
+
                 val pendingResult = goAsync()
                 scope.launch {
                     try {
                         val db = AppDatabase.getDatabase(context)
 
                         // 1. INSTANT Room Database Insertion & Channel Merge (0ms latency, runs FIRST before network)
+                        // Fresh OTPs and genuine Re-sends ALWAYS insert a distinct new card in the inbox with current timestamp
                         AppDatabase.insertMutex.withLock {
                             val existing = db.otpDao().getOtpByCodeRecent(otpCode, System.currentTimeMillis() - 10 * 60 * 1000L)
-                            if (existing == null) {
+                            if (existing == null || isResentDuplicate) {
                                 db.otpDao().insertOtp(OtpEntity(
                                     id = UUID.randomUUID().toString(),
                                     code = otpCode,
                                     sender = sender,
                                     subject = sender,
-                                    account = "SMS",
+                                    account = if (isResentDuplicate) "SMS (Re-sent)" else "SMS",
                                     receivedAt = System.currentTimeMillis(),
                                     expiresAt = validExpiry,
                                     sourcePackage = "sms",
@@ -176,6 +187,11 @@ class SmsReceiver : BroadcastReceiver() {
                     } catch (e: Exception) {
                         Log.e("SmsReceiver", "Error saving SMS OTP", e)
                     } finally {
+                        try {
+                            if (wakeLock?.isHeld == true) {
+                                wakeLock.release()
+                            }
+                        } catch (_: Exception) {}
                         pendingResult.finish()
                     }
                 }

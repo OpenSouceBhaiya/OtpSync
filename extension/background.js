@@ -712,8 +712,8 @@ async function handleEncryptedOtp(ivBase64, dataBase64, cryptoKey) {
         await copyToClipboard(otpCode);
 
         // 3. Save pending toast for persistence across page reloads, redirects and tab switches
-        // Re-sent duplicate OTP stays on screen for 9s (user requested 8-10s for ample visibility); fresh OTP stays for 6s
-        const toastDuration = isResentDuplicate ? 9000 : 6000;
+        // Dynamic duration: 6.5s for 4-digit, 8.5s for 6-digit, 10s for 7+ digits, 7s for re-sent duplicates
+        const toastDuration = calculateOtpDisplayDuration(otpCode, isResentDuplicate);
         const showUntil = Date.now() + toastDuration;
         chrome.storage.local.set({
             pendingToast: {
@@ -784,6 +784,15 @@ async function handleEncryptedOtp(ivBase64, dataBase64, cryptoKey) {
     }
 }
 
+function calculateOtpDisplayDuration(otpCode, isDuplicate = false) {
+    const rawCode = (otpCode || '').replace(/\s+/g, '');
+    const len = rawCode.length;
+    if (isDuplicate) return 7000; // 7s for re-sent duplicate
+    if (len <= 4) return 6500;    // 6.5s for 4-digit OTP
+    if (len <= 6) return 8500;    // 8.5s for standard 6-digit OTP
+    return 10000;                 // 10s for 7+ digits
+}
+
 function showDesktopNotification(otpCode, sender, isDuplicate = false) {
     try {
         if (!chrome.notifications || !chrome.notifications.create) {
@@ -795,6 +804,7 @@ function showDesktopNotification(otpCode, sender, isDuplicate = false) {
         const message = `from ${displaySender} · Copied to Clipboard`;
 
         const notifId = 'otpsync_' + Date.now();
+        const duration = calculateOtpDisplayDuration(otpCode, isDuplicate);
         chrome.notifications.create(notifId, {
             type: 'basic',
             iconUrl: chrome.runtime.getURL('icon128.png'),
@@ -806,12 +816,12 @@ function showDesktopNotification(otpCode, sender, isDuplicate = false) {
             if (chrome.runtime.lastError) {
                 console.warn('[OTP Sync] Desktop notification error:', chrome.runtime.lastError);
             }
-            // Auto-dismiss Windows desktop notification after 5 seconds
+            // Dynamic auto-dismiss based on OTP length (6.5s for 4-digit, 8.5s for 6-digit, 10s for 7+ digits, 7s for duplicate)
             setTimeout(() => {
                 if (chrome.notifications && chrome.notifications.clear) {
                     chrome.notifications.clear(notifId, () => {});
                 }
-            }, 5000);
+            }, duration);
         });
     } catch (e) {
         console.warn('[OTP Sync] Notification exception:', e);
