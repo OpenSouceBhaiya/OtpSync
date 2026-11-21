@@ -130,31 +130,61 @@ class FirebaseManager {
      */
     private val shorthandMap = mapOf(
         "airtl" to "airtel",
+        "artltv" to "airtel",
+        "artl" to "airtel",
+        "atlsms" to "airtel",
+        "artel" to "airtel",
+        "airtel" to "airtel",
+        "xstream" to "airtel",
+        "airtelxstream" to "airtel",
         "icicib" to "icici",
+        "icici" to "icici",
         "hdfcbk" to "hdfc",
+        "hdfc" to "hdfc",
         "sbinb" to "sbi",
+        "sbi" to "sbi",
         "axisbk" to "axis",
+        "axis" to "axis",
         "kotakb" to "kotak",
+        "kotak" to "kotak",
         "pnb" to "pnb",
         "bob" to "bob",
         "idbi" to "idbi",
         "amzn" to "amazon",
+        "amznin" to "amazon",
+        "amazon" to "amazon",
         "flpkrt" to "flipkart",
+        "flipkart" to "flipkart",
         "swgy" to "swiggy",
+        "swiggy" to "swiggy",
         "zmto" to "zomato",
+        "zomato" to "zomato",
         "pytm" to "paytm",
+        "paytm" to "paytm",
         "myntra" to "myntra",
         "tatasky" to "tataplay",
         "tmango" to "tataplay",
         "tata" to "tataplay",
+        "tataplay" to "tataplay",
+        "tataneu" to "tataneu",
         "jio" to "jio",
+        "jiofbr" to "jio",
+        "jiopay" to "jio",
         "cred" to "cred",
+        "credcl" to "cred",
         "zerodh" to "zerodha",
+        "zerodha" to "zerodha",
         "groww" to "groww",
         "upstox" to "upstox",
         "uber" to "uber",
         "ola" to "ola",
-        "irctc" to "irctc"
+        "irctc" to "irctc",
+        "zepto" to "zepto",
+        "blinkt" to "blinkit",
+        "blinkit" to "blinkit",
+        "bigbsk" to "bigbasket",
+        "meesho" to "meesho",
+        "nykaa" to "nykaa"
     )
 
     private fun extractBrandTokens(sender: String, body: String): Set<String> {
@@ -232,18 +262,15 @@ class FirebaseManager {
             listOf(primaryTarget)
         } else {
             // NO device had an explicit domain match or active OTP intent/login page.
-            // Check if user is actively working on a single PC or has only 1 PC connected
-            val activePcs = candidates.filter { it.tier <= 2 && it.isSystemActive }
-            if (activePcs.size == 1) {
-                val activePc = activePcs.first()
-                Log.d("FirebaseManager", "User is actively working on PC ${activePc.uuid} (tier ${activePc.tier}). Routing OTP directly to active PC.")
-                listOf(activePc)
-            } else if (candidates.size == 1 && candidates.first().isSystemActive && (timestamp - candidates.first().lastSeen in 0..600_000)) {
-                val singlePc = candidates.first()
-                Log.d("FirebaseManager", "Single linked PC is online (${singlePc.uuid}). Routing OTP to user's PC.")
-                listOf(singlePc)
+            // Check for online / active PCs (seen within last 10 minutes)
+            val onlinePcs = candidates.filter { it.isSystemActive && (timestamp - it.lastSeen in 0..600_000L) }
+            if (onlinePcs.isNotEmpty()) {
+                // Route to the PC where the user was most recently active!
+                val bestPc = onlinePcs.maxByOrNull { it.lastActive } ?: onlinePcs.first()
+                Log.d("FirebaseManager", "Routing OTP to active PC: ${bestPc.uuid} (tier ${bestPc.tier}, lastActive: ${bestPc.lastActive}).")
+                listOf(bestPc)
             } else {
-                Log.d("FirebaseManager", "No PC requested an OTP and no single active PC. Keeping OTP strictly on phone.")
+                Log.d("FirebaseManager", "All linked PCs are completely offline. Keeping OTP strictly on phone.")
                 emptyList()
             }
         }
@@ -341,21 +368,21 @@ class FirebaseManager {
         val activeTitle = (snapshot.child("activeTitle").getValue(String::class.java) ?: "").lowercase()
         val openDomains = snapshot.child("openDomains").children.mapNotNull { it.getValue(String::class.java)?.lowercase() }
 
-        // Check otpIntent (within last 5 minutes)
+        // Check otpIntent (within last 10 minutes)
         val intentSnap = snapshot.child("otpIntent")
         val intentActive = intentSnap.child("active").getValue(Boolean::class.java) ?: false
         val intentTs = (intentSnap.child("ts").value as? Number)?.toLong() ?: 0L
         val intentHost = (intentSnap.child("host").getValue(String::class.java) ?: "").lowercase()
         val intentTitle = (intentSnap.child("title").getValue(String::class.java) ?: "").lowercase()
-        val hasRecentIntent = intentActive && (now - intentTs in 0..300_000)
+        val hasRecentIntent = intentActive && (now - intentTs in 0..600_000)
 
-        // Check pcLoginActive (within last 5 minutes)
+        // Check pcLoginActive (within last 10 minutes)
         val loginSnap = snapshot.child("pcLoginActive")
         val loginActive = loginSnap.child("active").getValue(Boolean::class.java) ?: false
         val loginTs = (loginSnap.child("ts").value as? Number)?.toLong() ?: 0L
         val loginHost = (loginSnap.child("host").getValue(String::class.java) ?: "").lowercase()
         val loginTitle = (loginSnap.child("title").getValue(String::class.java) ?: "").lowercase()
-        val hasRecentLogin = loginActive && (now - loginTs in 0..300_000)
+        val hasRecentLogin = loginActive && (now - loginTs in 0..600_000)
 
         // Aggregate all domains associated with this PC
         val allPcHosts = mutableSetOf<String>()

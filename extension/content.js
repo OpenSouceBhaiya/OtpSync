@@ -124,15 +124,7 @@ function dismissToast(withAnimation = true) {
 
     if (withAnimation && !isDismissing && !document.hidden) {
         isDismissing = true;
-        // Ultra-smooth slide-out animation to the right
-        existing.classList.remove('show');
-        existing.classList.add('hide');
-        setTimeout(() => {
-            if (existing && existing.parentNode) {
-                existing.remove();
-            }
-            isDismissing = false;
-        }, 320);
+        snapThanos(existing);
     } else {
         existing.remove();
         isDismissing = false;

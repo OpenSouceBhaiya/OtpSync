@@ -28,7 +28,7 @@ function sendDeviceHeartbeat(uuid, isUserActive = false) {
     if (!uuid) return;
     const now = Date.now();
 
-    chrome.tabs.query({ lastFocusedWindow: true }, (tabs) => {
+    chrome.tabs.query({}, (tabs) => {
         const openDomains = [];
         let activeDomain = '';
         let activeTitle = '';
@@ -40,7 +40,7 @@ function sendDeviceHeartbeat(uuid, isUserActive = false) {
                     const u = new URL(t.url);
                     const host = u.hostname.toLowerCase();
                     if (host && !openDomains.includes(host)) openDomains.push(host);
-                    if (t.active) {
+                    if (t.active && (!activeDomain || t.highlighted)) {
                         activeDomain = host;
                         activeTitle = (t.title || '').substring(0, 100);
                     }
