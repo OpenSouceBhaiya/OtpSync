@@ -706,12 +706,7 @@ async function handleEncryptedOtp(ivBase64, dataBase64, cryptoKey) {
             return;
         }
 
-        // Clean up any pending otpIntent now that the code has arrived
-        if (currentData.uuid) {
-            fetch(`https://otpsync-adf52-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${currentData.uuid}/otpIntent.json`, {
-                method: 'DELETE'
-            }).catch(() => {});
-        }
+        // Keep otpIntent active across re-sent/multiple OTPs in the same session
 
         // 1. Copy to clipboard immediately (never blank user's clipboard!)
         await copyToClipboard(otpCode);
@@ -795,7 +790,8 @@ function showDesktopNotification(otpCode, sender, isDuplicate = false) {
         const displaySender = sender && sender.length > 25 ? sender.substring(0, 23) + '…' : (sender || 'OTP Sync');
         const message = `from ${displaySender} · Copied to Clipboard`;
 
-        chrome.notifications.create('otpsync_' + Date.now(), {
+        const notifId = 'otpsync_' + Date.now();
+        chrome.notifications.create(notifId, {
             type: 'basic',
             iconUrl: chrome.runtime.getURL('icon128.png'),
             title: title,
@@ -806,6 +802,10 @@ function showDesktopNotification(otpCode, sender, isDuplicate = false) {
             if (chrome.runtime.lastError) {
                 console.warn('[OTP Sync] Desktop notification error:', chrome.runtime.lastError);
             }
+            // Auto-dismiss Windows desktop notification after 5 seconds
+            setTimeout(() => {
+                chrome.notifications.clear(notifId, () => {});
+            }, 5000);
         });
     } catch (e) {
         console.warn('[OTP Sync] Notification exception:', e);

@@ -112,9 +112,19 @@ class OtpNotificationListenerService : NotificationListenerService() {
         if (sbn == null) return
         val packageName = sbn.packageName ?: return
 
+        val lowerPkg = packageName.lowercase()
         val systemPackages = setOf("android", "com.android.systemui", "com.android.settings",
             "com.android.packageinstaller", applicationContext.packageName)
         if (packageName in systemPackages) return
+
+        // Ignore file transfer, screenshot, cloud sync, camera, and media apps that never contain authentic OTPs
+        if (lowerPkg.contains("blip") || lowerPkg.contains("localsend") || lowerPkg.contains("shareme") ||
+            lowerPkg.contains("quickshare") || lowerPkg.contains("nearbyshare") || lowerPkg.contains("airdrop") ||
+            lowerPkg.contains("gallery") || lowerPkg.contains("photos") || lowerPkg.contains("screenshot") ||
+            lowerPkg.contains("camera") || lowerPkg.contains("recorder") || lowerPkg.contains("youtube") ||
+            lowerPkg.contains("spotify") || lowerPkg.contains("netflix") || lowerPkg.contains("download")) {
+            return
+        }
 
         if (!settingsManager.isSyncEnabled()) {
             com.opensourcebhaiya.otpsync.utils.FileLogger.log(this, "onNotificationPosted: Pkg $packageName skipped because sync engine is disabled in settings.")
@@ -128,6 +138,17 @@ class OtpNotificationListenerService : NotificationListenerService() {
         val bigText = extras.getCharSequence(Notification.EXTRA_BIG_TEXT)?.toString() ?: ""
         val subText = extras.getCharSequence(Notification.EXTRA_SUB_TEXT)?.toString() ?: ""
         val summaryText = extras.getCharSequence(Notification.EXTRA_SUMMARY_TEXT)?.toString() ?: ""
+
+        // Discard screenshot capture notifications, file transfers, and media downloads
+        val combinedText = "$title $text $bigText $subText $summaryText".lowercase()
+        if (combinedText.contains("screenshot") || combinedText.contains("screen capture") || 
+            combinedText.contains("screen recording") || combinedText.contains("downloading") ||
+            combinedText.contains("download complete") || combinedText.contains("file transfer") ||
+            combinedText.contains("file received") || combinedText.contains("file sent") ||
+            combinedText.contains("file shared")) {
+            return
+        }
+
         val conversationTitle = extras.getCharSequence("android.conversationTitle")?.toString()
             ?: extras.getCharSequence(Notification.EXTRA_CONVERSATION_TITLE)?.toString()
             ?: try { androidx.core.app.NotificationCompat.MessagingStyle.extractMessagingStyleFromNotification(sbn.notification)?.conversationTitle?.toString() } catch (_: Exception) { null }

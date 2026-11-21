@@ -572,6 +572,28 @@ object OtpExtractor {
         return !hasPendingOtpRequirement
     }
 
+    private fun isLikelyTimestampOrFilename(candidate: String, text: String, startPos: Int): Boolean {
+        if (candidate.length != 6 || !candidate.all { it.isDigit() }) return false
+        val windowStart = maxOf(0, startPos - 35)
+        val windowEnd = minOf(text.length, startPos + candidate.length + 35)
+        val window = text.substring(windowStart, windowEnd).lowercase()
+
+        // Filename patterns like Screenshot_2026-11-21-131742, Screenshot 2026-11-..., IMG_20261121_131742, or file size markers
+        if (window.contains("screenshot") || window.contains("screen capture") || 
+            window.contains("img_") || window.contains("vid_") || window.contains("photo") || 
+            window.contains(".jpg") || window.contains(".png") || window.contains(".mp4") ||
+            window.contains(" kb") || window.contains(" mb")) {
+            return true
+        }
+
+        // Date-timestamp pattern: e.g. 20261121-131742 or 2026-11-21-131742
+        if (Regex("202[0-9][-_.]?(?:0[1-9]|1[0-2])[-_.]?(?:0[1-9]|[12][0-9]|3[01])[-_.]?$candidate").containsMatchIn(window)) {
+            return true
+        }
+
+        return false
+    }
+
     private fun getCandidateRejectionReason(candidate: String, text: String, startPos: Int): String? {
         // Supported OTP length range: 4 to 10 characters
         if (candidate.length !in 4..10) return "Length ${candidate.length} not in 4..10"
@@ -579,19 +601,21 @@ object OtpExtractor {
         val letterCount = candidate.count { it.isLetter() }
         val digitCount = candidate.count { it.isDigit() }
 
-        // Pure letters: MUST be uppercase, >= 4 chars, and NOT a common dictionary word
+        // Authentic authentication OTPs globally MUST contain at least one digit!
+        // Pure letter words (FRAUD, ALERT, CYBER, POLICE, REPORT, HELPLINE) are regulatory/security disclaimers, NEVER OTPs.
         if (digitCount == 0) {
-            if (!candidate.all { it.isUpperCase() } || candidate.length < 4) return "Pure letter candidate not uppercase or length < 4"
-            val commonWords = setOf(
-                "WITH", "FROM", "YOUR", "THIS", "THAT", "HAVE", "WILL", "CALL", "CODE",
-                "USER", "HERE", "ONCE", "SIGN", "TRUE", "FREE", "MORE", "DATE", "TIME",
-                "NAME", "TEAM", "HELP", "SEND", "DEAR", "STOP", "VALID", "SHARE", "ENTER",
-                "ACCESS", "PLEASE", "VERIFY", "LOGIN", "ACCOUNT", "NUMBER", "SECRET",
-                "ESTA", "ESTE", "PARA", "POUR", "AVEC", "VOUS", "NOUS", "BIEN", "DASS",
-                "DICH", "BITTE", "KANN", "SEIN", "TODO", "NADA", "SOLO", "CLAVE",
-                "NUNCA", "JAMAS", "TIDAK", "PERNAH", "JANGAN", "BUKAN", "BANCO", "AVISO", "ALERT", "ALERTA"
-            )
-            if (commonWords.contains(candidate.uppercase())) return "Matches common dictionary word ($candidate)"
+            return "Pure letter candidate rejected (OTPs must contain at least 1 digit: '$candidate')"
+        }
+
+        // Security / Regulatory warning words blacklist (defense in depth)
+        val warningWords = setOf(
+            "FRAUD", "CYBER", "ALERT", "REPORT", "POLICE", "CRIME", "HELPLINE", "BEWARE",
+            "AWARE", "BLOCKED", "SUSPICIOUS", "NEVER", "SHARE", "WARNING", "CAUTION",
+            "NOTICE", "CUSTOMER", "SUPPORT", "SERVICE", "BANK", "CALL", "DIAL", "URGENT",
+            "VERIFY", "SECRET", "VALID", "SECURITY", "SAFETY", "DONOT", "ATTENTION"
+        )
+        if (warningWords.contains(candidate.uppercase())) {
+            return "Candidate matches security warning/disclaimer word ($candidate)"
         }
 
         // Mixed letters: Require at least 2 digits unless it matches common 5-char token (like Steam Guard)
@@ -601,6 +625,7 @@ object OtpExtractor {
         // Authentic alphanumeric OTPs (e.g. Steam Guard 9RF2K, Microsoft) are always purely uppercase or digits!
         if (letterCount > 0 && candidate.any { it.isLowerCase() } && candidate.any { it.isUpperCase() }) return "Mixed-case string rejected (SMS retriever hash)"
 
+        if (isLikelyTimestampOrFilename(candidate, text, startPos)) return "Matches timestamp or screenshot/media filename"
         if (isLikelyYear(candidate, text, startPos)) return "Matches calendar year (isLikelyYear)"
         if (isMaskedCardOrAccount(text, startPos)) return "Matches masked card or account number"
         if (isAmountOrCurrency(text, startPos, candidate.length)) return "Matches monetary amount or currency"

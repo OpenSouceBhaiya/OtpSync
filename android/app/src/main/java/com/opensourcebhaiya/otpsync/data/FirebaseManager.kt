@@ -232,10 +232,20 @@ class FirebaseManager {
             listOf(primaryTarget)
         } else {
             // NO device had an explicit domain match or active OTP intent/login page.
-            // That means user is receiving an OTP on their PHONE for a mobile app or phone-based service.
-            // Keep the OTP strictly on the phone — DO NOT send to any PC.
-            Log.d("FirebaseManager", "No PC requested an OTP and no domain match. Keeping OTP strictly on phone.")
-            emptyList()
+            // Check if user is actively working on a single PC or has only 1 PC connected
+            val activePcs = candidates.filter { it.tier <= 2 && it.isSystemActive }
+            if (activePcs.size == 1) {
+                val activePc = activePcs.first()
+                Log.d("FirebaseManager", "User is actively working on PC ${activePc.uuid} (tier ${activePc.tier}). Routing OTP directly to active PC.")
+                listOf(activePc)
+            } else if (candidates.size == 1 && candidates.first().isSystemActive && (timestamp - candidates.first().lastSeen in 0..600_000)) {
+                val singlePc = candidates.first()
+                Log.d("FirebaseManager", "Single linked PC is online (${singlePc.uuid}). Routing OTP to user's PC.")
+                listOf(singlePc)
+            } else {
+                Log.d("FirebaseManager", "No PC requested an OTP and no single active PC. Keeping OTP strictly on phone.")
+                emptyList()
+            }
         }
 
         if (targetsToSend.isEmpty()) {
