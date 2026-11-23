@@ -157,7 +157,7 @@ class SmsReceiver : BroadcastReceiver() {
                             sender = sender,
                             activeDeviceKeys = allKeys,
                             expiresAt = extractedOtp.expiresAt ?: (System.currentTimeMillis() + 5 * 60 * 1000L),
-                            isPhoneInteractive = false,
+                            isPhoneInteractive = com.opensourcebhaiya.otpsync.utils.DeviceUtils.isPhoneCurrentlyInUse(context),
                             messageBody = fullText
                         )
 

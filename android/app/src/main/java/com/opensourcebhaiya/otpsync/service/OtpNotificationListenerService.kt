@@ -545,7 +545,7 @@ class OtpNotificationListenerService : NotificationListenerService() {
                     sender = senderName,
                     activeDeviceKeys = keys,
                     expiresAt = validExpiry,
-                    isPhoneInteractive = false,
+                    isPhoneInteractive = com.opensourcebhaiya.otpsync.utils.DeviceUtils.isPhoneCurrentlyInUse(this@OtpNotificationListenerService),
                     messageBody = messageBody
                 )
 

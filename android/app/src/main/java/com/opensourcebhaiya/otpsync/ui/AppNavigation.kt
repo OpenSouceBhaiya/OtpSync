@@ -246,7 +246,7 @@ fun AppNavigation(
                     }
                 } else {
                     val otpUiState by otpViewModel.uiState.collectAsState()
-                    val isBackendReady = otpUiState !is OtpUiState.Loading
+                    val isBackendReady = otpUiState !is OtpUiState.Loading || (otpViewModel.lastScanTime.value > 0L)
                     SplashScreen(
                         isReady = isBackendReady,
                         onTimeout = {
@@ -469,12 +469,12 @@ fun SplashScreen(
 
     LaunchedEffect(key1 = true) {
         startAnimation = true
-        val minDelay = 1300L // 1.3s minimum display time for quotes & branding smoothly
+        val minDelay = 1000L // Exactly 1.0s branded intro
         val startTime = System.currentTimeMillis()
         kotlinx.coroutines.delay(minDelay)
         
-        // On slower devices where backend is still loading, wait until ready (safety cap of 4.5s)
-        while (!isReady && (System.currentTimeMillis() - startTime) < 4500L) {
+        // On slower devices where backend is still loading, wait until ready (safety cap of 1.5s max)
+        while (!isReady && (System.currentTimeMillis() - startTime) < 1500L) {
             kotlinx.coroutines.delay(100)
         }
         onTimeout()

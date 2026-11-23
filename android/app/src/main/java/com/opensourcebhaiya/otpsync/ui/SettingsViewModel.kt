@@ -119,7 +119,7 @@ class SettingsViewModel(
                         
                         var finalStatus = status
                         if (effectiveLastSeen > 0L) {
-                            if (now - effectiveLastSeen > 5 * 60 * 1000L) {
+                            if (now - effectiveLastSeen > com.opensourcebhaiya.otpsync.data.FirebaseManager.PC_ONLINE_THRESHOLD_MS) {
                                 finalStatus = "inactive"
                             } else if (status != "terminated") {
                                 finalStatus = "active"
@@ -203,7 +203,7 @@ class SettingsViewModel(
                             
                             var finalStatus = status
                             if (effectiveLastSeen > 0L) {
-                                if (now - effectiveLastSeen > 5 * 60 * 1000L) {
+                                if (now - effectiveLastSeen > com.opensourcebhaiya.otpsync.data.FirebaseManager.PC_ONLINE_THRESHOLD_MS) {
                                     finalStatus = "inactive"
                                 } else if (status != "terminated") {
                                     finalStatus = "active"
