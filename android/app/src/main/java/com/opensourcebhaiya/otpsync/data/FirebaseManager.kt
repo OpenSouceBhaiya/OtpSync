@@ -30,8 +30,8 @@ import java.util.Locale
 
 class FirebaseManager {
     companion object {
-        const val PC_ONLINE_THRESHOLD_MS = 150_000L // 2.5 minutes (Chrome extension heartbeats every 60s)
-        const val FRESH_INTENT_THRESHOLD_MS = 120_000L // 2 minutes for explicit OTP click / login intent
+        const val PC_ONLINE_THRESHOLD_MS = 20_000L // 20 seconds! (Extension pulses every 8s)
+        const val FRESH_INTENT_THRESHOLD_MS = 60_000L // 60 seconds for explicit user intent on PC
     }
 
     private val managerScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -123,7 +123,8 @@ class FirebaseManager {
         val hasRequestedOtp: Boolean = false,
         val hasDomainMatch: Boolean = false,
         val isSystemActive: Boolean = true,
-        val matchedToken: String = ""
+        val matchedToken: String = "",
+        val hasRecentIntent: Boolean = false
     )
 
     /**
@@ -263,30 +264,58 @@ class FirebaseManager {
                     .thenByDescending { it.lastActive }
             ).first()
 
-            Log.d("FirebaseManager", "Targeting requesting PC ${primaryTarget.uuid} (domainMatch: ${primaryTarget.hasDomainMatch}, matchedToken: '${primaryTarget.matchedToken}', score: ${primaryTarget.score}). Zero leakage to other laptops.")
-            listOf(primaryTarget)
-        } else if (isPhoneInteractive) {
-            // CRITICAL: Phone is currently in active interactive use (screen ON, unlocked).
-            // No PC had an explicit OTP intent or matching login page.
-            // The user is performing an action on their phone! Keep OTP strictly on phone!
-            Log.d("FirebaseManager", "Phone is actively in interactive use and no PC requested OTP. Keeping OTP strictly on phone. Zero leakage to PCs.")
-            emptyList()
-        } else {
-            // Phone is locked / screen off. Check if user is actively using an online PC right now (active within 3 minutes)
-            val onlineActivePcs = candidates.filter { 
-                it.isSystemActive && 
-                (timestamp - it.lastSeen in 0..PC_ONLINE_THRESHOLD_MS) && 
-                (timestamp - it.lastActive in 0..180_000L) &&
-                it.tier <= 2 
-            }
-            if (onlineActivePcs.isNotEmpty()) {
-                val bestPc = onlineActivePcs.maxByOrNull { it.lastActive } ?: onlineActivePcs.first()
-                Log.d("FirebaseManager", "Routing OTP to active PC: ${bestPc.uuid} (tier ${bestPc.tier}, lastActive: ${bestPc.lastActive}).")
-                listOf(bestPc)
-            } else {
-                Log.d("FirebaseManager", "All linked PCs are offline or idle. Keeping OTP strictly on phone.")
+            // If phone is currently in interactive use (unlocked/screen ON),
+            // strictly prioritize the phone UNLESS the PC had an explicit OTP click/intent right now.
+            if (isPhoneInteractive && !primaryTarget.hasRecentIntent) {
+                Log.d("FirebaseManager", "Phone is actively in interactive use and PC had no explicit OTP click. Keeping OTP strictly on phone.")
                 emptyList()
+            } else {
+                Log.d("FirebaseManager", "Targeting requesting PC ${primaryTarget.uuid} (domainMatch: ${primaryTarget.hasDomainMatch}, matchedToken: '${primaryTarget.matchedToken}', score: ${primaryTarget.score}). Zero leakage to other laptops.")
+                listOf(primaryTarget)
             }
+        } else {
+            // ZERO LEAKAGE ABSOLUTE RULE:
+            // No connected PC requested this OTP. NEVER guess or blindly fallback to any PC!
+            // The OTP stays 100% on the phone. Zero routing, zero 'Sent to Asus' badge.
+            Log.d("FirebaseManager", "No PC requested this OTP. Keeping OTP strictly on phone.")
+            emptyList()
+        }
+
+        if (targetsToSend.isEmpty()) {
+            return emptyList()
+        }
+
+        // Concurrently dispatch to all selected target devices in parallel (0ms sequential delay)
+        coroutineScope {
+            targetsToSend.map { candidate ->
+                async {
+                    val uuid = candidate.uuid
+                    val keyBase64 = candidate.keyBase64
+                    try {
+                        // Live Peep: notify PC in real time via Firebase
+                        devicesRef.child(uuid).child("lastPeep").setValue(timestamp)
+
+                        val targetTag = if (targetsToSend.size == 1) uuid else "ALL"
+                        val encryptedData = encryptAesGcm(otpCode, sender, timestamp, expiresAt, keyBase64, targetTag)
+                        otpsRef.child(uuid).setValue(encryptedData).await()
+                        
+                        synchronized(sentDeviceUuids) {
+                            sentDeviceUuids.add(uuid)
+                        }
+                        Log.d("FirebaseManager", "OTP sent to active target device $uuid (tier: ${candidate.tier})")
+
+                        // Self-destruct the OTP from Firebase after 30 seconds
+                        managerScope.launch {
+                            delay(30000)
+                            try {
+                                otpsRef.child(uuid).removeValue()
+                            } catch (_: Exception) {}
+                        }
+                    } catch (e: Exception) {
+                        Log.e("FirebaseManager", "Failed to dispatch OTP to $uuid", e)
+                    }
+                }
+            }.awaitAll()
         }
 
         if (targetsToSend.isEmpty()) {
@@ -373,8 +402,8 @@ class FirebaseManager {
         val lastSeen = (snapshot.child("lastSeen").value as? Number)?.toLong() ?: 0L
         val lastActive = (snapshot.child("lastActive").value as? Number)?.toLong() ?: 0L
 
-        // If PC has not sent a heartbeat in the last 2.5 minutes, it is 100% OFFLINE (Chrome closed, PC asleep/offline)
-        val isPcOnline = (now - lastSeen in 0..PC_ONLINE_THRESHOLD_MS)
+        // STRICT OFFLINE CHECK: If PC has not sent a heartbeat in the last 20 seconds, it is 100% OFFLINE!
+        val isPcOnline = (now - lastSeen in 0..PC_ONLINE_THRESHOLD_MS) && status == "active"
         if (!isPcOnline) {
             return DeviceTargetCandidate(uuid, key, 4, 0L, lastActive, lastSeen, isSystemActive = false)
         }
@@ -382,13 +411,17 @@ class FirebaseManager {
         val isIdle = snapshot.child("isIdle").getValue(Boolean::class.java) ?: false
         val systemState = snapshot.child("systemState").getValue(String::class.java) ?: "active"
         val isDeviceSystemIdle = isIdle || systemState == "idle" || systemState == "locked"
+        if (isDeviceSystemIdle) {
+            // PC is locked or user is idle — cannot receive OTP
+            return DeviceTargetCandidate(uuid, key, 4, 0L, lastActive, lastSeen, isSystemActive = false)
+        }
 
         // Active domain & open tabs reported by extension
         val activeDomain = (snapshot.child("activeDomain").getValue(String::class.java) ?: "").lowercase()
         val activeTitle = (snapshot.child("activeTitle").getValue(String::class.java) ?: "").lowercase()
         val openDomains = snapshot.child("openDomains").children.mapNotNull { it.getValue(String::class.java)?.lowercase() }
 
-        // Check otpIntent (within last 2 minutes)
+        // Check otpIntent (within last 60 seconds)
         val intentSnap = snapshot.child("otpIntent")
         val intentActive = intentSnap.child("active").getValue(Boolean::class.java) ?: false
         val intentTs = (intentSnap.child("ts").value as? Number)?.toLong() ?: 0L
@@ -396,7 +429,7 @@ class FirebaseManager {
         val intentTitle = (intentSnap.child("title").getValue(String::class.java) ?: "").lowercase()
         val hasRecentIntent = intentActive && (now - intentTs in 0..FRESH_INTENT_THRESHOLD_MS)
 
-        // Check pcLoginActive (within last 2 minutes)
+        // Check pcLoginActive (within last 60 seconds)
         val loginSnap = snapshot.child("pcLoginActive")
         val loginActive = loginSnap.child("active").getValue(Boolean::class.java) ?: false
         val loginTs = (loginSnap.child("ts").value as? Number)?.toLong() ?: 0L
@@ -431,31 +464,39 @@ class FirebaseManager {
             }
         }
 
-        val domainBonus = if (hasDomainMatch) 50_000_000_000L else 0L
+        // Active tab matching (the tab currently open in front of the user)
+        val hasActiveTabMatch = if (activeDomain.isNotBlank() && brandTokens.isNotEmpty()) {
+            brandTokens.any { token ->
+                activeDomain.contains(token) || token.contains(activeDomain.split(".").firstOrNull() ?: "")
+            } || brandTokens.any { token -> activeTitle.contains(token) }
+        } else false
 
-        // Device qualifies as having requested the OTP if online and:
-        // 1. Explicit domain match and not idle, OR
-        // 2. Active OTP intent (clicked send/resend) within 2 minutes, OR
-        // 3. Active login form focused within 2 minutes
-        val hasRequestedOtp = (hasDomainMatch && (!isDeviceSystemIdle || hasRecentIntent || hasRecentLogin)) ||
-                              hasRecentIntent ||
-                              hasRecentLogin
+        val hasIntentMatch = if (hasRecentIntent && brandTokens.isNotEmpty()) {
+            brandTokens.any { token -> intentHost.contains(token) || intentTitle.contains(token) } || hasDomainMatch
+        } else false
+
+        val hasLoginMatch = if (hasRecentLogin && brandTokens.isNotEmpty()) {
+            brandTokens.any { token -> loginHost.contains(token) || loginTitle.contains(token) } || hasDomainMatch
+        } else false
+
+        // Device qualifies as having requested the OTP if online, active, and:
+        // 1. Fresh explicit intent (clicked Send/Resend OTP within 60s) with matching domain/brand, OR
+        // 2. Fresh login form active (within 60s) with matching domain/brand, OR
+        // 3. User is actively viewing that domain in the active focused tab right now
+        val hasRequestedOtp = (hasRecentIntent && hasIntentMatch) ||
+                              (hasRecentLogin && hasLoginMatch) ||
+                              hasActiveTabMatch
+
+        val domainBonus = if (hasDomainMatch) 50_000_000_000L else 0L
 
         // Tier 1: Explicit Intent, Domain Match, or Active Login Page
         if (hasRequestedOtp) {
             val score = Math.max(intentTs, loginTs) + domainBonus + (if (hasDomainMatch) 10_000_000_000L else 0L)
-            return DeviceTargetCandidate(uuid, key, 1, score, lastActive, lastSeen, true, hasDomainMatch, !isDeviceSystemIdle, matchedToken)
+            return DeviceTargetCandidate(uuid, key, 1, score, lastActive, lastSeen, true, hasDomainMatch, true, matchedToken, hasRecentIntent)
         }
 
-        // Tier 2: Active User Interaction (Focused window or activity within last 3 minutes)
-        val isRecentlyActive = (now - lastActive in 0..180_000) && !isDeviceSystemIdle
-        if (isRecentlyActive) {
-            val score = 1_000_000_000L + lastActive
-            return DeviceTargetCandidate(uuid, key, 2, score, lastActive, lastSeen, false, false, true)
-        }
-
-        // Tier 3: Standby Heartbeat (Seen in last 2.5 min, but idle)
-        return DeviceTargetCandidate(uuid, key, 3, lastActive, lastActive, lastSeen, false, false, !isDeviceSystemIdle)
+        // If not requested, disqualify from receiving OTP
+        return DeviceTargetCandidate(uuid, key, 4, 0L, lastActive, lastSeen, false, false, false, "", false)
     }
 
     private fun encryptAesGcm(otpCode: String, sender: String, timestamp: Long, expiresAt: Long, keyBase64: String, targetUuid: String = "ALL"): Map<String, String> {

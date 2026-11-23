@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.tasks.await
 
 import com.opensourcebhaiya.otpsync.data.FirebaseManager
@@ -95,6 +96,31 @@ class SettingsViewModel(
         checkForegroundServiceStatePublic()
         updateFirebaseAccountName()
 
+        // Real-time offline ticker: every 4 seconds, verify if any device heartbeat stopped
+        viewModelScope.launch {
+            while (isActive) {
+                kotlinx.coroutines.delay(4000)
+                val currentDevices = settingsManager.getLinkedDevicesMetadata()
+                val nowTime = System.currentTimeMillis()
+                for (dev in currentDevices) {
+                    val uuid = dev.id
+                    try {
+                        val snapshot = firebaseManager.devicesRef.child(uuid).get().await()
+                        if (snapshot.exists()) {
+                            val ls = (snapshot.child("lastSeen").value as? Number)?.toLong() ?: 0L
+                            val st = snapshot.child("status").getValue(String::class.java) ?: "active"
+                            val isAlive = ls > 0L && (nowTime - ls <= com.opensourcebhaiya.otpsync.data.FirebaseManager.PC_ONLINE_THRESHOLD_MS) && st == "active"
+                            val calculatedStatus = if (st == "terminated") "terminated" else if (isAlive) "active" else "inactive"
+                            if (dev.status != calculatedStatus) {
+                                settingsManager.updateLinkedDeviceStatus(uuid, calculatedStatus)
+                                refreshLinkedDevices()
+                            }
+                        }
+                    } catch (_: Exception) {}
+                }
+            }
+        }
+
         // Listen to individual devices to detect if extension unlinks itself or renames
         val uuids = settingsManager.getLinkedDevicesMetadata().map { it.id }
         for (uuid in uuids) {
@@ -115,15 +141,14 @@ class SettingsViewModel(
                         val pcLoginTs = (snapshot.child("pcLoginActive").child("ts").value as? Number)?.toLong() ?: 0L
                         
                         val now = System.currentTimeMillis()
-                        val effectiveLastSeen = maxOf(lastSeen, lastActive, if (pcLoginActive) pcLoginTs else 0L)
+                        val isOnline = lastSeen > 0L && (now - lastSeen <= com.opensourcebhaiya.otpsync.data.FirebaseManager.PC_ONLINE_THRESHOLD_MS) && status == "active"
                         
-                        var finalStatus = status
-                        if (effectiveLastSeen > 0L) {
-                            if (now - effectiveLastSeen > com.opensourcebhaiya.otpsync.data.FirebaseManager.PC_ONLINE_THRESHOLD_MS) {
-                                finalStatus = "inactive"
-                            } else if (status != "terminated") {
-                                finalStatus = "active"
-                            }
+                        val finalStatus = if (status == "terminated") {
+                            "terminated"
+                        } else if (isOnline) {
+                            "active"
+                        } else {
+                            "inactive"
                         }
                         
                         val oldStatus = settingsManager.getLinkedDevicesMetadata().find { it.id == uuid }?.status
@@ -199,15 +224,14 @@ class SettingsViewModel(
                             val pcLoginTs = (snapshot.child("pcLoginActive").child("ts").value as? Number)?.toLong() ?: 0L
                             
                             val now = System.currentTimeMillis()
-                            val effectiveLastSeen = maxOf(lastSeen, lastActive, if (pcLoginActive) pcLoginTs else 0L)
+                            val isOnline = lastSeen > 0L && (now - lastSeen <= com.opensourcebhaiya.otpsync.data.FirebaseManager.PC_ONLINE_THRESHOLD_MS) && status == "active"
                             
-                            var finalStatus = status
-                            if (effectiveLastSeen > 0L) {
-                                if (now - effectiveLastSeen > com.opensourcebhaiya.otpsync.data.FirebaseManager.PC_ONLINE_THRESHOLD_MS) {
-                                    finalStatus = "inactive"
-                                } else if (status != "terminated") {
-                                    finalStatus = "active"
-                                }
+                            val finalStatus = if (status == "terminated") {
+                                "terminated"
+                            } else if (isOnline) {
+                                "active"
+                            } else {
+                                "inactive"
                             }
                             
                             if (finalStatus == "terminated") {

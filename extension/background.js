@@ -112,6 +112,17 @@ try {
 } catch (_) {}
 
 // ─── Keep-Alive Alarm ────────────────────────────────────────────────────────
+chrome.runtime.onSuspend.addListener(() => {
+    chrome.storage.local.get(['uuid'], (data) => {
+        if (data && data.uuid) {
+            fetch(`https://otpsync-adf52-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${data.uuid}/status.json`, {
+                method: 'PUT',
+                body: JSON.stringify("inactive")
+            }).catch(() => {});
+        }
+    });
+});
+
 chrome.alarms.create("keepAlive", { periodInMinutes: 1 });
 chrome.alarms.onAlarm.addListener(async (alarm) => {
     if (alarm.name !== "keepAlive") return;

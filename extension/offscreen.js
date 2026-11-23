@@ -1,5 +1,51 @@
 let otpSse = null;
 let deviceSse = null;
+let currentUuid = null;
+let heartbeatInterval = null;
+
+function startHeartbeatLoop(uuid) {
+    if (!uuid) return;
+    currentUuid = uuid;
+    if (heartbeatInterval) clearInterval(heartbeatInterval);
+
+    const pulse = () => {
+        const now = Date.now();
+        fetch(`https://otpsync-adf52-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${uuid}.json`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                lastSeen: now,
+                status: "active"
+            })
+        }).catch(() => {});
+    };
+
+    pulse(); // Immediate first pulse
+    heartbeatInterval = setInterval(pulse, 8000); // Ultra-fast 8s heartbeat pulse
+}
+
+// Immediately notify Firebase when offscreen / Chrome closes
+window.addEventListener('beforeunload', () => {
+    if (currentUuid) {
+        try {
+            navigator.sendBeacon(
+                `https://otpsync-adf52-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${currentUuid}/status.json`,
+                JSON.stringify("inactive")
+            );
+        } catch (_) {}
+    }
+});
+
+window.addEventListener('pagehide', () => {
+    if (currentUuid) {
+        try {
+            navigator.sendBeacon(
+                `https://otpsync-adf52-default-rtdb.asia-southeast1.firebasedatabase.app/devices/${currentUuid}/status.json`,
+                JSON.stringify("inactive")
+            );
+        } catch (_) {}
+    }
+});
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.target !== 'offscreen') {
@@ -68,10 +114,36 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             let deviceSseReady = false;
             deviceSse.addEventListener('put', (e) => {
                 if (!deviceSseReady) { deviceSseReady = true; return; }
-                if (e.data) notifyBg('sse_device');
+                if (e.data) {
+                    try {
+                        const parsed = JSON.parse(e.data);
+                        if (parsed && (parsed.livePeep || (parsed.data && parsed.data.livePeep))) {
+                            const now = Date.now();
+                            fetch(deviceUrl, {
+                                method: 'PATCH',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ livePong: now, lastSeen: now, status: "active" })
+                            }).catch(() => {});
+                        }
+                    } catch (_) {}
+                    notifyBg('sse_device');
+                }
             });
             deviceSse.addEventListener('patch', (e) => {
-                if (e.data) notifyBg('sse_device');
+                if (e.data) {
+                    try {
+                        const parsed = JSON.parse(e.data);
+                        if (parsed && (parsed.livePeep || (parsed.data && parsed.data.livePeep))) {
+                            const now = Date.now();
+                            fetch(deviceUrl, {
+                                method: 'PATCH',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ livePong: now, lastSeen: now, status: "active" })
+                            }).catch(() => {});
+                        }
+                    } catch (_) {}
+                    notifyBg('sse_device');
+                }
             });
             deviceSse.onerror = () => {
                 if (deviceSse && deviceSse.readyState === EventSource.CLOSED) {
@@ -84,6 +156,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
 
         setupOtp();
         setupDevice();
+        startHeartbeatLoop(uuid);
 
         sendResponse({ success: true });
         return true;
