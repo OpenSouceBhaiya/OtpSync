@@ -31,7 +31,7 @@ import java.util.Locale
 class FirebaseManager {
     companion object {
         const val PC_ONLINE_THRESHOLD_MS = 20_000L // 20 seconds! (Extension pulses every 8s)
-        const val FRESH_INTENT_THRESHOLD_MS = 60_000L // 60 seconds for explicit user intent on PC
+        const val FRESH_INTENT_THRESHOLD_MS = 45_000L // 45 seconds for explicit user intent on PC
     }
 
     private val managerScope = CoroutineScope(Dispatchers.IO + SupervisorJob())
@@ -318,42 +318,6 @@ class FirebaseManager {
             }.awaitAll()
         }
 
-        if (targetsToSend.isEmpty()) {
-            return emptyList()
-        }
-
-        // Concurrently dispatch to all selected target devices in parallel (0ms sequential delay)
-        coroutineScope {
-            targetsToSend.map { candidate ->
-                async {
-                    val uuid = candidate.uuid
-                    val keyBase64 = candidate.keyBase64
-                    try {
-                        val targetTag = if (targetsToSend.size == 1) uuid else "ALL"
-                        val encryptedData = encryptAesGcm(otpCode, sender, timestamp, expiresAt, keyBase64, targetTag)
-                        otpsRef.child(uuid).setValue(encryptedData).await()
-                        
-                        synchronized(sentDeviceUuids) {
-                            sentDeviceUuids.add(uuid)
-                        }
-                        Log.d("FirebaseManager", "OTP sent to active target device $uuid (tier: ${candidate.tier})")
-
-                        // Self-destruct the OTP from Firebase after 30 seconds
-                        managerScope.launch {
-                            delay(30000)
-                            try {
-                                otpsRef.child(uuid).removeValue().await()
-                            } catch (e: Exception) {
-                                Log.e("FirebaseManager", "Failed to self-destruct OTP", e)
-                            }
-                        }
-                    } catch (e: Exception) {
-                        Log.e("FirebaseManager", "Failed to encrypt/send OTP to device $uuid", e)
-                    }
-                }
-            }.awaitAll()
-        }
-
         return sentDeviceUuids
     }
 
@@ -464,38 +428,37 @@ class FirebaseManager {
             }
         }
 
-        // Active tab matching (the tab currently open in front of the user)
-        val hasActiveTabMatch = if (activeDomain.isNotBlank() && brandTokens.isNotEmpty()) {
-            brandTokens.any { token ->
-                activeDomain.contains(token) || token.contains(activeDomain.split(".").firstOrNull() ?: "")
-            } || brandTokens.any { token -> activeTitle.contains(token) }
+        // Strict intent matching against the explicit OTP host/title
+        val hasIntentMatch = if (hasRecentIntent) {
+            brandTokens.isEmpty() || brandTokens.any { token ->
+                intentHost.contains(token) || token.contains(intentHost.split(".").firstOrNull() ?: "") || intentTitle.contains(token)
+            }
         } else false
 
-        val hasIntentMatch = if (hasRecentIntent && brandTokens.isNotEmpty()) {
-            brandTokens.any { token -> intentHost.contains(token) || intentTitle.contains(token) } || hasDomainMatch
-        } else false
-
+        // Strict login page matching against the active login host/title
         val hasLoginMatch = if (hasRecentLogin && brandTokens.isNotEmpty()) {
-            brandTokens.any { token -> loginHost.contains(token) || loginTitle.contains(token) } || hasDomainMatch
+            brandTokens.any { token ->
+                loginHost.contains(token) || token.contains(loginHost.split(".").firstOrNull() ?: "") || loginTitle.contains(token)
+            }
         } else false
 
-        // Device qualifies as having requested the OTP if online, active, and:
-        // 1. Fresh explicit intent (clicked Send/Resend OTP within 60s) with matching domain/brand, OR
-        // 2. Fresh login form active (within 60s) with matching domain/brand, OR
-        // 3. User is actively viewing that domain in the active focused tab right now
+        // STRICT QUALIFICATION RULE:
+        // A PC qualifies ONLY if:
+        // 1. Fresh explicit intent (user clicked Send/Resend OTP or focused an OTP box within 45s), OR
+        // 2. Fresh login form active (within 45s) with matching domain/brand
+        // Passive background tabs or passive active tabs NEVER qualify alone!
         val hasRequestedOtp = (hasRecentIntent && hasIntentMatch) ||
-                              (hasRecentLogin && hasLoginMatch) ||
-                              hasActiveTabMatch
+                              (hasRecentLogin && hasLoginMatch)
 
         val domainBonus = if (hasDomainMatch) 50_000_000_000L else 0L
 
-        // Tier 1: Explicit Intent, Domain Match, or Active Login Page
+        // Only qualified requesting devices get Tier 1 and become eligible for dispatch
         if (hasRequestedOtp) {
             val score = Math.max(intentTs, loginTs) + domainBonus + (if (hasDomainMatch) 10_000_000_000L else 0L)
             return DeviceTargetCandidate(uuid, key, 1, score, lastActive, lastSeen, true, hasDomainMatch, true, matchedToken, hasRecentIntent)
         }
 
-        // If not requested, disqualify from receiving OTP
+        // If not requested, disqualify from receiving OTP — zero leakage to bystander or distant PCs
         return DeviceTargetCandidate(uuid, key, 4, 0L, lastActive, lastSeen, false, false, false, "", false)
     }
 

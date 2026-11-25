@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>OTP Sync</title>
+<style>
+  * {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+  }
+  html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+    background: transparent;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+    user-select: none;
+    cursor: pointer;
+  }
+  .toast-container {
+    width: 100%;
+    height: 100%;
+    padding: 10px 14px;
+    background: rgba(22, 22, 28, 0.98);
+    border: 1px solid rgba(0, 255, 163, 0.35);
+    border-radius: 14px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.7), 0 0 20px rgba(0,255,163,0.12);
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .icon-box {
+    width: 38px;
+    height: 38px;
+    background: rgba(0,255,163,0.12);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    border: 1px solid rgba(0,255,163,0.25);
+  }
+  .content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 1px;
+    overflow: hidden;
+    min-width: 0;
+  }
+  .title {
+    color: #00FFA3;
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .code {
+    color: #FFFFFF;
+    font-size: 21px;
+    font-weight: 800;
+    letter-spacing: 3px;
+    white-space: nowrap;
+    line-height: 1.2;
+  }
+  .sender {
+    color: rgba(255,255,255,0.55);
+    font-size: 11px;
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+</style>
+</head>
+<body>
+  <div class="toast-container" id="toast-card">
+    <div class="icon-box">
+      <img src="icon48.png" width="22" height="22" alt="Icon">
+    </div>
+    <div class="content">
+      <div class="title" id="toast-title">✓ OTP COPIED</div>
+      <div class="code" id="toast-code">------</div>
+      <div class="sender" id="toast-sender">from OTP Sync</div>
+    </div>
+  </div>
+  <script src="toast_popup.js"></script>
+</body>
+</html>

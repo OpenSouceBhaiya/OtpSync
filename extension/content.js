@@ -404,57 +404,36 @@ function snapThanos(element) {
 
     function isAuthOrLoginPage() {
         try {
-            // 1. URL Analysis (catches 95% of login/signin portals worldwide)
+            // 1. Strict URL check (catches authentic login/auth portals, excludes generic /account or /session pages)
             const pathname = (window.location.pathname || '').toLowerCase();
             const search = (window.location.search || '').toLowerCase();
-            const isAuthUrl = /(login|signin|sign-in|auth|account|portal|verify|verification|otp|2fa|mfa|checkout|session|register|signup|passcode|security|gateway|payment|sso|identify)/i.test(pathname) ||
-                              /(login|signin|sign-in|auth|account|verify|verification|otp|2fa|mfa)/i.test(search);
-            if (isAuthUrl) return true;
+            const fullUrl = pathname + search;
+            const isStrictAuthUrl = /(^|\/|\?|&|=)(login|signin|sign-in|log-in|verify|verification|otp|2fa|mfa|two-factor|passcode)($|\/|\?|&|=)/i.test(fullUrl);
 
-            // 2. Mobile / Phone number input detection (Airtel, Amazon, Flipkart, banks, IRCTC, etc.)
-            const phoneInputs = document.querySelectorAll('input[type="tel"], input[name*="mobile" i], input[name*="phone" i], input[placeholder*="mobile" i], input[placeholder*="phone" i], input[id*="mobile" i], input[id*="phone" i], input[aria-label*="mobile" i]');
-            if (phoneInputs.length > 0) return true;
-
-            // 3. Password input on page
+            // 2. Explicit Password input on page
             if (document.querySelector('input[type="password"]')) return true;
 
-            // 4. Segmented OTP inputs (e.g. 3-8 single char boxes)
+            // 3. Segmented OTP inputs (e.g. 3-8 single char boxes)
             const segmented = document.querySelectorAll('input[maxlength="1"], input[maxlength="2"]');
             if (segmented.length >= 3 && segmented.length <= 8) return true;
 
-            // 5. Inputs with OTP or Auth keywords
-            const keywords = ['otp', 'code', 'pin', '2fa', 'mfa', 'token', 'verify', 'verification', 'passcode', 'security-code', 'auth', 'mobile', 'phone', 'login', 'signin', 'username'];
+            // 4. Genuine OTP inputs (autocomplete="one-time-code" or name/id/placeholder with otp keywords)
             const inputs = document.querySelectorAll('input:not([type="hidden"]):not([disabled])');
             for (let i = 0; i < Math.min(inputs.length, 25); i++) {
-                const inp = inputs[i];
-                const n = (inp.name || '').toLowerCase();
-                const id = (inp.id || '').toLowerCase();
-                const ph = (inp.placeholder || '').toLowerCase();
-                const aria = (inp.getAttribute('aria-label') || '').toLowerCase();
-                const ac = (inp.getAttribute('autocomplete') || '').toLowerCase();
-                if (ac === 'one-time-code' || ac === 'current-password' || ac === 'username') return true;
-                if (keywords.some(k => n.includes(k) || id.includes(k) || ph.includes(k) || aria.includes(k))) return true;
+                if (isExplicitOtpInput(inputs[i])) return true;
             }
 
-            // 6. Action buttons (e.g. "Get OTP", "Send OTP", "Login", "Continue")
-            const buttons = document.querySelectorAll('button, input[type="submit"], input[type="button"], a[role="button"], [role="button"]');
-            const btnRegex = /(send\s*otp|get\s*otp|request\s*otp|resend|verify|continue|sign\s*in|log\s*in|proceed|submit|next|authenticate)/i;
-            for (let i = 0; i < Math.min(buttons.length, 25); i++) {
-                const text = (buttons[i].textContent || buttons[i].value || '').toLowerCase().trim();
-                if (btnRegex.test(text)) return true;
-            }
+            // 5. If it is a strict auth URL, check for phone/tel input or login button
+            if (isStrictAuthUrl) {
+                const phoneOrUser = document.querySelector('input[type="tel"], input[name*="phone" i], input[name*="mobile" i], input[placeholder*="mobile" i], input[placeholder*="phone" i], input[autocomplete="username"]');
+                if (phoneOrUser) return true;
 
-            // 7. Page Headings & Instructions
-            const headings = document.querySelectorAll('h1, h2, h3, h4, label, p, .title, .subtitle');
-            const otpPhrases = ['login', 'sign in', 'enter mobile', 'enter phone', 'enter otp', 'enter verification code', 'verification code', 'one-time password', '6-digit', '4-digit', 'code sent to', 'security code', 'verify your account', 'two-factor'];
-            for (let i = 0; i < Math.min(headings.length, 25); i++) {
-                const text = (headings[i].textContent || '').toLowerCase();
-                if (otpPhrases.some(p => text.includes(p))) return true;
+                const authButtons = document.querySelectorAll('button, input[type="submit"], input[type="button"], [role="button"]');
+                for (let i = 0; i < Math.min(authButtons.length, 15); i++) {
+                    const text = (authButtons[i].textContent || authButtons[i].value || '').toLowerCase().trim();
+                    if (/(sign\s*in|log\s*in|send\s*otp|get\s*otp|verify)/i.test(text)) return true;
+                }
             }
-
-            // 8. Document Title
-            const docTitle = (document.title || '').toLowerCase();
-            if (/(login|sign\s*in|verify|verification|otp|authenticate)/i.test(docTitle)) return true;
         } catch (_) {}
         return false;
     }
@@ -480,17 +459,53 @@ function snapThanos(element) {
                 if (!hasSignaledLogin) {
                     hasSignaledLogin = true;
                     safeSendMessage({ action: "pc_login_detected", url: window.location.hostname, title: document.title });
-                    
-                    if (window.loginPingInterval) clearInterval(window.loginPingInterval);
-                    window.loginPingInterval = setInterval(() => {
-                        safeSendMessage({ action: "pc_login_detected", url: window.location.hostname, title: document.title });
-                    }, 5000);
                 }
+            } else if (hasSignaledLogin) {
+                hasSignaledLogin = false;
+                safeSendMessage({ action: "pc_login_cleared" });
             }
-        }, 250);
+        }, 300);
     }
 
-    // ─── Active User Activity & OTP Intent Reporting ──────────────────────────────
+    // ─── True OTP Input & Button Detection ─────────────────────────────────────────
+    function isExplicitOtpButton(el) {
+        if (!el) return false;
+        const btnText = (el.textContent || el.value || el.getAttribute('aria-label') || '').toLowerCase().trim();
+        const hasOtpText = /\b(otp|one[- ]?time|passcode|verification\s*code|security\s*code|auth\s*code)\b/i.test(btnText) ||
+                           /\b(resend|send|request|get)\s*(otp|code|pin|sms)\b/i.test(btnText) ||
+                           /^(send otp|get otp|request otp|resend otp|verify otp|submit otp)$/i.test(btnText);
+        const hasOtpIdOrClass = (el.id && /\b(otp|resend_?code|send_?otp|get_?otp)\b/i.test(el.id)) ||
+                                (typeof el.className === 'string' && /\b(otp|resend_?code|send_?otp)\b/i.test(el.className));
+        return hasOtpText || hasOtpIdOrClass;
+    }
+
+    function isExplicitOtpInput(el) {
+        if (!el || el.tagName !== 'INPUT') return false;
+        const type = (el.type || 'text').toLowerCase();
+        if (type !== 'text' && type !== 'tel' && type !== 'number' && type !== 'password') return false;
+        
+        const autocomplete = (el.getAttribute('autocomplete') || '').toLowerCase();
+        if (autocomplete === 'one-time-code') return true;
+
+        const id = (el.id || '').toLowerCase();
+        const name = (el.name || '').toLowerCase();
+        const placeholder = (el.placeholder || '').toLowerCase();
+        const aria = (el.getAttribute('aria-label') || '').toLowerCase();
+        const combined = `${id} ${name} ${placeholder} ${aria}`;
+
+        if (/\b(otp|passcode|verification[_-]?code|security[_-]?code|auth[_-]?code|2fa|mfa|two[_-]?factor)\b/i.test(combined)) {
+            return true;
+        }
+
+        // Segmented OTP boxes (e.g. 4-8 single char boxes)
+        if (el.maxLength === 1 && (el.pattern === '[0-9]*' || type === 'tel' || type === 'number' || el.inputMode === 'numeric')) {
+            return true;
+        }
+
+        return false;
+    }
+
+    // ─── Active User Activity & Genuine OTP Intent Reporting ──────────────────────
     let lastActivityReport = 0;
     function reportUserActivity() {
         const now = Date.now();
@@ -503,33 +518,26 @@ function snapThanos(element) {
     window.addEventListener('keydown', reportUserActivity, { passive: true });
     window.addEventListener('pointerdown', reportUserActivity, { passive: true });
 
-    // Listen to user clicking "Send OTP", "Request OTP", "Resend Code", "Login", "Continue", etc.
+    // Listen to user clicking a genuine "Send OTP" / "Resend Code" button
     document.addEventListener('click', (e) => {
         reportUserActivity();
         const target = e.target;
         if (!target) return;
         const el = target.closest('button, a, input[type="button"], input[type="submit"], [role="button"], div[role="button"], span[role="button"]');
-        if (el) {
-            const btnText = (el.textContent || el.value || el.getAttribute('aria-label') || '').toLowerCase().trim();
-            const isOtpButton = /(send|get|request|resend|verify|submit|continue|next|proceed|login|signin|sign in|auth|confirm|generate|pay|checkout)\s*(otp|code|pin|passcode|verification)?/i.test(btnText) ||
-                                /^(resend|send otp|get otp|request otp|verify|continue|proceed|submit|next|login|sign in|confirm|generate otp|pay|checkout)$/i.test(btnText) ||
-                                (el.id && /otp|resend|verify|login|submit|auth|confirm|checkout/i.test(el.id)) ||
-                                (typeof el.className === 'string' && /otp|resend|verify|login|submit|auth|confirm|checkout/i.test(el.className));
-            if (isOtpButton) {
-                safeSendMessage({
-                    action: "otp_intent",
-                    host: window.location.hostname,
-                    title: document.title
-                });
-            }
+        if (el && isExplicitOtpButton(el)) {
+            safeSendMessage({
+                action: "otp_intent",
+                host: window.location.hostname,
+                title: document.title
+            });
         }
     }, { passive: true });
 
-    // When focusing or typing in ANY input on a webpage, report OTP intent with current domain
+    // ONLY when focusing or typing in a GENUINE OTP input box, report OTP intent
     document.addEventListener('focusin', (e) => {
         reportUserActivity();
         const target = e.target;
-        if (target && target.tagName === 'INPUT') {
+        if (target && isExplicitOtpInput(target)) {
             safeSendMessage({
                 action: "otp_intent",
                 host: window.location.hostname,
@@ -541,23 +549,13 @@ function snapThanos(element) {
     document.addEventListener('input', (e) => {
         reportUserActivity();
         const target = e.target;
-        if (target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA')) {
+        if (target && isExplicitOtpInput(target)) {
             safeSendMessage({
                 action: "otp_intent",
                 host: window.location.hostname,
                 title: document.title
             });
         }
-    }, { passive: true });
-
-    // Form submission is an unmistakable sign of user intent
-    document.addEventListener('submit', () => {
-        reportUserActivity();
-        safeSendMessage({
-            action: "otp_intent",
-            host: window.location.hostname,
-            title: document.title
-        });
     }, { passive: true });
 
     // SPA routing changes (React / Vue / Angular / Next.js)
